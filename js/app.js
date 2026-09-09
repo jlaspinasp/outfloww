@@ -80,6 +80,7 @@ function applyTheme(theme) {
 
     const icon = $("#themeToggleIcon");
     const label = $("#themeToggleLabel");
+    const mobileIcon = $("#mobileThemeToggleIcon");
 
     if (icon) {
         icon.textContent = theme === "light" ? "☀️" : "🌙";
@@ -87,6 +88,10 @@ function applyTheme(theme) {
 
     if (label) {
         label.textContent = theme === "light" ? "Light mode" : "Dark mode";
+    }
+
+    if (mobileIcon) {
+        mobileIcon.textContent = theme === "light" ? "☀️" : "🌙";
     }
 
 }
@@ -3092,6 +3097,12 @@ $("#viewModalDelete").addEventListener(
 
 
 $("#themeToggle").addEventListener(
+    "click",
+    toggleTheme
+);
+
+
+$("#mobileThemeToggle").addEventListener(
     "click",
     toggleTheme
 );
