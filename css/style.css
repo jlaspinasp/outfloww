@@ -246,6 +246,7 @@ nav {
 
 
 .nav-btn {
+    position: relative;
     border: 0;
     background: transparent;
     color: var(--sidebar-muted);
@@ -268,6 +269,19 @@ nav {
     background: var(--sidebar-active);
     color: #ffffff;
     font-weight: 600;
+}
+
+
+.nav-btn.active::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--accent);
 }
 
 
@@ -1498,6 +1512,15 @@ label {
     .nav-btn.active {
         background: var(--sidebar-active);
         color: #ffffff;
+    }
+
+
+    .nav-btn.active::before {
+        left: 50%;
+        top: 2px;
+        transform: translateX(-50%);
+        width: 16px;
+        height: 3px;
     }
 
 
