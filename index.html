@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e1f22">
+    <title>Outfloww</title>
+    <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="css/style.css?v=2">
+
+    <script>
+        (function () {
+            var t = localStorage.getItem("chatterTool_theme");
+            if (t === "light") {
+                document.documentElement.setAttribute("data-theme", "light");
+            }
+        })();
+    </script>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="logo">
+             <span>OUT</span>FLOWW
+        </div>
+
+        <nav>
+            <button class="nav-btn" data-page="models">
+                👤 <span>Models</span>
+            </button>
+
+            <button class="nav-btn active" data-page="sales">
+                💰 <span>Sales</span>
+            </button>
+
+            <button class="nav-btn" data-page="scripts">
+                📝 <span>Scripts</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <button
+                class="theme-toggle"
+                id="themeToggle"
+                type="button"
+            >
+                <span>
+                    <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
+                    <span id="themeToggleLabel">Dark mode</span>
+                </span>
+                <span>⇄</span>
+            </button>
+
+            <div class="backup-group">
+
+                <button
+                    class="backup-btn"
+                    id="exportDataBtn"
+                    type="button"
+                    title="Export all data to a file"
+                >
+                    <span class="backup-btn-icon">⬇️</span>
+                    <span>Export data</span>
+                </button>
+
+                <button
+                    class="backup-btn"
+                    id="importDataBtn"
+                    type="button"
+                    title="Import data from a backup file"
+                >
+                    <span class="backup-btn-icon">⬆️</span>
+                    <span>Import data</span>
+                </button>
+
+                <input
+                    type="file"
+                    id="importFileInput"
+                    accept=".json,application/json"
+                    hidden
+                >
+
+            </div>
+
+
+            <button
+                class="backup-btn account-btn hidden"
+                id="signOutBtn"
+                type="button"
+                title="Sign out"
+            >
+                <span class="backup-btn-icon">👤</span>
+                <span id="accountEmail">Signed in</span>
+                <span class="account-btn-signout">Sign out</span>
+            </button>
+
+
+            <div class="sidebar-note">
+                Personal Chatter Tool
+                <span>By Jun</span>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- MOBILE HEADER -->
+        <header class="mobile-header">
+            <div class="logo">
+                 <span>OUT</span>FLOWW
+            </div>
+        </header>
+
+
+        <!-- ================= MODELS ================= -->
+
+        <section id="models" class="page">
+
+            <div class="top">
+
+                <div>
+                    <h1>Models</h1>
+
+                    <p class="sub">
+                        Info, preferences and notes for each model.
+                    </p>
+                </div>
+
+                <button
+                    class="btn top-btn add-content"
+                    data-type="models"
+                >
+                    + New Model
+                </button>
+
+            </div>
+
+
+            <div class="toolbar">
+
+                <input
+                    class="search"
+                    data-target="modelsList"
+                    placeholder="🔍 Search models..."
+                >
+
+            </div>
+
+
+            <div
+                id="modelsList"
+                class="content-grid"
+            ></div>
+
+            <div
+                id="modelsEmpty"
+                class="empty"
+            >
+                No models yet. Add your first one.
+            </div>
+
+        </section>
+
+
+
+        <!-- ================= SALES ================= -->
+
+        <section id="sales" class="page active">
+
+            <div class="top">
+
+                <div>
+                    <div class="sales-title-row">
+                        <h1>Sales</h1>
+                        <span
+                            id="activeModelBadge"
+                            class="active-model-badge hidden"
+                        ></span>
+                    </div>
+                    <p class="sub" id="todayLabel"></p>
+                </div>
+
+                <div class="top-actions">
+
+                    <button class="btn top-btn" id="clearSales">
+                        Clear today
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- STATS -->
+
+            <div class="stats">
+
+                <div class="card">
+                    <div class="stat-label">
+                        Gross sales
+                    </div>
+
+                    <div class="stat" id="gross">
+                        $0.00
+                    </div>
+                </div>
+
+
+                <div class="card">
+
+                    <div class="stat-label">
+                        Net earnings · 80%
+                    </div>
+
+                    <div class="stat net" id="net">
+                        $0.00
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="stat-label">
+                        PPVs Unlocked
+                    </div>
+
+                    <div class="stat" id="saleCount">
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- TRENDS -->
+
+            <div class="card trends-card section">
+
+                <div class="section-head">
+                    <h2>Trends</h2>
+
+                    <div class="trend-toggle">
+                        <button class="trend-toggle-btn active" data-range="week">Weekly</button>
+                        <button class="trend-toggle-btn" data-range="month">Monthly</button>
+                    </div>
+                </div>
+
+                <div class="trend-summary" id="trendSummary"></div>
+
+                <div class="trend-bars" id="trendBars"></div>
+
+            </div>
+
+
+            <!-- ADD SALE + DAILY TARGET + TODAY'S SALES -->
+
+            <div class="sales-layout section">
+
+                <div class="sales-layout-left">
+
+                    <div class="card">
+
+                        <div class="section-head">
+                            <h2>Add a sale</h2>
+
+                            <div
+                                id="modelAvatarStrip"
+                                class="model-avatar-strip"
+                            ></div>
+                        </div>
+
+
+                        <form class="sale-box" id="saleForm">
+
+                            <input
+                                id="saleAmount"
+                                type="number"
+                                min="0.01"
+                                max="200"
+                                step="0.01"
+                                placeholder="Enter amount, e.g. 80 (max $200)"
+                                required
+                            >
+
+                            <button
+                                class="btn primary"
+                                type="submit"
+                            >
+                                + Add Sale
+                            </button>
+
+                        </form>
+
+                    </div>
+
+
+                    <div class="card">
+
+                        <div class="section-head">
+                            <h2>Daily target</h2>
+
+                            <button
+                                class="icon-btn"
+                                id="openTargetModal"
+                                type="button"
+                                title="Set daily target"
+                            >
+                                ⚙️
+                            </button>
+                        </div>
+
+                        <div
+                            id="targetProgress"
+                            class="target-progress"
+                        >
+
+                            <div class="progress-track">
+                                <div
+                                    id="progressFill"
+                                    class="progress-fill"
+                                ></div>
+                            </div>
+
+                            <div
+                                id="progressLabel"
+                                class="progress-label"
+                            ></div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="card history-card">
+
+                        <div class="section-head">
+                            <h2>History</h2>
+
+                            <button
+                                class="icon-btn"
+                                id="openHistoryModal"
+                                type="button"
+                                title="View full history"
+                            >
+                                ⤢
+                            </button>
+                        </div>
+
+                        <div class="history-list-wrap">
+
+                            <div
+                                id="mainHistoryList"
+                                class="history-list"
+                            ></div>
+
+                            <div
+                                id="mainHistoryEmpty"
+                                class="empty"
+                            >
+                                Your previous days will appear here.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- TODAY'S SALES -->
+
+                <div class="card sales-layout-right">
+
+                    <div class="section-head">
+                        <h2>Today's sales</h2>
+                    </div>
+
+                    <div class="sales-list-wrap">
+
+                        <div
+                            id="salesList"
+                            class="sales-list"
+                        ></div>
+
+                        <div
+                            id="emptySales"
+                            class="empty"
+                        >
+                            No sales added today.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+
+        <!-- ================= SCRIPTS ================= -->
+
+        <section id="scripts" class="page">
+
+            <div class="top">
+
+                <div>
+                    <h1>Scripts</h1>
+
+                    <p class="sub">
+                        Your reusable conversation scripts.
+                    </p>
+                </div>
+
+                <button
+                    class="btn top-btn add-content"
+                    data-type="scripts"
+                >
+                    + New Script
+                </button>
+
+            </div>
+
+
+            <div class="toolbar">
+
+                <input
+                    class="search"
+                    data-target="scriptsList"
+                    placeholder="🔍 Search scripts..."
+                >
+
+
+                <div
+                    class="chips"
+                    data-filter="scripts"
+                    id="scriptsChips"
+                ></div>
+
+            </div>
+
+
+            <div
+                id="scriptsList"
+                class="content-grid"
+            ></div>
+
+            <div
+                id="scriptsEmpty"
+                class="empty"
+            >
+                No scripts yet. Add your first one.
+            </div>
+
+        </section>
+
+
+
+    </main>
+
+</div>
+
+
+
+<!-- ================= TARGET MODAL ================= -->
+
+<div
+    id="targetModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="section-head">
+
+            <h2>
+                Set Daily Target
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeTargetModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="targetForm">
+
+            <label>
+
+                Target amount ($, based on net earnings)
+
+                <input
+                    id="targetAmount"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="e.g. 500"
+                >
+
+            </label>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelTargetModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= HISTORY MODAL ================= -->
+
+<div
+    id="historyModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="section-head">
+
+            <h2>
+                Sales History
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeHistoryModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div
+            id="historyList"
+            class="history-list"
+        ></div>
+
+        <div
+            id="emptyHistory"
+            class="empty"
+        >
+            Your previous days will appear here.
+        </div>
+
+        <div class="modal-actions">
+
+            <button
+                class="btn"
+                id="clearHistory"
+                type="button"
+            >
+                Clear history
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= MODAL ================= -->
+
+<div
+    id="modal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="section-head">
+
+            <h2 id="modalTitle">
+                Add Item
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="contentForm">
+
+            <label>
+
+                <span id="contentTitleLabel">Title</span>
+
+                <input
+                    id="contentTitle"
+                    required
+                    placeholder="e.g. New Subscriber Greeting"
+                >
+
+            </label>
+
+
+            <label id="categoryField">
+
+                Category
+
+                <select id="contentCategory"></select>
+
+            </label>
+
+
+            <label>
+
+                <span id="contentTextLabel">Text</span>
+
+                <textarea
+                    id="contentText"
+                    rows="7"
+                    required
+                    placeholder="Write your message here..."
+                ></textarea>
+
+            </label>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= VIEW MODAL ================= -->
+
+<div
+    id="viewModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card wide">
+
+        <div class="section-head">
+
+            <h2 id="viewModalTitle">
+                Title
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeViewModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div
+            id="viewModalMeta"
+            class="view-modal-meta"
+        ></div>
+
+        <div class="view-modal-text-wrap">
+
+            <div
+                id="viewModalText"
+                class="view-modal-text"
+            ></div>
+
+            <div
+                id="viewModalFade"
+                class="view-modal-fade"
+            >
+                <span>Scroll for more ↓</span>
+            </div>
+
+        </div>
+
+        <div class="modal-actions">
+
+            <button
+                class="btn"
+                id="viewModalCopy"
+                type="button"
+            >
+                📋 Copy
+            </button>
+
+            <button
+                class="btn"
+                id="viewModalEdit"
+                type="button"
+            >
+                ✏️ Edit
+            </button>
+
+            <button
+                class="btn"
+                id="viewModalDelete"
+                type="button"
+            >
+                🗑 Delete
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SIGN IN GATE ================= -->
+
+<div
+    id="authGate"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="section-head">
+            <h2>Sign in</h2>
+        </div>
+
+        <p class="sub">
+            Sign in with your Google account to sync your data across devices.
+        </p>
+
+        <p id="authError" class="auth-error hidden"></p>
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="btn primary"
+                id="googleSignInBtn"
+            >
+                <span class="google-icon" aria-hidden="true">G</span>
+                Sign in with Google
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div
+    id="syncStatus"
+    class="sync-status hidden"
+></div>
+
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-init.js"></script>
+<script src="js/app.js?v=2"></script>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+</body>
+</html>
