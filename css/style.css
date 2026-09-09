@@ -431,6 +431,11 @@ nav {
 }
 
 
+.mobile-theme-toggle {
+    display: none;
+}
+
+
 .page {
     display: none;
 }
@@ -1538,7 +1543,9 @@ label {
 
 
     .mobile-header {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         margin-bottom: 20px;
     }
 
@@ -1548,6 +1555,27 @@ label {
         font-size: 18px;
         color: var(--text);
         font-weight: 800;
+    }
+
+
+    .mobile-theme-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        font-size: 15px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+
+    .mobile-theme-toggle:hover {
+        background: var(--sidebar-hover);
+        border-color: var(--border-strong);
     }
 
 
