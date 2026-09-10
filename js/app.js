@@ -106,6 +106,138 @@ function initTheme() {
 }
 
 
+const SIDEBAR_KEY = "chatterTool_sidebarCollapsed";
+
+
+function applySidebarCollapsed(collapsed) {
+
+    const app = $(".app");
+    const btn = $("#sidebarCollapseBtn");
+
+    if (app) {
+        app.classList.toggle("sidebar-collapsed", collapsed);
+    }
+
+    if (btn) {
+        btn.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    }
+
+}
+
+
+function initSidebarCollapse() {
+
+    const saved = localStorage.getItem(SIDEBAR_KEY) === "true";
+
+    applySidebarCollapsed(saved);
+
+    alignCollapsedLogout();
+
+}
+
+
+function toggleSidebarCollapse() {
+
+    const app = $(".app");
+
+    const next = !app.classList.contains("sidebar-collapsed");
+
+    localStorage.setItem(SIDEBAR_KEY, String(next));
+
+    applySidebarCollapsed(next);
+
+    // .main's width/margin-left transition (0.18s) moves the sales card,
+    // so we track the logout button's target spot on every frame for the
+    // duration of that transition. That makes it glide into place in
+    // step with the sidebar, instead of sitting at the raw bottom of the
+    // sidebar and only snapping into its aligned spot once the
+    // transition finishes.
+    animateCollapsedLogout();
+
+}
+
+
+/* Keep the collapsed sidebar's logout button lined up with the
+   bottom edge of the "Today's sales" card, since the sidebar is
+   fixed but the card's on-screen position depends on scroll/page. */
+let _alignLogoutRaf = null;
+
+function alignLogoutNow() {
+
+    const app = $(".app");
+    const sidebarBottom = $(".sidebar-bottom");
+    const salesCard = document.querySelector(
+        "#sales.page.active .sales-layout-right"
+    );
+
+    if (!app || !sidebarBottom) {
+        return;
+    }
+
+    const isCollapsed = app.classList.contains("sidebar-collapsed");
+
+    if (!isCollapsed || !salesCard) {
+        sidebarBottom.style.marginBottom = "";
+        return;
+    }
+
+    sidebarBottom.style.marginBottom = "0px";
+
+    const currentBottom = sidebarBottom.getBoundingClientRect().bottom;
+    const targetBottom = salesCard.getBoundingClientRect().bottom;
+    const delta = Math.max(0, currentBottom - targetBottom);
+
+    sidebarBottom.style.marginBottom = delta + "px";
+
+}
+
+
+function alignCollapsedLogout() {
+
+    if (_alignLogoutRaf) {
+        cancelAnimationFrame(_alignLogoutRaf);
+    }
+
+    _alignLogoutRaf = requestAnimationFrame(alignLogoutNow);
+
+}
+
+
+/* Re-measure every frame for the length of .main's collapse/expand
+   transition (0.18s in style.css), so the logout button's position
+   tracks the sales card in real time instead of jumping once at the end. */
+let _logoutAnimDeadline = 0;
+let _logoutAnimRaf = null;
+
+function animateCollapsedLogout() {
+
+    _logoutAnimDeadline = performance.now() + 260; // transition length + buffer
+
+    if (_logoutAnimRaf) {
+        cancelAnimationFrame(_logoutAnimRaf);
+    }
+
+    const tick = function () {
+
+        alignLogoutNow();
+
+        if (performance.now() < _logoutAnimDeadline) {
+            _logoutAnimRaf = requestAnimationFrame(tick);
+        } else {
+            _logoutAnimRaf = null;
+        }
+
+    };
+
+    tick();
+
+}
+
+
+window.addEventListener("resize", alignCollapsedLogout);
+window.addEventListener("scroll", alignCollapsedLogout, { passive: true });
+
+
 function toggleTheme() {
 
     const current =
@@ -167,6 +299,8 @@ let lastPushedJSON = null;
 let pushTimer = null;
 
 
+let syncFadeTimer = null;
+
 function setSyncStatus(state) {
 
     const el = $("#syncStatus");
@@ -175,13 +309,22 @@ function setSyncStatus(state) {
         return;
     }
 
+    clearTimeout(syncFadeTimer);
+
     el.classList.remove("synced", "syncing", "offline");
     el.classList.add(state);
+    el.classList.add("show");
 
     el.textContent =
         state === "synced" ? "Synced" :
         state === "syncing" ? "Syncing…" :
         "Offline";
+
+    if (state === "synced") {
+        syncFadeTimer = setTimeout(() => {
+            el.classList.remove("show");
+        }, 1500);
+    }
 
 }
 
@@ -935,6 +1078,8 @@ function renderSales() {
     renderHistory();
 
     renderTrends();
+
+    alignCollapsedLogout();
 }
 
 
@@ -1728,6 +1873,8 @@ $$(".nav-btn").forEach(
                 ).classList.add(
                     "active"
                 );
+
+                alignCollapsedLogout();
 
             }
         );
@@ -3275,6 +3422,18 @@ $("#viewModalDelete").addEventListener(
 );
 
 
+$("#settingsBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    $("#settingsBtn").closest(".settings-group").classList.toggle("open");
+});
+
+document.addEventListener("click", function (e) {
+    const group = $("#settingsBtn").closest(".settings-group");
+    if (group.classList.contains("open") && !group.contains(e.target)) {
+        group.classList.remove("open");
+    }
+});
+
 $("#themeToggle").addEventListener(
     "click",
     toggleTheme
@@ -3284,6 +3443,12 @@ $("#themeToggle").addEventListener(
 $("#mobileThemeToggle").addEventListener(
     "click",
     toggleTheme
+);
+
+
+$("#sidebarCollapseBtn").addEventListener(
+    "click",
+    toggleSidebarCollapse
 );
 
 
@@ -3459,6 +3624,8 @@ $("#importFileInput").addEventListener(
 
 
 initTheme();
+
+initSidebarCollapse();
 
 renderAll();
 
