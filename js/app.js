@@ -634,53 +634,92 @@ function getAvatarColor(id) {
 }
 
 
-function renderModelAvatarStrip() {
+function selectModel(modelId) {
 
-    const strip = $("#modelAvatarStrip");
+    currentModelFilter = modelId || null;
 
-    if (!strip) {
-        return;
-    }
-
-    const modelButtons = data.models.map(model => `
-        <button
-            type="button"
-            class="model-avatar ${currentModelFilter === model.id ? "active" : ""}"
-            data-model="${model.id}"
-            title="${escapeHTML(model.title)}"
-            style="--avatar-color:${getAvatarColor(model.id)}"
-        >
-            ${escapeHTML(getInitials(model.title))}
-        </button>
-    `).join("");
-
-    strip.innerHTML = `
-        <button
-            type="button"
-            class="model-avatar all-avatar ${currentModelFilter === null ? "active" : ""}"
-            data-model=""
-            title="All models"
-        >
-            All
-        </button>
-        ${modelButtons}
-    `;
+    renderSales();
 }
 
 
-$("#modelAvatarStrip").addEventListener(
+$("#activeModelBadge").addEventListener(
+    "click",
+    function () {
+        selectModel(null);
+    }
+);
+
+
+/* =====================================================
+   MODEL PICKER (set a model's daily target)
+   ===================================================== */
+
+
+function renderModelPickerList() {
+
+    $("#modelPickerList").innerHTML =
+        data.models.map(model => `
+            <button
+                type="button"
+                class="model-picker-item"
+                data-model="${model.id}"
+            >
+                <span
+                    class="target-breakdown-dot"
+                    style="background:${getAvatarColor(model.id)}"
+                ></span>
+                ${escapeHTML(model.title)}
+            </button>
+        `).join("") ||
+        `<div class="model-picker-empty">No models yet.</div>`;
+}
+
+
+$("#openModelPicker").addEventListener(
+    "click",
+    function () {
+
+        renderModelPickerList();
+
+        $("#modelPickerList").classList.toggle(
+            "hidden"
+        );
+    }
+);
+
+
+$("#modelPickerList").addEventListener(
     "click",
     function (event) {
 
-        const btn = event.target.closest(".model-avatar");
+        const btn = event.target.closest(".model-picker-item");
 
         if (!btn) {
             return;
         }
 
-        currentModelFilter = btn.dataset.model || null;
+        $("#modelPickerList").classList.add(
+            "hidden"
+        );
 
-        renderSales();
+        selectModel(btn.dataset.model);
+
+        openTargetModal();
+    }
+);
+
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target.closest(".model-picker")) {
+            return;
+        }
+
+        $("#modelPickerList").classList.add(
+            "hidden"
+        );
     }
 );
 
@@ -774,8 +813,6 @@ function computeModelDailyRows(modelId, excludeToday) {
 
 function renderSales() {
 
-    renderModelAvatarStrip();
-
     const activeModel =
         currentModelFilter === null
             ? null
@@ -816,6 +853,7 @@ function renderSales() {
 
             modelBadge.textContent = activeModel.title;
             modelBadge.classList.remove("hidden");
+            modelBadge.title = "Back to all models";
 
         } else {
 
@@ -844,18 +882,6 @@ function renderSales() {
 
     // Target progress (based on net earnings, per current context)
     renderTargetProgress(net);
-
-
-    // The "All models" target is a derived total, not editable —
-    // hide the gear button so it can't be opened in that view.
-    const targetEditBtn = $("#openTargetModal");
-
-    if (targetEditBtn) {
-        targetEditBtn.classList.toggle(
-            "hidden",
-            currentModelFilter === null
-        );
-    }
 
 
     // Individual sales
@@ -936,46 +962,216 @@ function getTargetPercent(net, target) {
 
 function renderTargetProgress(net) {
 
-    const target = getCurrentTarget();
+    // The per-model breakdown always stays visible now — model
+    // selection (for logging a sale) no longer swaps it away.
+    $("#targetProgress").classList.add("hidden");
+    $("#targetBreakdownWrap").classList.add("active");
 
-    const percent =
-        getTargetPercent(net, target);
+    renderTargetBreakdown();
+}
 
 
-    if (percent === null) {
+function renderTargetBreakdown() {
 
-        $("#progressFill").style.width =
-            "0%";
+    const todaySales = getTodaySales();
 
-        $("#progressFill").classList.remove(
-            "hit"
+    const rows = data.models.map(model => {
+
+        const sales = todaySales.filter(
+            sale => sale.modelId === model.id
         );
 
-        $("#progressLabel").textContent =
-            currentModelFilter === null
-                ? "Set daily targets on each model's tab to see a combined total here."
-                : "Set a daily target (⚙️ above) to start tracking progress.";
+        const net = getTotal(sales) * NET_RATE;
+        const target = data.modelTargets[model.id] || 0;
 
-        return;
-    }
+        const percent =
+            target > 0
+                ? Math.round((net / target) * 100)
+                : null;
+
+        return { model, net, target, percent };
+    });
 
 
-    const displayWidth =
-        Math.min(percent, 100);
+    $("#targetBreakdownEmpty").style.display =
+        rows.length
+            ? "none"
+            : "block";
 
-    $("#progressFill").style.width =
-        displayWidth + "%";
 
-    $("#progressFill").classList.toggle(
-        "hit",
-        percent >= 100
-    );
+    $("#targetBreakdown").innerHTML =
+        rows.map(({ model, net, target, percent }) => {
 
-    $("#progressLabel").textContent =
-        percent >= 100
-            ? `🎉 ${percent}% of target — ${money(net)} net / ${money(target)}`
-            : `${percent}% of target — ${money(net)} net / ${money(target)}`;
+            const hit = percent !== null && percent >= 100;
+            const displayPercent =
+                percent === null ? 0 : Math.min(percent, 100);
+
+            return `
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}" data-model="${model.id}" draggable="true" title="Select to add a sale for ${escapeHTML(model.title)}">
+
+                    <div class="target-breakdown-head">
+                        <span
+                            class="target-breakdown-name"
+                            style="${model.id === currentModelFilter ? `--badge-color:${getAvatarColor(model.id)}` : ""}"
+                        >
+                            <span
+                                class="target-breakdown-dot"
+                                style="background:${getAvatarColor(model.id)}"
+                            ></span>
+                            <span class="target-breakdown-title">${escapeHTML(model.title)}</span>
+                        </span>
+                        <span>
+                            ${percent === null
+                                ? "No target"
+                                : hit
+                                    ? "🎉 Hit"
+                                    : `${displayPercent}%`}
+                        </span>
+                    </div>
+
+                    <div class="progress-track">
+                        <div
+                            class="progress-fill${hit ? " hit" : ""}"
+                            style="width:${displayPercent}%"
+                        ></div>
+                    </div>
+
+                    <div class="progress-label">
+                        ${target > 0
+                            ? `${money(net)} net / ${money(target)}`
+                            : "Set a target in this model's tab."}
+                    </div>
+
+                </div>
+            `;
+        }).join("");
 }
+
+
+$("#targetBreakdown").addEventListener(
+    "click",
+    function (event) {
+
+        const row = event.target.closest(".target-breakdown-row");
+
+        if (!row) {
+            return;
+        }
+
+        selectModel(
+            row.dataset.model === currentModelFilter
+                ? null
+                : row.dataset.model
+        );
+    }
+);
+
+
+$("#targetBreakdown").addEventListener(
+    "dragstart",
+    function (event) {
+
+        const row =
+            event.target.closest(".target-breakdown-row");
+
+        if (!row) {
+            return;
+        }
+
+        dragState = {
+            type: "models",
+            id: row.dataset.model
+        };
+
+        row.classList.add("dragging");
+
+        event.dataTransfer.effectAllowed = "move";
+
+        event.dataTransfer.setData(
+            "text/plain",
+            row.dataset.model
+        );
+    }
+);
+
+
+$("#targetBreakdown").addEventListener(
+    "dragover",
+    function (event) {
+
+        if (!dragState || dragState.type !== "models") {
+            return;
+        }
+
+        const row =
+            event.target.closest(".target-breakdown-row");
+
+        if (!row) {
+            return;
+        }
+
+        event.preventDefault();
+
+        event.dataTransfer.dropEffect = "move";
+
+        $$(".target-breakdown-row.drag-over").forEach(
+            el => el.classList.remove("drag-over")
+        );
+
+        if (row.dataset.model !== dragState.id) {
+            row.classList.add("drag-over");
+        }
+    }
+);
+
+
+$("#targetBreakdown").addEventListener(
+    "drop",
+    function (event) {
+
+        if (!dragState || dragState.type !== "models") {
+            return;
+        }
+
+        const row =
+            event.target.closest(".target-breakdown-row");
+
+        $$(".target-breakdown-row.drag-over").forEach(
+            el => el.classList.remove("drag-over")
+        );
+
+        if (!row) {
+            return;
+        }
+
+        event.preventDefault();
+
+        reorderItem(
+            "models",
+            dragState.id,
+            row.dataset.model
+        );
+
+        renderTargetBreakdown();
+    }
+);
+
+
+$("#targetBreakdown").addEventListener(
+    "dragend",
+    function () {
+
+        $$(".target-breakdown-row.dragging").forEach(
+            el => el.classList.remove("dragging")
+        );
+
+        $$(".target-breakdown-row.drag-over").forEach(
+            el => el.classList.remove("drag-over")
+        );
+
+        dragState = null;
+    }
+);
 
 
 /* =====================================================
@@ -1008,12 +1204,6 @@ function closeTargetModal() {
         "hidden"
     );
 }
-
-
-$("#openTargetModal").addEventListener(
-    "click",
-    openTargetModal
-);
 
 
 $("#closeTargetModal").addEventListener(
@@ -1331,16 +1521,8 @@ function renderHistory() {
     $("#historyList").innerHTML =
         historyRowsHtml;
 
-    $("#mainHistoryList").innerHTML =
-        historyRowsHtml;
-
 
     $("#emptyHistory").style.display =
-        history.length
-            ? "none"
-            : "block";
-
-    $("#mainHistoryEmpty").style.display =
         history.length
             ? "none"
             : "block";
@@ -1907,9 +2089,6 @@ function renderContent(type) {
                 : "block";
 
 
-    if (type === "models") {
-        renderModelAvatarStrip();
-    }
 }
 
 
