@@ -25,68 +25,96 @@
 <div class="app">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
+
+        <button
+            class="sidebar-collapse-btn"
+            id="sidebarCollapseBtn"
+            type="button"
+            title="Collapse sidebar"
+        >
+            ‹
+        </button>
 
         <div class="logo">
              <span>OUT</span>FLOWW
         </div>
 
         <nav>
-            <button class="nav-btn" data-page="models">
-                👤 <span>Models</span>
+            <button class="nav-btn" data-page="models" title="Models">
+                👩 <span>Models</span>
             </button>
 
-            <button class="nav-btn active" data-page="sales">
+            <button class="nav-btn active" data-page="sales" title="Sales">
                 💰 <span>Sales</span>
             </button>
 
-            <button class="nav-btn" data-page="scripts">
+            <button class="nav-btn" data-page="scripts" title="Scripts">
                 📝 <span>Scripts</span>
             </button>
         </nav>
 
         <div class="sidebar-bottom">
 
-            <button
-                class="theme-toggle"
-                id="themeToggle"
-                type="button"
-            >
-                <span>
-                    <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
-                    <span id="themeToggleLabel">Dark mode</span>
-                </span>
-                <span>⇄</span>
-            </button>
-
-            <div class="backup-group">
+            <div class="settings-group">
 
                 <button
-                    class="backup-btn"
-                    id="exportDataBtn"
+                    class="settings-btn"
+                    id="settingsBtn"
                     type="button"
-                    title="Export all data to a file"
+                    title="Settings"
                 >
-                    <span class="backup-btn-icon">⬇️</span>
-                    <span>Export data</span>
+                    <span class="settings-btn-icon">⚙️</span>
+                    <span>Settings</span>
                 </button>
 
-                <button
-                    class="backup-btn"
-                    id="importDataBtn"
-                    type="button"
-                    title="Import data from a backup file"
-                >
-                    <span class="backup-btn-icon">⬆️</span>
-                    <span>Import data</span>
-                </button>
+                <div class="settings-popover" id="settingsPopover">
 
-                <input
-                    type="file"
-                    id="importFileInput"
-                    accept=".json,application/json"
-                    hidden
-                >
+                    <button
+                        class="theme-toggle"
+                        id="themeToggle"
+                        type="button"
+                        title="Toggle light/dark mode"
+                    >
+                        <span>
+                            <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
+                            <span id="themeToggleLabel">Dark mode</span>
+                        </span>
+                        <span>⇄</span>
+                    </button>
+
+                    <div class="backup-group">
+
+                        <button
+                            class="backup-btn"
+                            id="exportDataBtn"
+                            type="button"
+                            title="Export all data to a file"
+                        >
+                            <span class="backup-btn-icon">⬇️</span>
+                            <span>Export data</span>
+                        </button>
+
+                        <button
+                            class="backup-btn"
+                            id="importDataBtn"
+                            type="button"
+                            title="Import data from a backup file"
+                        >
+                            <span class="backup-btn-icon">⬆️</span>
+                            <span>Import data</span>
+                        </button>
+
+                        <input
+                            type="file"
+                            id="importFileInput"
+                            accept=".json,application/json"
+                            hidden
+                        >
+
+                    </div>
+
+                </div>
 
             </div>
 
@@ -97,7 +125,7 @@
                 type="button"
                 title="Sign out"
             >
-                <span class="backup-btn-icon">👤</span>
+                <span class="backup-btn-icon">🚪</span>
                 <span id="accountEmail">Signed in</span>
                 <span class="account-btn-signout">Sign out</span>
             </button>
