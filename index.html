@@ -263,6 +263,14 @@
                     <h2>Overview</h2>
 
                     <div class="trend-toggle">
+                        <button
+                            class="icon-btn"
+                            id="openHistoryModal"
+                            type="button"
+                            title="View full history"
+                        >
+                            ⤢
+                        </button>
                         <button class="trend-toggle-btn active" data-range="week">Weekly</button>
                         <button class="trend-toggle-btn" data-range="month">Monthly</button>
                     </div>
@@ -281,15 +289,28 @@
 
                 <div class="sales-layout-left">
 
-                    <div class="card">
+                    <div class="card target-card">
 
                         <div class="section-head">
                             <h2>Add a sale</h2>
 
-                            <div
-                                id="modelAvatarStrip"
-                                class="model-avatar-strip"
-                            ></div>
+                            <div class="model-picker">
+
+                                <button
+                                    class="icon-btn"
+                                    id="openModelPicker"
+                                    type="button"
+                                    title="Set a model's target"
+                                >
+                                    🎯
+                                </button>
+
+                                <div
+                                    id="modelPickerList"
+                                    class="model-picker-list hidden"
+                                ></div>
+
+                            </div>
                         </div>
 
 
@@ -314,23 +335,6 @@
 
                         </form>
 
-                    </div>
-
-
-                    <div class="card">
-
-                        <div class="section-head">
-                            <h2>Daily target</h2>
-
-                            <button
-                                class="icon-btn"
-                                id="openTargetModal"
-                                type="button"
-                                title="Set daily target"
-                            >
-                                ⚙️
-                            </button>
-                        </div>
 
                         <div
                             id="targetProgress"
@@ -351,36 +355,21 @@
 
                         </div>
 
-                    </div>
-
-
-                    <div class="card history-card">
-
-                        <div class="section-head">
-                            <h2>History</h2>
-
-                            <button
-                                class="icon-btn"
-                                id="openHistoryModal"
-                                type="button"
-                                title="View full history"
-                            >
-                                ⤢
-                            </button>
-                        </div>
-
-                        <div class="history-list-wrap">
+                        <div
+                            id="targetBreakdownWrap"
+                            class="target-breakdown-wrap"
+                        >
 
                             <div
-                                id="mainHistoryList"
-                                class="history-list"
+                                id="targetBreakdown"
+                                class="target-breakdown"
                             ></div>
 
                             <div
-                                id="mainHistoryEmpty"
+                                id="targetBreakdownEmpty"
                                 class="empty"
                             >
-                                Your previous days will appear here.
+                                Add models and set their daily targets to see progress here.
                             </div>
 
                         </div>
