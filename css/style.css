@@ -222,6 +222,36 @@ button {
     inset: 0 auto 0 0;
     display: flex;
     flex-direction: column;
+    transition: width 0.18s ease, padding 0.18s ease;
+    overflow-x: hidden;
+    z-index: 30;
+}
+
+
+.sidebar-collapse-btn {
+    position: absolute;
+    top: 14px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    color: var(--sidebar-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 6;
+    transition: background 0.12s, color 0.12s, transform 0.18s ease;
+}
+
+
+.sidebar-collapse-btn:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
 }
 
 
@@ -293,13 +323,71 @@ nav {
 }
 
 
+.settings-group {
+    position: relative;
+    width: 100%;
+}
+
+
+.settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 36px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--sidebar-text);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, width 0.18s ease, height 0.18s ease, padding 0.18s ease;
+}
+
+
+.settings-btn:hover,
+.settings-group.open .settings-btn {
+    background: var(--sidebar-hover);
+    border-color: var(--border-strong);
+}
+
+
+.settings-btn-icon {
+    font-size: 14px;
+}
+
+
+.settings-popover {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    position: absolute;
+    left: 8px;
+    bottom: calc(100% + 8px);
+    width: 190px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    z-index: 9999;
+}
+
+
+.settings-group.open .settings-popover {
+    display: flex;
+}
+
+
 .theme-toggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     width: 100%;
-    background: var(--panel-2);
+    background: var(--panel);
     border: 1px solid var(--border);
     color: var(--sidebar-text);
     padding: 8px 10px;
@@ -333,6 +421,7 @@ nav {
     align-items: center;
     gap: 8px;
     width: 100%;
+    height: 36px;
     background: var(--panel-2);
     border: 1px solid var(--border);
     color: var(--sidebar-text);
@@ -341,7 +430,7 @@ nav {
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s, border-color 0.12s;
+    transition: background 0.12s, border-color 0.12s, width 0.18s ease, height 0.18s ease, padding 0.18s ease;
 }
 
 
@@ -416,6 +505,87 @@ nav {
 }
 
 
+/* ================= SIDEBAR COLLAPSED ================= */
+
+.app.sidebar-collapsed .sidebar {
+    width: 48px;
+    padding: 12px 0;
+    overflow: visible;
+}
+
+
+.app.sidebar-collapsed .sidebar-collapse-btn {
+    transform: rotate(180deg);
+}
+
+
+.app.sidebar-collapsed .logo,
+.app.sidebar-collapsed .nav-btn span,
+.app.sidebar-collapsed .settings-btn span:not(.settings-btn-icon),
+.app.sidebar-collapsed .account-btn span:not(.backup-btn-icon),
+.app.sidebar-collapsed .sidebar-note {
+    display: none;
+}
+
+
+.app.sidebar-collapsed .settings-group {
+    display: flex;
+    justify-content: center;
+}
+
+
+.app.sidebar-collapsed nav {
+    gap: 0;
+    margin-top: 28px;
+}
+
+
+.app.sidebar-collapsed .nav-btn {
+    justify-content: center;
+    text-align: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    font-size: 20px;
+}
+
+
+.app.sidebar-collapsed .nav-btn.active::before {
+    left: 0;
+    width: 2px;
+    height: 22px;
+}
+
+
+.app.sidebar-collapsed .sidebar-bottom {
+    align-items: center;
+    gap: 6px;
+}
+
+
+.app.sidebar-collapsed .settings-btn,
+.app.sidebar-collapsed .account-btn {
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+}
+
+
+.app.sidebar-collapsed .settings-btn-icon {
+    font-size: 15px;
+}
+
+
+.app.sidebar-collapsed .main {
+    margin-left: 48px;
+    width: calc(100% - 48px);
+}
+
+
 /* ================= MAIN ================= */
 
 .main {
@@ -423,6 +593,7 @@ nav {
     width: calc(100% - 224px);
     max-width: 1080px;
     padding: 32px 32px 40px;
+    transition: margin-left 0.18s ease, width 0.18s ease;
 }
 
 
@@ -1386,6 +1557,13 @@ select:focus {
     display: flex;
     align-items: center;
     gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.sync-status.show {
+    opacity: 1;
 }
 
 .sync-status.hidden {
@@ -1592,8 +1770,21 @@ label {
 
 
     .sidebar .logo,
-    .sidebar-bottom {
+    .sidebar-bottom,
+    .sidebar-collapse-btn {
         display: none;
+    }
+
+
+    .app.sidebar-collapsed .sidebar {
+        width: 100%;
+        padding: 6px 6px;
+    }
+
+
+    .app.sidebar-collapsed .main {
+        margin-left: 0;
+        width: 100%;
     }
 
 
