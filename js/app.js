@@ -19,7 +19,8 @@ const defaultData = {
     scripts: [],
     customCategories: {
         scripts: []
-    }
+    },
+    deletedModels: {}
 };
 
 
@@ -39,6 +40,10 @@ function normalizeData(obj) {
 
     // Per-model daily targets, e.g. { "<modelId>": 300 }
     obj.modelTargets = obj.modelTargets || {};
+
+    // Names of models that were deleted, kept so old sales
+    // records can still show a name instead of "Unassigned".
+    obj.deletedModels = obj.deletedModels || {};
 
     return obj;
 
@@ -636,13 +641,98 @@ function getPeriodLabel(key, range) {
 
     if (range === "month") {
         const [y, m] = key.split("-");
+        // Full year here on purpose — a 2-digit year ("Sep 26")
+        // reads as day 26, not year 2026.
         return new Date(`${y}-${m}-01T00:00:00`)
-            .toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+            .toLocaleDateString(undefined, { month: "short", year: "numeric" });
     }
 
     return new Date(key + "T00:00:00")
         .toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+
+function getWeekDateKeys(mondayKey) {
+
+    const d = new Date(mondayKey + "T00:00:00");
+    const keys = [];
+
+    for (let i = 0; i < 7; i++) {
+        keys.push(
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+        );
+        d.setDate(d.getDate() + 1);
+    }
+
+    return keys;
+}
+
+
+function daysInMonthKey(monthKey) {
+
+    const [y, m] = monthKey.split("-").map(Number);
+    return new Date(y, m, 0).getDate();
+}
+
+
+function getModelBreakdownForDates(dateKeys, targetDays) {
+
+    const byModel = {};
+
+    dateKeys.forEach(dateKey => {
+
+        (data.sales[dateKey] || []).forEach(sale => {
+
+            const key = sale.modelId || "unassigned";
+
+            if (!byModel[key]) {
+                byModel[key] = 0;
+            }
+
+            byModel[key] += Number(sale.amount);
+        });
+    });
+
+    return Object.keys(byModel)
+        .map(modelId => {
+
+            const net = byModel[modelId] * NET_RATE;
+            const dailyTarget = data.modelTargets[modelId] || 0;
+            const target = dailyTarget * targetDays;
+
+            return {
+                id: modelId,
+                title: getModelName(modelId === "unassigned" ? null : modelId),
+                net: net,
+                targetPercent: getTargetPercent(net, target)
+            };
+        })
+        .sort((a, b) => b.net - a.net);
+}
+
+
+function getModelBreakdownForMonth(monthKey) {
+
+    const daysInMonth =
+        daysInMonthKey(monthKey);
+
+    const dateKeys =
+        Object.keys(data.sales).filter(
+            dateKey => getPeriodKey(dateKey, "month") === monthKey
+        );
+
+    return getModelBreakdownForDates(dateKeys, daysInMonth);
+}
+
+
+function getModelBreakdownForWeek(mondayKey) {
+
+    return getModelBreakdownForDates(
+        getWeekDateKeys(mondayKey),
+        7
+    );
+}
+
 
 function addPeriod(key, range, delta) {
 
@@ -669,6 +759,13 @@ function renderTrends(range) {
             ? data.history
             : computeModelDailyRows(currentModelFilter, false);
 
+    // Per-day lookup, used to break a week bucket back down
+    // into the individual days that made it up.
+    const dayMap = {};
+    combined.forEach(item => {
+        dayMap[item.date] = { net: item.net, count: item.count };
+    });
+
     const buckets = {};
 
     combined.forEach(item => {
@@ -685,6 +782,7 @@ function renderTrends(range) {
     const rows = [];
     for (let i = periodsToShow - 1; i >= 0; i--) {
         const key = addPeriod(currentKey, currentTrendRange, -i);
+
         rows.push({
             key,
             label: getPeriodLabel(key, currentTrendRange),
@@ -695,14 +793,83 @@ function renderTrends(range) {
 
     const maxNet = Math.max(...rows.map(r => r.net), 1);
 
-    $("#trendBars").innerHTML = rows.map(r => `
-        <div class="trend-bar-col" title="${r.label}: ${money(r.net)} net · ${r.count} sale${r.count === 1 ? "" : "s"}">
+    $("#trendBars").innerHTML = rows.map(r => {
+
+        let dayLines = "";
+
+        if (currentTrendRange === "week") {
+
+            dayLines = "\n" + getWeekDateKeys(r.key).map(dateKey => {
+
+                const day = dayMap[dateKey];
+                const label = new Date(dateKey + "T00:00:00")
+                    .toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+                if (!day) {
+                    return `${label}: no sales`;
+                }
+
+                let line =
+                    `${label}: ${money(day.net)} · ${day.count} sale${day.count === 1 ? "" : "s"}`;
+
+                if (currentModelFilter === null) {
+
+                    const modelRows =
+                        getModelBreakdownForDates([dateKey], 1);
+
+                    if (modelRows.length) {
+                        line += "\n" + modelRows.map(row =>
+                            `  ${row.title}: ${money(row.net)} net${
+                                row.targetPercent !== null
+                                    ? ` · ${row.targetPercent >= 100 ? "target hit" : row.targetPercent + "% of target"}`
+                                    : ""
+                            }`
+                        ).join("\n");
+                    }
+                }
+
+                return line;
+            }).join("\n");
+        }
+
+        let modelLines = "";
+
+        if (currentTrendRange === "month" && currentModelFilter === null) {
+
+            const modelRows = getModelBreakdownForMonth(r.key);
+
+            modelLines = modelRows.length
+                ? "\n" + modelRows.map(row =>
+                    `${row.title}: ${money(row.net)} net${
+                        row.targetPercent !== null
+                            ? ` · ${row.targetPercent >= 100 ? "target hit" : row.targetPercent + "% of target"}`
+                            : ""
+                    }`
+                ).join("\n")
+                : "";
+        } else if (currentTrendRange === "month" && currentModelFilter !== null) {
+
+            const dailyTarget = data.modelTargets[currentModelFilter] || 0;
+            const monthTarget = dailyTarget * daysInMonthKey(r.key);
+            const pct = getTargetPercent(r.net, monthTarget);
+
+            if (pct !== null) {
+                modelLines = `\n${pct >= 100 ? "Target hit" : `${pct}% of target`}`;
+            }
+        }
+
+        const tooltip =
+            `${r.label}: ${money(r.net)} net · ${r.count} sale${r.count === 1 ? "" : "s"}${dayLines}${modelLines}`;
+
+        return `
+        <div class="trend-bar-col" title="${escapeHTML(tooltip)}">
             <div class="trend-bar-track">
                 <div class="trend-bar-fill" style="height:${r.net > 0 ? Math.max((r.net / maxNet) * 100, 4) : 0}%"></div>
             </div>
             <div class="trend-bar-label">${r.label}</div>
         </div>
-    `).join("");
+    `;
+    }).join("");
 
     const last = rows[rows.length - 1];
     const prev = rows[rows.length - 2];
@@ -744,6 +911,26 @@ $$(".trend-toggle-btn").forEach(btn => {
 
 function getModelById(id) {
     return data.models.find(model => model.id === id);
+}
+
+
+function getModelName(id) {
+
+    if (!id) {
+        return "Unassigned";
+    }
+
+    const model = getModelById(id);
+
+    if (model) {
+        return model.title;
+    }
+
+    if (data.deletedModels[id]) {
+        return data.deletedModels[id];
+    }
+
+    return "Unassigned";
 }
 
 
@@ -1613,7 +1800,7 @@ function renderHistory() {
     const historyRowsHtml =
         history.map(
             item => `
-                <div class="history-row">
+                <div class="history-row" data-date="${item.date}" style="cursor:pointer">
 
                     <div>
 
@@ -1659,6 +1846,8 @@ function renderHistory() {
                     </div>
 
                 </div>
+
+                <div class="history-model-breakdown hidden" data-breakdown="${item.date}"></div>
             `
         ).join("");
 
@@ -1672,6 +1861,123 @@ function renderHistory() {
             ? "none"
             : "block";
 }
+
+
+function getModelBreakdownForDate(dateKey) {
+
+    const sales =
+        data.sales[dateKey] || [];
+
+    const byModel = {};
+
+    sales.forEach(sale => {
+
+        const key = sale.modelId || "unassigned";
+
+        if (!byModel[key]) {
+            byModel[key] = 0;
+        }
+
+        byModel[key] += Number(sale.amount);
+    });
+
+    return Object.keys(byModel)
+        .map(modelId => {
+
+            const model = getModelById(modelId);
+            const net = byModel[modelId] * NET_RATE;
+            const target = data.modelTargets[modelId] || 0;
+
+            return {
+                id: modelId,
+                title: getModelName(modelId === "unassigned" ? null : modelId),
+                color: model ? getAvatarColor(model.id) : "#888",
+                net: net,
+                targetPercent: getTargetPercent(net, target)
+            };
+        })
+        .sort((a, b) => b.net - a.net);
+}
+
+
+function renderModelBreakdownRow(dateKey, container) {
+
+    const rows =
+        getModelBreakdownForDate(dateKey);
+
+    container.innerHTML =
+        rows.map(
+            row => `
+                <div class="history-model-row">
+
+                    <span
+                        class="avatar-dot"
+                        style="background:${row.color}"
+                    ></span>
+
+                    <span class="history-model-title">
+                        ${escapeHTML(row.title)}
+                    </span>
+
+                    <span class="history-model-amount">
+                        ${money(row.net)} net
+                    </span>
+
+                    ${
+                        row.targetPercent !== null
+                            ? `
+                                <span class="history-target-badge ${row.targetPercent >= 100 ? "hit" : ""}">
+                                    ${row.targetPercent >= 100 ? "Target hit" : `${row.targetPercent}%`}
+                                </span>
+                            `
+                            : ""
+                    }
+
+                </div>
+            `
+        ).join("") ||
+        `<div class="history-model-row empty">No per-model sales recorded.</div>`;
+}
+
+
+$("#historyList").addEventListener(
+    "click",
+    event => {
+
+        const row =
+            event.target.closest(".history-row");
+
+        if (!row) {
+            return;
+        }
+
+        const dateKey = row.dataset.date;
+
+        const breakdown =
+            $(`[data-breakdown="${dateKey}"]`);
+
+        if (!breakdown) {
+            return;
+        }
+
+        const isHidden =
+            breakdown.classList.contains("hidden");
+
+        document
+            .querySelectorAll(".history-model-breakdown")
+            .forEach(el => el.classList.add("hidden"));
+
+        if (isHidden) {
+
+            renderModelBreakdownRow(
+                dateKey,
+                breakdown
+            );
+
+            breakdown.classList.remove("hidden");
+        }
+    }
+);
 
 
 /* =====================================================
@@ -3090,6 +3396,18 @@ function deleteItem(
         )
     ) {
         return;
+    }
+
+
+    if (type === "models") {
+
+        const deletedModel =
+            data.models.find(item => item.id === id);
+
+        if (deletedModel) {
+            data.deletedModels[id] = deletedModel.title;
+        }
+
     }
 
 
