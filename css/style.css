@@ -206,7 +206,7 @@ button {
 /* ================= APP ================= */
 
 .app {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
 }
 
@@ -215,14 +215,14 @@ button {
 
 .sidebar {
     width: 224px;
+    flex: 0 0 224px;
     background: var(--sidebar);
     border-right: 1px solid var(--border);
     padding: 22px 12px;
-    position: fixed;
-    inset: 0 auto 0 0;
+    position: relative;
     display: flex;
     flex-direction: column;
-    transition: width 0.18s ease, padding 0.18s ease;
+    transition: width 0.18s ease, flex-basis 0.18s ease, padding 0.18s ease;
     overflow-x: hidden;
     z-index: 30;
 }
@@ -311,7 +311,7 @@ nav {
     width: 3px;
     height: 16px;
     border-radius: 2px;
-    background: var(--accent);
+    background: var(--accent-gradient);
 }
 
 
@@ -509,6 +509,7 @@ nav {
 
 .app.sidebar-collapsed .sidebar {
     width: 48px;
+    flex-basis: 48px;
     padding: 12px 0;
     overflow: visible;
 }
@@ -579,21 +580,14 @@ nav {
     font-size: 15px;
 }
 
-
-.app.sidebar-collapsed .main {
-    margin-left: 48px;
-    width: calc(100% - 48px);
-}
-
-
 /* ================= MAIN ================= */
 
 .main {
-    margin-left: 224px;
-    width: calc(100% - 224px);
+    flex: 1;
+    min-width: 0;
     max-width: 1080px;
-    padding: 32px 32px 40px;
-    transition: margin-left 0.18s ease, width 0.18s ease;
+    padding: 0 32px 40px;
+    overflow-y: auto;
 }
 
 
@@ -613,7 +607,7 @@ nav {
 
 
 .page.active {
-    display: block;
+    display: flow-root;
 }
 
 
@@ -625,6 +619,21 @@ nav {
     align-items: center;
     margin-bottom: 24px;
     gap: 16px;
+}
+
+
+/* ================= STICKY TOP BAR =================
+   Used on Models, Scripts, and Sales tabs so the header/search/
+   stats stay pinned while the list below scrolls underneath. */
+
+.page-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--bg);
+    margin: 0 -32px 16px;
+    padding: 15px 32px 10px;
+    box-shadow: 0 8px 12px -6px rgba(0, 0, 0, 0.35);
 }
 
 
@@ -652,7 +661,7 @@ nav {
     font-size: 13px;
     font-weight: 700;
     line-height: 1.4;
-    color: #fff;
+    color: var(--badge-text, #fff);
     background: var(--badge-color, var(--accent));
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.25);
     animation: badge-pop 0.18s ease;
@@ -664,7 +673,7 @@ nav {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--badge-dot, #fff);
     opacity: 0.85;
     flex-shrink: 0;
 }
@@ -794,7 +803,7 @@ h2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
-    align-items: stretch;
+    align-items: start;
 }
 
 
@@ -803,6 +812,7 @@ h2 {
     flex-direction: column;
     gap: 14px;
     min-height: 0;
+    min-width: 0;
 }
 
 
@@ -811,6 +821,7 @@ h2 {
     display: flex;
     flex-direction: column;
     min-height: 140px;
+    min-width: 0;
 }
 
 
@@ -821,8 +832,6 @@ h2 {
 
 .target-breakdown-wrap {
     position: relative;
-    flex: 1;
-    min-height: 0;
     margin-top: 14px;
     display: none;
 }
@@ -834,47 +843,47 @@ h2 {
 
 
 .target-breakdown {
-    position: absolute;
-    inset: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 2px 10px 2px 2px;
+    gap: 8px;
+    padding: 2px;
 }
 
 
 .target-breakdown-row {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     cursor: grab;
-    padding: 6px;
+    padding: 6px 12px;
+    min-height: 74px;
     border-radius: 10px;
-    transition: background 0.12s ease;
+    border: 2px solid transparent;
+    background: var(--badge-color, var(--panel-2));
+    color: var(--row-strong, rgba(0, 0, 0, 0.8));
+    transition: filter 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 
 
 .target-breakdown-row:hover {
-    background: var(--panel-2);
+    filter: brightness(0.96);
 }
 
 
-.target-breakdown-row.selected .target-breakdown-name {
-    background: var(--badge-color, var(--accent));
-    color: #fff;
-    font-weight: 700;
-    padding: 4px 10px 4px 8px;
-    border-radius: 999px;
-    margin: -4px 0 -4px -2px;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.25);
+.target-breakdown-row.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent), 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 
-.target-breakdown-row.selected .target-breakdown-dot {
-    background: #fff !important;
-    opacity: 0.85;
+.target-breakdown-row.selected:hover {
+    filter: brightness(0.97);
+}
+
+
+.target-breakdown-row.selected .target-breakdown-title {
+    font-weight: 800;
 }
 
 
@@ -890,8 +899,9 @@ h2 {
 
 .target-breakdown-head {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    min-height: 27px;
     font-size: 13px;
     font-weight: 600;
 }
@@ -901,6 +911,195 @@ h2 {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+
+.target-breakdown-title {
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(0, 0, 0, 0.92);
+    font-size: 23px;
+    line-height: 1.1;
+    font-family: "Playfair Display", "Georgia", serif;
+    font-style: italic;
+}
+
+
+.target-breakdown-percent {
+    flex-shrink: 0;
+    color: var(--row-muted, rgba(0, 0, 0, 0.55));
+    font-weight: 400;
+}
+
+
+/* "On fire" model names — the further past target, the hotter it burns.
+   Tier 1 = exactly 100% · 2 = 101–130% · 3 = 131–160% · 4 = 161–199% · 5 = 200%+ */
+.target-breakdown-title.on-fire {
+    display: inline-block;
+}
+
+
+/* Tier 1 — 100% exactly: bright gold/white pulse + subtle glow */
+.target-breakdown-title.on-fire-1 {
+    color: #b8860b;
+    text-shadow:
+        0 0 6px rgba(255, 255, 255, 0.75),
+        0 0 12px rgba(255, 215, 0, 0.5);
+    animation: fire-pulse-1 1.6s ease-in-out infinite;
+}
+
+
+/* Tier 2 — 101–130%: subtle, steady orange glow */
+.target-breakdown-title.on-fire-2 {
+    color: #d9660b;
+    text-shadow:
+        0 0 6px rgba(255, 140, 0, 0.55),
+        0 0 12px rgba(255, 90, 0, 0.3);
+}
+
+
+/* Tier 3 — 131–160%: orange-red glow + flicker */
+.target-breakdown-title.on-fire-3 {
+    color: #c1440e;
+    text-shadow:
+        0 0 8px rgba(255, 140, 0, 0.85),
+        0 0 16px rgba(255, 60, 0, 0.6),
+        0 0 24px rgba(255, 0, 0, 0.35);
+    animation: fire-flicker 0.9s ease-in-out infinite;
+}
+
+
+/* Tier 4 — 161–199%: intense multi-layer glow */
+.target-breakdown-title.on-fire-4 {
+    color: #a12a00;
+    text-shadow:
+        0 0 10px rgba(255, 180, 0, 0.95),
+        0 0 20px rgba(255, 80, 0, 0.75),
+        0 0 32px rgba(255, 0, 0, 0.55),
+        0 0 46px rgba(255, 0, 0, 0.3);
+    animation: fire-flicker 0.6s ease-in-out infinite;
+}
+
+
+/* Tier 5 — 200%+: maximum "blazing" effect */
+.target-breakdown-title.on-fire-5 {
+    color: #7a1d00;
+    text-shadow:
+        0 0 12px rgba(255, 225, 0, 1),
+        0 0 24px rgba(255, 120, 0, 0.9),
+        0 0 38px rgba(255, 40, 0, 0.75),
+        0 0 55px rgba(255, 0, 0, 0.55),
+        0 0 75px rgba(255, 0, 0, 0.35);
+    animation: fire-flicker-intense 0.4s ease-in-out infinite;
+}
+
+
+/* Emoji badge next to the name, echoing the current heat tier */
+.fire-badge {
+    display: inline-block;
+    font-size: 0.62em;
+    line-height: 1;
+    flex-shrink: 0;
+    transform-origin: center;
+}
+
+
+.fire-badge-1 {
+    animation: fire-pulse-1 1.6s ease-in-out infinite;
+}
+
+
+.fire-badge-3 {
+    animation: fire-flicker 0.9s ease-in-out infinite;
+}
+
+
+.fire-badge-4 {
+    animation: fire-flicker-intense 0.6s ease-in-out infinite;
+}
+
+
+.fire-badge-5 {
+    animation: fire-flicker-intense 0.4s ease-in-out infinite,
+        fire-badge-shake 0.4s ease-in-out infinite;
+}
+
+
+@keyframes fire-pulse-1 {
+    0%, 100% {
+        filter: brightness(1) saturate(1);
+        text-shadow:
+            0 0 6px rgba(255, 255, 255, 0.55),
+            0 0 12px rgba(255, 215, 0, 0.35);
+    }
+    50% {
+        filter: brightness(1.3) saturate(1.15);
+        text-shadow:
+            0 0 10px rgba(255, 255, 255, 1),
+            0 0 20px rgba(255, 215, 0, 0.85);
+    }
+}
+
+
+@keyframes fire-flicker {
+    0%, 100% {
+        filter: brightness(1) saturate(1);
+    }
+    25% {
+        filter: brightness(1.15) saturate(1.3);
+    }
+    50% {
+        filter: brightness(0.95) saturate(1.05);
+    }
+    75% {
+        filter: brightness(1.2) saturate(1.4);
+    }
+}
+
+
+@keyframes fire-flicker-intense {
+    0%, 100% {
+        filter: brightness(1) saturate(1);
+    }
+    20% {
+        filter: brightness(1.35) saturate(1.5);
+    }
+    45% {
+        filter: brightness(0.9) saturate(1.1);
+    }
+    70% {
+        filter: brightness(1.4) saturate(1.6);
+    }
+    85% {
+        filter: brightness(1.05) saturate(1.25);
+    }
+}
+
+
+@keyframes fire-badge-shake {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    25% {
+        transform: scale(1.12) rotate(-3deg);
+    }
+    50% {
+        transform: scale(0.96) rotate(2deg);
+    }
+    75% {
+        transform: scale(1.1) rotate(-1deg);
+    }
+}
+
+
+.target-breakdown-row.selected .target-breakdown-percent {
+    color: var(--row-strong, rgba(0, 0, 0, 0.8));
 }
 
 
@@ -909,12 +1108,11 @@ h2 {
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 
 .target-breakdown-wrap #targetBreakdownEmpty {
-    position: absolute;
-    inset: 0;
     margin: 0;
 }
 
@@ -922,14 +1120,15 @@ h2 {
 .sales-layout-right {
     display: flex;
     flex-direction: column;
+    height: 440px;
     min-height: 0;
 }
 
 
 .sales-layout-right .sales-list-wrap {
     position: relative;
-    height: 360px;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 
@@ -949,6 +1148,76 @@ h2 {
 }
 
 
+.sales-layout-right {
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    border-width: 1px;
+    border-color: var(--border);
+    box-shadow: var(--shadow);
+}
+
+
+.sales-layout-right.has-model-color {
+    border-color: color-mix(in srgb, var(--card-accent, var(--border)) 55%, transparent);
+    box-shadow: var(--shadow), inset 0 0 0 5px color-mix(in srgb, var(--card-accent, var(--border)) 55%, transparent);
+}
+
+
+#todaySalesCard {
+    padding-top: 5px;
+    overflow: hidden;
+}
+
+
+#todaySalesCard .section-head {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    row-gap: 1px;
+    height: 62px;
+    overflow: hidden;
+    margin: 0 -13px 14px;
+    padding: 6px 13px;
+    background: var(--panel);
+    border-bottom: none;
+}
+
+
+#todaySalesCard .section-head h2 {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+
+.today-sales-model-name {
+    display: -webkit-box;
+    width: 100%;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: break-word;
+    font-family: "Playfair Display", "Georgia", serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.15;
+    letter-spacing: 0.3px;
+    text-align: right;
+    color: var(--card-accent-text, var(--accent));
+}
+
+
+[data-theme="light"] .today-sales-model-name {
+    text-shadow: 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+
+.today-sales-model-name.hidden {
+    display: none;
+}
+
+
 .sale-box,
 .target-box {
     display: flex;
@@ -960,6 +1229,19 @@ h2 {
 .target-box input {
     font-size: 14px;
     padding: 10px 12px;
+}
+
+
+#saleAmount {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+
+#saleAmount::-webkit-inner-spin-button,
+#saleAmount::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 
@@ -1029,6 +1311,74 @@ h2 {
 }
 
 
+/* ================= MODEL COLOR PICKER (pastel swatches) ================= */
+
+.color-swatch-popover {
+    position: fixed;
+    z-index: 500;
+    width: 200px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow-lg);
+}
+
+
+.color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 0, 0, 0.12);
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+
+.color-swatch:hover {
+    transform: scale(1.15);
+}
+
+
+.color-swatch.active {
+    border-color: var(--text);
+    box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--text);
+}
+
+
+.color-swatch-custom {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+
+.color-swatch-custom label {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+
+.color-swatch-custom input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+
 /* ================= TARGET PROGRESS ================= */
 
 .target-progress {
@@ -1049,7 +1399,7 @@ h2 {
 .progress-fill {
     height: 100%;
     width: 0%;
-    background: var(--accent);
+    background: var(--accent-gradient);
     border-radius: 999px;
     transition: width 0.3s ease;
 }
@@ -1061,10 +1411,35 @@ h2 {
 
 
 .progress-label {
-    margin-top: 9px;
+    margin-top: 4px;
     font-size: 13px;
     font-weight: 600;
     color: var(--muted);
+}
+
+
+/* Inside a model row, the progress bar's ink adapts to that
+   row's own brightness (--row-track-bg / --row-track-fill),
+   since the background isn't guaranteed to be light. */
+.target-breakdown-row .progress-track {
+    background: var(--row-track-bg, rgba(0, 0, 0, 0.14));
+    border-color: var(--row-track-bg, rgba(0, 0, 0, 0.12));
+}
+
+
+.target-breakdown-row .progress-fill {
+    background: var(--row-track-fill, rgba(0, 0, 0, 0.55));
+}
+
+
+.target-breakdown-row .progress-fill.hit {
+    background: var(--success);
+}
+
+
+.target-breakdown-row .progress-label {
+    color: var(--row-muted, rgba(0, 0, 0, 0.6));
+    font-weight: 400;
 }
 
 
@@ -1217,6 +1592,54 @@ select:focus {
     color: #6de6a0;
     font-size: 13px;
     font-weight: 600;
+}
+
+
+/* Sales history per-model breakdown */
+.history-model-breakdown {
+    padding: 8px 12px;
+    margin: -4px 0 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+
+.history-model-breakdown.hidden {
+    display: none;
+}
+
+
+.history-model-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.9em;
+    flex-wrap: wrap;
+}
+
+
+.history-model-row.empty {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+
+.history-model-title {
+    flex: 1;
+}
+
+
+.history-model-amount {
+    margin-left: auto;
+}
+
+
+.avatar-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 
@@ -1409,42 +1832,6 @@ select:focus {
 }
 
 
-/* Keep header, search and chips fixed; only the list scrolls */
-
-#models.page.active,
-#scripts.page.active {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 72px);
-    min-height: 0;
-}
-
-
-#models.page.active .top,
-#scripts.page.active .top,
-#models.page.active .toolbar,
-#scripts.page.active .toolbar {
-    flex-shrink: 0;
-}
-
-
-#models.page.active .content-grid,
-#scripts.page.active .content-grid,
-#models.page.active .empty,
-#scripts.page.active .empty {
-    flex: 1;
-    min-height: 0;
-}
-
-
-#models.page.active .content-grid,
-#scripts.page.active .content-grid {
-    overflow-y: auto;
-    align-content: start;
-    padding-right: 4px;
-}
-
-
 .content-card {
     position: relative;
     background: var(--panel);
@@ -1598,7 +1985,7 @@ select:focus {
     display: grid;
     place-items: center;
     padding: 20px;
-    z-index: 10;
+    z-index: 50;
 }
 
 
@@ -1752,6 +2139,34 @@ label {
 }
 
 
+.target-modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+.color-picker-trigger {
+    border-radius: 8px;
+    border: 2px solid var(--border-strong);
+    transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+
+.color-picker-trigger svg {
+    width: 17px;
+    height: 17px;
+    color: rgba(0, 0, 0, 0.65);
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.5));
+}
+
+
+.color-picker-trigger:hover {
+    transform: scale(1.06);
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+
 /* ================= MOBILE ================= */
 
 @media (max-width: 700px) {
@@ -1828,7 +2243,13 @@ label {
     .main {
         margin: 0;
         width: 100%;
-        padding: 22px 16px 90px;
+        padding: 0 16px 90px;
+    }
+
+
+    .page-topbar {
+        margin: 0 -16px 14px;
+        padding: 18px 16px 10px;
     }
 
 
@@ -1930,24 +2351,12 @@ label {
 
 
     .target-breakdown-wrap {
-        height: 220px;
         flex: 0 0 auto;
-    }
-
-
-    .target-breakdown {
-        max-height: none;
     }
 
 
     .content-grid {
         grid-template-columns: 1fr;
-    }
-
-
-    #models.page.active,
-    #scripts.page.active {
-        height: calc(100vh - 170px);
     }
 
 
@@ -2029,8 +2438,8 @@ label {
 
 
 .trend-toggle-btn.active {
-    background: var(--accent);
-    color: var(--accent-text, #fff);
+    background: var(--accent-gradient);
+    color: rgba(0, 0, 0, 0.82);
 }
 
 
@@ -2038,6 +2447,11 @@ label {
     font-size: 13.5px;
     color: var(--text);
     margin-bottom: 14px;
+    height: 1.3em;
+    line-height: 1.3em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 
@@ -2067,6 +2481,17 @@ label {
 }
 
 
+.trend-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 110px;
+    color: var(--muted);
+    font-size: 0.9em;
+    text-align: center;
+}
+
+
 .trend-bar-col {
     flex: 1;
     display: flex;
@@ -2089,7 +2514,7 @@ label {
 .trend-bar-fill {
     width: 100%;
     min-height: 0;
-    background: var(--accent);
+    background: var(--accent-gradient);
     border-radius: 4px 4px 0 0;
     transition: height 0.3s ease;
 }
@@ -2101,13 +2526,6 @@ label {
     color: var(--muted);
     white-space: nowrap;
 }
-/* Sales history per-model breakdown */
-.history-model-breakdown{padding:8px 12px;margin:-4px 0 8px;background:rgba(255,255,255,0.03);border-radius:8px}
-.history-model-breakdown.hidden{display:none}
-.history-model-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.9em}
-.history-model-row.empty{opacity:0.6;font-style:italic}
-.history-model-title{flex:1}
-.avatar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
-.history-model-row{flex-wrap:wrap}
-.history-model-amount{margin-left:auto}
+
+/* Today / this month, always centered among the 7 bars shown */
