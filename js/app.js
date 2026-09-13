@@ -20,7 +20,9 @@ const defaultData = {
     customCategories: {
         scripts: []
     },
-    deletedModels: {}
+    deletedModels: {},
+    // Per-model custom colors, e.g. { "<modelId>": "#ffd6e0" }
+    modelColors: {}
 };
 
 
@@ -45,6 +47,9 @@ function normalizeData(obj) {
     // records can still show a name instead of "Unassigned".
     obj.deletedModels = obj.deletedModels || {};
 
+    // Per-model custom colors, e.g. { "<modelId>": "#ffd6e0" }
+    obj.modelColors = obj.modelColors || {};
+
     return obj;
 
 }
@@ -65,6 +70,10 @@ let currentCategory = {
 // Which model's sales page is currently active on the Sales tab.
 // null = "All" (combined, original behavior).
 let currentModelFilter = null;
+
+// Remembers each tab's scroll position so switching tabs and
+// coming back doesn't dump you at the top.
+const pageScrollPositions = {};
 
 
 /* =====================================================
@@ -136,8 +145,6 @@ function initSidebarCollapse() {
 
     applySidebarCollapsed(saved);
 
-    alignCollapsedLogout();
-
 }
 
 
@@ -151,96 +158,7 @@ function toggleSidebarCollapse() {
 
     applySidebarCollapsed(next);
 
-    // .main's width/margin-left transition (0.18s) moves the sales card,
-    // so we track the logout button's target spot on every frame for the
-    // duration of that transition. That makes it glide into place in
-    // step with the sidebar, instead of sitting at the raw bottom of the
-    // sidebar and only snapping into its aligned spot once the
-    // transition finishes.
-    animateCollapsedLogout();
-
 }
-
-
-/* Keep the collapsed sidebar's logout button lined up with the
-   bottom edge of the "Today's sales" card, since the sidebar is
-   fixed but the card's on-screen position depends on scroll/page. */
-let _alignLogoutRaf = null;
-
-function alignLogoutNow() {
-
-    const app = $(".app");
-    const sidebarBottom = $(".sidebar-bottom");
-    const salesCard = document.querySelector(
-        "#sales.page.active .sales-layout-right"
-    );
-
-    if (!app || !sidebarBottom) {
-        return;
-    }
-
-    const isCollapsed = app.classList.contains("sidebar-collapsed");
-
-    if (!isCollapsed || !salesCard) {
-        sidebarBottom.style.marginBottom = "";
-        return;
-    }
-
-    sidebarBottom.style.marginBottom = "0px";
-
-    const currentBottom = sidebarBottom.getBoundingClientRect().bottom;
-    const targetBottom = salesCard.getBoundingClientRect().bottom;
-    const delta = Math.max(0, currentBottom - targetBottom);
-
-    sidebarBottom.style.marginBottom = delta + "px";
-
-}
-
-
-function alignCollapsedLogout() {
-
-    if (_alignLogoutRaf) {
-        cancelAnimationFrame(_alignLogoutRaf);
-    }
-
-    _alignLogoutRaf = requestAnimationFrame(alignLogoutNow);
-
-}
-
-
-/* Re-measure every frame for the length of .main's collapse/expand
-   transition (0.18s in style.css), so the logout button's position
-   tracks the sales card in real time instead of jumping once at the end. */
-let _logoutAnimDeadline = 0;
-let _logoutAnimRaf = null;
-
-function animateCollapsedLogout() {
-
-    _logoutAnimDeadline = performance.now() + 260; // transition length + buffer
-
-    if (_logoutAnimRaf) {
-        cancelAnimationFrame(_logoutAnimRaf);
-    }
-
-    const tick = function () {
-
-        alignLogoutNow();
-
-        if (performance.now() < _logoutAnimDeadline) {
-            _logoutAnimRaf = requestAnimationFrame(tick);
-        } else {
-            _logoutAnimRaf = null;
-        }
-
-    };
-
-    tick();
-
-}
-
-
-window.addEventListener("resize", alignCollapsedLogout);
-window.addEventListener("scroll", alignCollapsedLogout, { passive: true });
 
 
 function toggleTheme() {
@@ -255,6 +173,10 @@ function toggleTheme() {
     localStorage.setItem(THEME_KEY, next);
 
     applyTheme(next);
+
+    // Re-render so the model-name accent color (dark in light mode,
+    // bright in dark mode) updates immediately for the new theme.
+    renderSales();
 
 }
 
@@ -617,24 +539,20 @@ function formatDate(dateKey) {
 
 
 /* =====================================================
-   TRENDS (weekly / monthly rollups)
+   TRENDS (daily / monthly rollups)
    ===================================================== */
 
-let currentTrendRange = "week";
+let currentTrendRange = "day";
 
 function getPeriodKey(dateKey, range) {
 
-    const d = new Date(dateKey + "T00:00:00");
-
-    if (range === "month") {
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (range === "day") {
+        return dateKey;
     }
 
-    const day = d.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    d.setDate(d.getDate() + diff);
+    const d = new Date(dateKey + "T00:00:00");
 
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function getPeriodLabel(key, range) {
@@ -652,85 +570,10 @@ function getPeriodLabel(key, range) {
 }
 
 
-function getWeekDateKeys(mondayKey) {
-
-    const d = new Date(mondayKey + "T00:00:00");
-    const keys = [];
-
-    for (let i = 0; i < 7; i++) {
-        keys.push(
-            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-        );
-        d.setDate(d.getDate() + 1);
-    }
-
-    return keys;
-}
-
-
 function daysInMonthKey(monthKey) {
 
     const [y, m] = monthKey.split("-").map(Number);
     return new Date(y, m, 0).getDate();
-}
-
-
-function getModelBreakdownForDates(dateKeys, targetDays) {
-
-    const byModel = {};
-
-    dateKeys.forEach(dateKey => {
-
-        (data.sales[dateKey] || []).forEach(sale => {
-
-            const key = sale.modelId || "unassigned";
-
-            if (!byModel[key]) {
-                byModel[key] = 0;
-            }
-
-            byModel[key] += Number(sale.amount);
-        });
-    });
-
-    return Object.keys(byModel)
-        .map(modelId => {
-
-            const net = byModel[modelId] * NET_RATE;
-            const dailyTarget = data.modelTargets[modelId] || 0;
-            const target = dailyTarget * targetDays;
-
-            return {
-                id: modelId,
-                title: getModelName(modelId === "unassigned" ? null : modelId),
-                net: net,
-                targetPercent: getTargetPercent(net, target)
-            };
-        })
-        .sort((a, b) => b.net - a.net);
-}
-
-
-function getModelBreakdownForMonth(monthKey) {
-
-    const daysInMonth =
-        daysInMonthKey(monthKey);
-
-    const dateKeys =
-        Object.keys(data.sales).filter(
-            dateKey => getPeriodKey(dateKey, "month") === monthKey
-        );
-
-    return getModelBreakdownForDates(dateKeys, daysInMonth);
-}
-
-
-function getModelBreakdownForWeek(mondayKey) {
-
-    return getModelBreakdownForDates(
-        getWeekDateKeys(mondayKey),
-        7
-    );
 }
 
 
@@ -743,7 +586,7 @@ function addPeriod(key, range, delta) {
     }
 
     const d = new Date(key + "T00:00:00");
-    d.setDate(d.getDate() + delta * 7);
+    d.setDate(d.getDate() + delta);
 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -752,19 +595,18 @@ function renderTrends(range) {
 
     currentTrendRange = range || currentTrendRange;
 
+    // Each model tracks its own target and history separately —
+    // there's no combined "all models" trend to show here.
+    if (currentModelFilter === null) {
+        $("#trendBars").innerHTML =
+            `<div class="trend-empty">Select a model above to see its trend</div>`;
+        $("#trendSummary").innerHTML = "";
+        return;
+    }
+
     const today = getDateKey();
 
-    const combined =
-        currentModelFilter === null
-            ? data.history
-            : computeModelDailyRows(currentModelFilter, false);
-
-    // Per-day lookup, used to break a week bucket back down
-    // into the individual days that made it up.
-    const dayMap = {};
-    combined.forEach(item => {
-        dayMap[item.date] = { net: item.net, count: item.count };
-    });
+    const combined = computeModelDailyRows(currentModelFilter, false);
 
     const buckets = {};
 
@@ -776,18 +618,22 @@ function renderTrends(range) {
         buckets[key].count += item.count;
     });
 
-    const periodsToShow = currentTrendRange === "week" ? 8 : 6;
+    // Always show 7 periods, with today/this month centered
+    // (3 before, the current one, 3 after).
+    const periodsToShow = 7;
+    const centerOffset = 3;
     const currentKey = getPeriodKey(today, currentTrendRange);
 
     const rows = [];
-    for (let i = periodsToShow - 1; i >= 0; i--) {
-        const key = addPeriod(currentKey, currentTrendRange, -i);
+    for (let i = -centerOffset; i <= periodsToShow - 1 - centerOffset; i++) {
+        const key = addPeriod(currentKey, currentTrendRange, i);
 
         rows.push({
             key,
             label: getPeriodLabel(key, currentTrendRange),
             net: buckets[key] ? buckets[key].net : 0,
-            count: buckets[key] ? buckets[key].count : 0
+            count: buckets[key] ? buckets[key].count : 0,
+            isCurrent: key === currentKey
         });
     }
 
@@ -795,59 +641,17 @@ function renderTrends(range) {
 
     $("#trendBars").innerHTML = rows.map(r => {
 
-        let dayLines = "";
-
-        if (currentTrendRange === "week") {
-
-            dayLines = "\n" + getWeekDateKeys(r.key).map(dateKey => {
-
-                const day = dayMap[dateKey];
-                const label = new Date(dateKey + "T00:00:00")
-                    .toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-
-                if (!day) {
-                    return `${label}: no sales`;
-                }
-
-                let line =
-                    `${label}: ${money(day.net)} · ${day.count} sale${day.count === 1 ? "" : "s"}`;
-
-                if (currentModelFilter === null) {
-
-                    const modelRows =
-                        getModelBreakdownForDates([dateKey], 1);
-
-                    if (modelRows.length) {
-                        line += "\n" + modelRows.map(row =>
-                            `  ${row.title}: ${money(row.net)} net${
-                                row.targetPercent !== null
-                                    ? ` · ${row.targetPercent >= 100 ? "target hit" : row.targetPercent + "% of target"}`
-                                    : ""
-                            }`
-                        ).join("\n");
-                    }
-                }
-
-                return line;
-            }).join("\n");
-        }
-
         let modelLines = "";
 
-        if (currentTrendRange === "month" && currentModelFilter === null) {
+        if (currentTrendRange === "day") {
 
-            const modelRows = getModelBreakdownForMonth(r.key);
+            const dailyTarget = data.modelTargets[currentModelFilter] || 0;
+            const pct = getTargetPercent(r.net, dailyTarget);
 
-            modelLines = modelRows.length
-                ? "\n" + modelRows.map(row =>
-                    `${row.title}: ${money(row.net)} net${
-                        row.targetPercent !== null
-                            ? ` · ${row.targetPercent >= 100 ? "target hit" : row.targetPercent + "% of target"}`
-                            : ""
-                    }`
-                ).join("\n")
-                : "";
-        } else if (currentTrendRange === "month" && currentModelFilter !== null) {
+            if (pct !== null) {
+                modelLines = `\n${pct >= 100 ? "Target hit" : `${pct}% of target`}`;
+            }
+        } else {
 
             const dailyTarget = data.modelTargets[currentModelFilter] || 0;
             const monthTarget = dailyTarget * daysInMonthKey(r.key);
@@ -859,10 +663,10 @@ function renderTrends(range) {
         }
 
         const tooltip =
-            `${r.label}: ${money(r.net)} net · ${r.count} sale${r.count === 1 ? "" : "s"}${dayLines}${modelLines}`;
+            `${r.label}: ${money(r.net)} net · ${r.count} sale${r.count === 1 ? "" : "s"}${modelLines}`;
 
         return `
-        <div class="trend-bar-col" title="${escapeHTML(tooltip)}">
+        <div class="trend-bar-col${r.isCurrent ? " trend-bar-current" : ""}" title="${escapeHTML(tooltip)}">
             <div class="trend-bar-track">
                 <div class="trend-bar-fill" style="height:${r.net > 0 ? Math.max((r.net / maxNet) * 100, 4) : 0}%"></div>
             </div>
@@ -871,17 +675,18 @@ function renderTrends(range) {
     `;
     }).join("");
 
-    const last = rows[rows.length - 1];
-    const prev = rows[rows.length - 2];
-    const periodWord = currentTrendRange === "week" ? "week" : "month";
+    const current = rows.find(r => r.isCurrent);
+    const currentIndex = rows.indexOf(current);
+    const prev = currentIndex > 0 ? rows[currentIndex - 1] : null;
+    const periodWord = currentTrendRange === "day" ? "day" : "month";
 
-    let summaryHtml = `<strong>${money(last.net)}</strong> net this ${periodWord}`;
+    let summaryHtml = `<strong>${money(current.net)}</strong> net this ${periodWord}`;
 
     if (prev) {
-        const diff = last.net - prev.net;
+        const diff = current.net - prev.net;
         const pct = prev.net > 0
             ? Math.round((diff / prev.net) * 100)
-            : (last.net > 0 ? 100 : 0);
+            : (current.net > 0 ? 100 : 0);
 
         if (diff > 0) {
             summaryHtml += ` <span class="trend-up">▲ ${pct}% vs last ${periodWord}</span>`;
@@ -952,6 +757,11 @@ function getInitials(name) {
 
 function getAvatarColor(id) {
 
+    // A custom color the user picked wins over the generated one.
+    if (data.modelColors && data.modelColors[id]) {
+        return data.modelColors[id];
+    }
+
     let hash = 0;
 
     for (let i = 0; i < id.length; i++) {
@@ -960,8 +770,293 @@ function getAvatarColor(id) {
 
     const hue = Math.abs(hash) % 360;
 
-    return `hsl(${hue}, 65%, 50%)`;
+    // High lightness + moderate saturation = soft pastel by default.
+    return `hsl(${hue}, 70%, 84%)`;
 }
+
+
+/* =====================================================
+   ROW CONTRAST HELPERS
+   Model colors aren't guaranteed to be light pastels (the
+   custom picker allows anything), so text/UI colors on top
+   of a model's row are computed from its actual brightness
+   instead of being hardcoded to dark.
+   ===================================================== */
+
+function hexToRgb(hex) {
+
+    hex = hex.replace("#", "");
+
+    if (hex.length === 3) {
+        hex = hex.split("").map(c => c + c).join("");
+    }
+
+    const num = parseInt(hex, 16);
+
+    return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+    };
+}
+
+function hslToRgb(h, s, l) {
+
+    s /= 100;
+    l /= 100;
+
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+
+    let r = 0, g = 0, b = 0;
+
+    if (h < 60) { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+
+    return {
+        r: Math.round((r + m) * 255),
+        g: Math.round((g + m) * 255),
+        b: Math.round((b + m) * 255)
+    };
+}
+
+function parseColorToRgb(colorStr) {
+
+    if (colorStr.startsWith("#")) {
+        return hexToRgb(colorStr);
+    }
+
+    const match = colorStr.match(
+        /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/i
+    );
+
+    if (match) {
+        return hslToRgb(
+            parseFloat(match[1]),
+            parseFloat(match[2]),
+            parseFloat(match[3])
+        );
+    }
+
+    return { r: 200, g: 200, b: 200 };
+}
+
+function rgbToHsl(r, g, b) {
+
+    r /= 255;
+    g /= 255;
+    b /= 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+
+        const d = max - min;
+
+        s = l > 0.5
+            ? d / (2 - max - min)
+            : d / (max + min);
+
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+
+        h /= 6;
+
+    }
+
+    return { h: h * 360, s: s * 100, l: l * 100 };
+
+}
+
+
+// A heavier, high-contrast version of a model's (often pale) color,
+// for use as text on top of the neutral card background rather than
+// as a background fill. Darker in light mode, brighter in dark mode,
+// with saturation floored so it still reads as "that model's color."
+function getAccentTextColor(colorStr) {
+
+    const { r, g, b } = parseColorToRgb(colorStr);
+    const { h, s } = rgbToHsl(r, g, b);
+
+    const isLightTheme =
+        document.documentElement.getAttribute("data-theme") === "light";
+
+    const sat = Math.max(s, 65);
+    const light = isLightTheme ? 22 : 72;
+
+    return `hsl(${h}, ${sat}%, ${light}%)`;
+
+}
+
+
+function getRowInk(colorStr) {
+
+    const { r, g, b } = parseColorToRgb(colorStr);
+
+    // Perceived brightness (ITU-R BT.601), 0–1.
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const isDark = luminance < 0.58;
+
+    return isDark
+        ? {
+            strong: "rgba(255,255,255,0.95)",
+            muted: "rgba(255,255,255,0.72)",
+            radioBorder: "rgba(255,255,255,0.6)",
+            radioBg: "rgba(255,255,255,0.15)",
+            trackBg: "rgba(255,255,255,0.22)",
+            trackFill: "rgba(255,255,255,0.75)"
+        }
+        : {
+            strong: "rgba(0,0,0,0.85)",
+            muted: "rgba(0,0,0,0.58)",
+            radioBorder: "rgba(0,0,0,0.4)",
+            radioBg: "rgba(255,255,255,0.6)",
+            trackBg: "rgba(0,0,0,0.14)",
+            trackFill: "rgba(0,0,0,0.55)"
+        };
+}
+
+
+/* =====================================================
+   MODEL COLOR PICKER (pastel swatches, "Add a sale" list)
+   ===================================================== */
+
+const PASTEL_SWATCHES = [
+    "#FFD6E0", "#FFE0B5", "#FFF3B0", "#D9F2B4",
+    "#B8F2E6", "#B5DEFF", "#C9C4FF", "#F0C4FF",
+    "#FFC4E1", "#FFCFCF", "#D4E4BC", "#BDEAEA",
+    "#C6DEFF", "#E3D0FF", "#FFDAB9", "#E6E6FA"
+];
+
+let colorPickerModelId = null;
+
+function setModelColor(modelId, hexColor) {
+
+    data.modelColors[modelId] = hexColor;
+
+    saveData();
+
+    renderModelPickerList();
+    renderSales(); // also refreshes the breakdown, badge, and indicator
+
+    // Live-update the swatch preview if its modal is open for this model.
+    if (modelId === currentModelFilter) {
+        const colorBtn = $("#targetModalColorBtn");
+        if (colorBtn) {
+            colorBtn.style.background = hexColor;
+        }
+    }
+}
+
+function closeColorSwatchPopover() {
+
+    const pop = $("#colorSwatchPopover");
+
+    if (pop) {
+        pop.remove();
+    }
+
+    colorPickerModelId = null;
+}
+
+function openColorSwatchPopover(modelId, anchorEl) {
+
+    closeColorSwatchPopover();
+
+    colorPickerModelId = modelId;
+
+    const currentColor = getAvatarColor(modelId).toLowerCase();
+
+    const pop = document.createElement("div");
+    pop.id = "colorSwatchPopover";
+    pop.className = "color-swatch-popover";
+
+    pop.innerHTML = `
+        ${PASTEL_SWATCHES.map(color => `
+            <button
+                type="button"
+                class="color-swatch${color.toLowerCase() === currentColor ? " active" : ""}"
+                style="background:${color}"
+                data-color="${color}"
+                title="${color}"
+            ></button>
+        `).join("")}
+        <div class="color-swatch-custom">
+            <label for="colorSwatchCustomInput">Custom</label>
+            <input
+                type="color"
+                id="colorSwatchCustomInput"
+                value="${/^#/.test(currentColor) ? currentColor : "#ffd6e0"}"
+            >
+        </div>
+    `;
+
+    document.body.appendChild(pop);
+
+    const rect = anchorEl.getBoundingClientRect();
+    const popWidth = pop.offsetWidth || 200;
+
+    let left = rect.left;
+    if (left + popWidth > window.innerWidth - 8) {
+        left = window.innerWidth - popWidth - 8;
+    }
+    left = Math.max(8, left);
+
+    let top = rect.bottom + 6;
+    const popHeight = pop.offsetHeight || 140;
+    if (top + popHeight > window.innerHeight - 8) {
+        top = rect.top - popHeight - 6;
+    }
+
+    pop.style.top = `${top}px`;
+    pop.style.left = `${left}px`;
+
+    pop.addEventListener("click", function (event) {
+
+        const swatch = event.target.closest(".color-swatch");
+
+        if (!swatch) {
+            return;
+        }
+
+        setModelColor(colorPickerModelId, swatch.dataset.color);
+        closeColorSwatchPopover();
+    });
+
+    const customInput = pop.querySelector("#colorSwatchCustomInput");
+
+    customInput.addEventListener("input", function () {
+        setModelColor(colorPickerModelId, customInput.value);
+    });
+}
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        if (
+            event.target.closest("#colorSwatchPopover") ||
+            event.target.closest(".color-picker-trigger")
+        ) {
+            return;
+        }
+
+        closeColorSwatchPopover();
+    }
+);
 
 
 function selectModel(modelId) {
@@ -1176,10 +1271,12 @@ function renderSales() {
 
         if (activeModel) {
 
-            modelBadge.style.setProperty(
-                "--badge-color",
-                getAvatarColor(activeModel.id)
-            );
+            const badgeColor = getAvatarColor(activeModel.id);
+            const badgeInk = getRowInk(badgeColor);
+
+            modelBadge.style.setProperty("--badge-color", badgeColor);
+            modelBadge.style.setProperty("--badge-text", badgeInk.strong);
+            modelBadge.style.setProperty("--badge-dot", badgeInk.strong);
 
             modelBadge.textContent = activeModel.title;
             modelBadge.classList.remove("hidden");
@@ -1197,6 +1294,47 @@ function renderSales() {
 
     $("#clearSales").textContent =
         activeModel ? "Clear today" : "Clear today";
+
+
+    // "Today's sales" card picks up the selected model's color as a
+    // border accent, so which model you're logging for is clear at a
+    // glance without a separate banner.
+    const todaySalesCard = $("#todaySalesCard");
+    const todaySalesModelName = $("#todaySalesModelName");
+
+    if (todaySalesCard) {
+
+        if (activeModel) {
+
+            const cardColor = getAvatarColor(activeModel.id);
+
+            todaySalesCard.classList.add("has-model-color");
+            todaySalesCard.style.setProperty("--card-accent", cardColor);
+            todaySalesCard.style.setProperty(
+                "--card-accent-text",
+                getAccentTextColor(cardColor)
+            );
+
+            if (todaySalesModelName) {
+                todaySalesModelName.textContent = activeModel.title;
+                todaySalesModelName.title = activeModel.title;
+                todaySalesModelName.classList.remove("hidden");
+            }
+
+        } else {
+
+            todaySalesCard.classList.remove("has-model-color");
+            todaySalesCard.style.removeProperty("--card-accent");
+            todaySalesCard.style.removeProperty("--card-accent-text");
+
+            if (todaySalesModelName) {
+                todaySalesModelName.textContent = "";
+                todaySalesModelName.classList.add("hidden");
+            }
+
+        }
+
+    }
 
 
     // Stats
@@ -1257,7 +1395,8 @@ function renderSales() {
             : "block";
 
 
-    // Keep the scroll pinned to the latest sale
+    // Always keep the list scrolled to the latest sale — whichever
+    // model's sales are currently showing.
     $("#salesList").scrollTop =
         $("#salesList").scrollHeight;
 
@@ -1265,8 +1404,6 @@ function renderSales() {
     renderHistory();
 
     renderTrends();
-
-    alignCollapsedLogout();
 }
 
 
@@ -1338,21 +1475,50 @@ function renderTargetBreakdown() {
             const displayPercent =
                 percent === null ? 0 : Math.min(percent, 100);
 
+            // The further a model blows past its target, the hotter
+            // its name burns in the list.
+            //   0–99%    normal
+            //   100%     ✨ bright gold/white pulse + subtle glow
+            //   101–130% 🟠 subtle orange glow
+            //   131–160% 🔥 orange-red glow + flicker
+            //   161–199% 🔥🔥 intense multi-layer glow
+            //   200%+    🔥🔥🔥 maximum "blazing" effect
+            let fireTier = 0;
+            let fireEmoji = "";
+            if (percent !== null) {
+                if (percent >= 200) {
+                    fireTier = 5;
+                    fireEmoji = "🔥🔥🔥";
+                } else if (percent >= 161) {
+                    fireTier = 4;
+                    fireEmoji = "🔥🔥";
+                } else if (percent >= 131) {
+                    fireTier = 3;
+                    fireEmoji = "🔥";
+                } else if (percent >= 101) {
+                    fireTier = 2;
+                    fireEmoji = "🟠";
+                } else if (percent === 100) {
+                    fireTier = 1;
+                    fireEmoji = "✨";
+                }
+            }
+            const fireClass = fireTier ? ` on-fire on-fire-${fireTier}` : "";
+            const fireBadge = fireTier
+                ? `<span class="fire-badge fire-badge-${fireTier}">${fireEmoji}</span>`
+                : "";
+
+            const rowColor = getAvatarColor(model.id);
+            const ink = getRowInk(rowColor);
+
             return `
-                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}" data-model="${model.id}" draggable="true" title="Select to add a sale for ${escapeHTML(model.title)}">
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}" data-model="${model.id}" draggable="true" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
 
                     <div class="target-breakdown-head">
-                        <span
-                            class="target-breakdown-name"
-                            style="${model.id === currentModelFilter ? `--badge-color:${getAvatarColor(model.id)}` : ""}"
-                        >
-                            <span
-                                class="target-breakdown-dot"
-                                style="background:${getAvatarColor(model.id)}"
-                            ></span>
-                            <span class="target-breakdown-title">${escapeHTML(model.title)}</span>
+                        <span class="target-breakdown-name">
+                            <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}</span>${fireBadge}
                         </span>
-                        <span>
+                        <span class="target-breakdown-percent">
                             ${percent === null
                                 ? "No target"
                                 : hit
@@ -1377,6 +1543,38 @@ function renderTargetBreakdown() {
                 </div>
             `;
         }).join("");
+
+
+    fitTargetBreakdownTitles();
+}
+
+
+// Long model names shrink to fit their row instead of getting cut
+// off or stretching the "Add a sale" card. Font-size only — the
+// card's width and layout never change.
+function fitTargetBreakdownTitles() {
+
+    const MAX_FONT = 23;
+    const MIN_FONT = 13;
+
+    $("#targetBreakdown")
+        .querySelectorAll(".target-breakdown-title")
+        .forEach(title => {
+
+            title.style.fontSize = MAX_FONT + "px";
+
+            let size = MAX_FONT;
+
+            while (
+                title.scrollWidth > title.clientWidth &&
+                size > MIN_FONT
+            ) {
+                size -= 1;
+                title.style.fontSize = size + "px";
+            }
+
+        });
+
 }
 
 
@@ -1522,6 +1720,15 @@ function openTargetModal() {
     $("#targetAmount").value =
         getCurrentTarget() || "";
 
+    const colorBtn = $("#targetModalColorBtn");
+    if (colorBtn) {
+        colorBtn.style.background = getAvatarColor(currentModelFilter);
+        const model = getModelById(currentModelFilter);
+        colorBtn.title = model
+            ? `Change ${model.title}'s color`
+            : "Change this model's color";
+    }
+
     $("#targetModal").classList.remove(
         "hidden"
     );
@@ -1532,10 +1739,27 @@ function openTargetModal() {
 
 function closeTargetModal() {
 
+    closeColorSwatchPopover();
+
     $("#targetModal").classList.add(
         "hidden"
     );
 }
+
+
+$("#targetModalColorBtn").addEventListener(
+    "click",
+    function (event) {
+
+        event.stopPropagation();
+
+        if (currentModelFilter === null) {
+            return;
+        }
+
+        openColorSwatchPopover(currentModelFilter, this);
+    }
+);
 
 
 $("#closeTargetModal").addEventListener(
@@ -1770,96 +1994,34 @@ function renderHistory() {
     const today =
         getDateKey();
 
-
+    // The history list always shows the same thing regardless of
+    // whether a model is selected on the page — just the dates.
+    // Click a date to see each model's net and target status for it.
     const history =
-        currentModelFilter === null
-            ? data.history
-
-                .filter(
-                    item =>
-                        item.date !== today
-                )
-
-                .sort(
-                    (a, b) =>
-                        b.date.localeCompare(
-                            a.date
-                        )
-                )
-            : computeModelDailyRows(
-                currentModelFilter,
-                true
-            ).sort(
-                (a, b) =>
-                    b.date.localeCompare(
-                        a.date
-                    )
-            );
-
+        data.history
+            .filter(item => item.date !== today)
+            .sort((a, b) => b.date.localeCompare(a.date));
 
     const historyRowsHtml =
         history.map(
             item => `
                 <div class="history-row" data-date="${item.date}" style="cursor:pointer">
-
-                    <div>
-
-                        <div class="history-date">
-                            ${formatDate(item.date)}
-                        </div>
-
-                        <small class="sub">
-                            ${item.count}
-                            sale${item.count === 1 ? "" : "s"}
-                            ${
-                                item.targetPercent !== null &&
-                                item.targetPercent !== undefined
-                                    ? ` · ${item.targetPercent}% of target`
-                                    : ""
-                            }
-                        </small>
-
+                    <div class="history-date">
+                        ${formatDate(item.date)}
                     </div>
-
-
-                    <div>
-
-                        <strong>
-                            ${money(item.gross)}
-                        </strong>
-
-                        <span class="history-net">
-                            ${money(item.net)} net
-                        </span>
-
-                        ${
-                            item.targetPercent !== null &&
-                            item.targetPercent !== undefined
-                                ? `
-                                    <span class="history-target-badge ${item.targetPercent >= 100 ? "hit" : ""}">
-                                        ${item.targetPercent}%
-                                    </span>
-                                `
-                                : ""
-                        }
-
-                    </div>
-
                 </div>
 
                 <div class="history-model-breakdown hidden" data-breakdown="${item.date}"></div>
             `
         ).join("");
 
+    $("#historyList").innerHTML = historyRowsHtml;
 
-    $("#historyList").innerHTML =
-        historyRowsHtml;
-
+    $("#emptyHistory").textContent =
+        "Your previous days will appear here.";
 
     $("#emptyHistory").style.display =
-        history.length
-            ? "none"
-            : "block";
+        history.length ? "none" : "block";
 }
 
 
@@ -1881,11 +2043,27 @@ function getModelBreakdownForDate(dateKey) {
         byModel[key] += Number(sale.amount);
     });
 
-    return Object.keys(byModel)
+    // Show every current model that already existed by this date
+    // (models with no createdDate predate this feature, so they're
+    // always included), even ones with no sales that day — those
+    // should still appear at $0 / 0%. Deleted models that had sales
+    // that day are kept too (from byModel), so their history isn't lost.
+    const modelIds = data.models
+        .filter(model => !model.createdDate || model.createdDate <= dateKey)
+        .map(model => model.id);
+
+    Object.keys(byModel).forEach(id => {
+        if (!modelIds.includes(id)) {
+            modelIds.push(id);
+        }
+    });
+
+    return modelIds
         .map(modelId => {
 
             const model = getModelById(modelId);
-            const net = byModel[modelId] * NET_RATE;
+            const grossAmt = byModel[modelId] || 0;
+            const net = grossAmt * NET_RATE;
             const target = data.modelTargets[modelId] || 0;
 
             return {
@@ -1923,15 +2101,15 @@ function renderModelBreakdownRow(dateKey, container) {
                         ${money(row.net)} net
                     </span>
 
-                    ${
-                        row.targetPercent !== null
-                            ? `
-                                <span class="history-target-badge ${row.targetPercent >= 100 ? "hit" : ""}">
-                                    ${row.targetPercent >= 100 ? "Target hit" : `${row.targetPercent}%`}
-                                </span>
-                            `
-                            : ""
-                    }
+                    <span class="history-target-badge ${row.targetPercent !== null && row.targetPercent >= 100 ? "hit" : ""}">
+                        ${
+                            row.targetPercent === null
+                                ? "No target"
+                                : row.targetPercent >= 100
+                                    ? "Target hit"
+                                    : `${row.targetPercent}%`
+                        }
+                    </span>
 
                 </div>
             `
@@ -2150,6 +2328,18 @@ $$(".nav-btn").forEach(
             "click",
             function () {
 
+                // Remember where the user was on the tab they're
+                // leaving, so coming back restores it instead of
+                // dumping them back at the top.
+                const mainEl = $(".main");
+                const outgoingPage = $(".page.active");
+
+                if (mainEl && outgoingPage) {
+                    pageScrollPositions[outgoingPage.id] =
+                        mainEl.scrollTop;
+                }
+
+
                 $$(".nav-btn")
                     .forEach(
                         btn =>
@@ -2173,14 +2363,29 @@ $$(".nav-btn").forEach(
                     );
 
 
+                const targetPageId = this.dataset.page;
+
                 $(
                     "#" +
-                    this.dataset.page
+                    targetPageId
                 ).classList.add(
                     "active"
                 );
 
-                alignCollapsedLogout();
+
+                if (mainEl) {
+
+                    const restoreScroll = () => {
+                        mainEl.scrollTop =
+                            pageScrollPositions[targetPageId] || 0;
+                    };
+
+                    // Layout for the newly-shown page isn't settled
+                    // until the next frame, so wait for it before
+                    // restoring scroll position.
+                    requestAnimationFrame(restoreScroll);
+
+                }
 
             }
         );
@@ -2699,6 +2904,115 @@ $$(".chips").forEach(
 let dragState = null;
 
 
+/* ---------- Auto-scroll the page while dragging near the edges ----------
+   Now that the models/scripts lists scroll with the whole page instead
+   of in their own little box, dragging a card up near the header (or
+   down near the bottom of the window) needs to scroll the page itself
+   so you can drop it further up/down than what's currently on screen. */
+
+let dragAutoScrollSpeed = 0;
+let dragAutoScrollFrame = null;
+const DRAG_AUTOSCROLL_EDGE = 90;
+const DRAG_AUTOSCROLL_MAX_SPEED = 22;
+
+
+function stepDragAutoScroll() {
+
+    const mainEl = $(".main");
+
+    if (dragAutoScrollSpeed !== 0 && mainEl) {
+
+        mainEl.scrollTop += dragAutoScrollSpeed;
+
+        dragAutoScrollFrame =
+            requestAnimationFrame(stepDragAutoScroll);
+
+    } else {
+
+        dragAutoScrollFrame = null;
+
+    }
+
+}
+
+
+function updateDragAutoScroll(clientY) {
+
+    const mainEl = $(".main");
+
+    if (!mainEl) {
+        return;
+    }
+
+    const rect = mainEl.getBoundingClientRect();
+
+    if (clientY < rect.top + DRAG_AUTOSCROLL_EDGE) {
+
+        const intensity =
+            (rect.top + DRAG_AUTOSCROLL_EDGE - clientY) /
+            DRAG_AUTOSCROLL_EDGE;
+
+        dragAutoScrollSpeed =
+            -Math.ceil(
+                DRAG_AUTOSCROLL_MAX_SPEED * Math.min(intensity, 1)
+            );
+
+    } else if (clientY > rect.bottom - DRAG_AUTOSCROLL_EDGE) {
+
+        const intensity =
+            (clientY - (rect.bottom - DRAG_AUTOSCROLL_EDGE)) /
+            DRAG_AUTOSCROLL_EDGE;
+
+        dragAutoScrollSpeed =
+            Math.ceil(
+                DRAG_AUTOSCROLL_MAX_SPEED * Math.min(intensity, 1)
+            );
+
+    } else {
+
+        dragAutoScrollSpeed = 0;
+
+    }
+
+    if (dragAutoScrollSpeed !== 0 && !dragAutoScrollFrame) {
+        dragAutoScrollFrame = requestAnimationFrame(stepDragAutoScroll);
+    }
+
+}
+
+
+function stopDragAutoScroll() {
+
+    dragAutoScrollSpeed = 0;
+
+    if (dragAutoScrollFrame) {
+        cancelAnimationFrame(dragAutoScrollFrame);
+        dragAutoScrollFrame = null;
+    }
+
+}
+
+
+document.addEventListener(
+    "dragover",
+    function (event) {
+
+        if (!dragState) {
+            return;
+        }
+
+        updateDragAutoScroll(event.clientY);
+
+    }
+);
+
+
+["dragend", "drop"].forEach(
+    evtName =>
+        document.addEventListener(evtName, stopDragAutoScroll)
+);
+
+
 function reorderItem(type, draggedId, targetId) {
 
     if (draggedId === targetId) {
@@ -2729,6 +3043,11 @@ function reorderItem(type, draggedId, targetId) {
     saveData();
 
     renderContent(type);
+
+    // Model order drives the "Add a sale" list order too.
+    if (type === "models") {
+        renderSales();
+    }
 }
 
 
@@ -3302,6 +3621,13 @@ $("#contentForm").addEventListener(
         }
 
 
+        // Stamp new models with the date they were created, so
+        // history from before that date doesn't show them.
+        if (modalType === "models" && !editingId) {
+            item.createdDate = getDateKey();
+        }
+
+
         if (editingId) {
 
             const index =
@@ -3359,6 +3685,13 @@ $("#contentForm").addEventListener(
         renderContent(
             savedType
         );
+
+        // Adding/editing a model needs to show up immediately in the
+        // Sales tab too — the "Add a sale" model list, the today's-sale
+        // header, and the model picker all read from data.models.
+        if (savedType === "models") {
+            renderSales();
+        }
     }
 );
 
@@ -3449,29 +3782,13 @@ function deleteItem(
    SOUND EFFECTS
    ===================================================== */
 
+const kachingSound = new Audio("kaching.wav");
+kachingSound.volume = 0.6;
+
 function playKaching() {
-
     try {
-
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-
-        const ping = (freq, start, dur, vol = 0.25) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "sine";
-            osc.frequency.value = freq;
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            gain.gain.setValueAtTime(0, ctx.currentTime + start);
-            gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + start + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + dur);
-        };
-
-        ping(1568, 0, 0.15);
-        ping(2093, 0.08, 0.35);
-
+        kachingSound.currentTime = 0; // rewind so back-to-back sales retrigger it
+        kachingSound.play().catch(() => {}); // ignore autoplay-block errors
     } catch {}
 }
 
