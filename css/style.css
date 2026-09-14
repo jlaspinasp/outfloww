@@ -1643,6 +1643,77 @@ select:focus {
 }
 
 
+/* Sales history — model name header shown when a specific
+   model is selected on the Sales page */
+.history-model-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    margin: -6px 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+
+.history-model-name.hidden {
+    display: none;
+}
+
+
+/* Sales history — single-model day detail (gross/net/PPVs +
+   list of that day's sales for the selected model) */
+.history-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+
+.history-detail-stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+}
+
+
+.history-detail-stat-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+
+.history-detail-stat-value {
+    font-size: 16px;
+    font-weight: 800;
+    margin-top: 4px;
+    color: var(--text);
+}
+
+
+.history-detail-sales-list {
+    display: grid;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+
+.history-detail-sale-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+
 /* ================= BUTTONS ================= */
 
 .btn {
@@ -2104,6 +2175,22 @@ label {
 }
 
 
+/* Sits at the bottom-left of the history modal, opposite
+   Clear history, and only appears once a day is expanded. */
+#copyLogoutBtn {
+    margin-right: auto;
+    opacity: 1;
+    transition: opacity 0.25s ease;
+}
+
+
+#copyLogoutBtn.hidden {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+}
+
+
 .icon-btn {
     width: 34px;
     height: 34px;
@@ -2406,6 +2493,14 @@ label {
 
 /* ================= TRENDS ================= */
 
+.trends-card {
+    /* Pinned so the card is the same size whether a model is
+       selected (full chart) or not (the "select a model" message) —
+       nothing here should ever depend on that state. */
+    min-height: 300px;
+}
+
+
 .trends-card .section-head {
     display: flex;
     justify-content: space-between;
@@ -2474,10 +2569,17 @@ label {
 
 
 .trend-bars {
+    position: relative;
+    height: 138px;
+}
+
+
+.trend-bars-inner {
+    position: relative;
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    height: 110px;
+    height: 100%;
 }
 
 
@@ -2485,7 +2587,7 @@ label {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 110px;
+    height: 100%;
     color: var(--muted);
     font-size: 0.9em;
     text-align: center;
@@ -2499,6 +2601,50 @@ label {
     align-items: center;
     justify-content: flex-end;
     height: 100%;
+    border-radius: 8px;
+    padding: 2px 0;
+}
+
+
+.trend-bar-col.trend-bar-current {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .trend-bar-col.trend-bar-current {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+
+.trend-bar-col.clickable {
+    cursor: pointer;
+}
+
+.trend-bar-col.clickable:hover .trend-bar-fill {
+    filter: brightness(1.15);
+}
+
+
+.trend-bar-value {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    margin-bottom: 4px;
+    height: 1.2em;
+    line-height: 1.2em;
+}
+
+
+.trend-bar-pct {
+    display: inline-block;
+    margin-left: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent-text);
+}
+
+.trend-bar-pct.hit {
+    color: #35b978;
 }
 
 
@@ -2516,7 +2662,17 @@ label {
     min-height: 0;
     background: var(--accent-gradient);
     border-radius: 4px 4px 0 0;
-    transition: height 0.3s ease;
+    transition: height 0.3s ease, filter 0.15s ease;
+}
+
+
+.trend-bar-fill.target-hit {
+    background: linear-gradient(180deg, #6de6a0, #2ea86a);
+}
+
+
+.trend-bar-fill.target-missed {
+    background: linear-gradient(180deg, #ff9fc9, #d6337f);
 }
 
 
@@ -2525,7 +2681,47 @@ label {
     font-size: 10.5px;
     color: var(--muted);
     white-space: nowrap;
+    line-height: 1.2;
 }
 
 
-/* Today / this month, always centered among the 7 bars shown */
+.trend-bar-col.trend-bar-current .trend-bar-label {
+    color: var(--text);
+    font-weight: 700;
+}
+
+
+.trend-target-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px dashed var(--muted-2);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.trend-target-line span {
+    position: absolute;
+    right: 0;
+    top: -14px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--panel);
+    padding: 0 4px 0 6px;
+    white-space: nowrap;
+}
+
+
+.trend-extra {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.3em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
