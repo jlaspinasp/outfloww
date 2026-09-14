@@ -10,7 +10,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="css/style.css?v=2">
 
@@ -245,7 +245,7 @@
 
                     <div class="card">
                         <div class="stat-label">
-                            Gross sales
+                            <span class="stat-icon">💵</span>Gross sales
                         </div>
 
                         <div class="stat" id="gross">
@@ -257,7 +257,7 @@
                     <div class="card">
 
                         <div class="stat-label">
-                            Net earnings · 80%
+                            <span class="stat-icon">💸</span>Net earnings · 80%
                         </div>
 
                         <div class="stat net" id="net">
@@ -270,7 +270,7 @@
                     <div class="card">
 
                         <div class="stat-label">
-                            PPVs Unlocked
+                            <span class="stat-icon">🔓</span>PPVs Unlocked
                         </div>
 
                         <div class="stat" id="saleCount">
@@ -325,21 +325,72 @@
                         <div class="section-head">
                             <h2>Add a sale</h2>
 
-                            <div class="model-picker">
+                            <div class="target-head-actions">
 
-                                <button
-                                    class="icon-btn"
-                                    id="openModelPicker"
-                                    type="button"
-                                    title="Set a model's target"
-                                >
-                                    🎯
-                                </button>
+                                <div class="outside-shift-picker">
 
-                                <div
-                                    id="modelPickerList"
-                                    class="model-picker-list hidden"
-                                ></div>
+                                    <button
+                                        class="outside-shift-btn"
+                                        id="outsideShiftToggle"
+                                        type="button"
+                                        title="Add an outside-shift sale"
+                                        aria-pressed="false"
+                                    >
+                                        Outside Shift
+                                    </button>
+
+                                    <div
+                                        id="outsideShiftPopover"
+                                        class="outside-shift-popover hidden"
+                                    >
+
+                                        <form id="outsideShiftForm">
+
+                                            <input
+                                                type="text"
+                                                id="outsideShiftBuyerField"
+                                                name="outside-shift-buyer"
+                                                placeholder="e.g. @u1234567"
+                                                maxlength="40"
+                                                autocomplete="off"
+                                                autocorrect="off"
+                                                autocapitalize="off"
+                                                spellcheck="false"
+                                                data-lpignore="true"
+                                                data-1p-ignore="true"
+                                                data-form-type="other"
+                                            >
+
+                                            <button
+                                                class="btn primary"
+                                                type="submit"
+                                            >
+                                                Set
+                                            </button>
+
+                                        </form>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="model-picker">
+
+                                    <button
+                                        class="icon-btn"
+                                        id="openModelPicker"
+                                        type="button"
+                                        title="Set a model's target"
+                                    >
+                                        🎯
+                                    </button>
+
+                                    <div
+                                        id="modelPickerList"
+                                        class="model-picker-list hidden"
+                                    ></div>
+
+                                </div>
 
                             </div>
                         </div>
