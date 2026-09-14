@@ -614,7 +614,7 @@ function renderTrends(range) {
     if (currentModelFilter === null) {
 
         $("#trendBars").innerHTML =
-            `<div class="trend-empty">Select a model above to see its trend</div>`;
+            `<div class="trend-empty">Select a model to see its trend</div>`;
 
         $("#trendSummary").innerHTML = "";
 
@@ -690,11 +690,34 @@ function renderTrends(range) {
 
     const targetLineHtml =
         currentTrendRange === "day" && dailyTarget > 0
-            ? `
-                <div class="trend-target-line" style="bottom:${LABEL_BLOCK_HEIGHT + Math.min((dailyTarget / maxNet) * TRACK_HEIGHT, TRACK_HEIGHT)}px">
-                    <span>${moneyShort(dailyTarget)} target</span>
-                </div>
-            `
+            ? (() => {
+
+                const lineHeightPx =
+                    Math.min((dailyTarget / maxNet) * TRACK_HEIGHT, TRACK_HEIGHT);
+
+                // Height (in px) of a bar's fill, matching the same
+                // math used to size .trend-bar-fill below.
+                const barHeightPx = r =>
+                    r.net > 0
+                        ? (Math.max((r.net / maxNet) * 100, 4) / 100) * TRACK_HEIGHT
+                        : 0;
+
+                // The label sits at either edge of the chart, right
+                // next to whichever bar is there (oldest day on the
+                // left, today on the right). Anchor it to whichever
+                // edge's bar has more headroom under the target line,
+                // so a tall bar at either end doesn't cover it.
+                const labelSide =
+                    barHeightPx(rows[0]) <= barHeightPx(rows[rows.length - 1])
+                        ? "left"
+                        : "right";
+
+                return `
+                    <div class="trend-target-line" style="bottom:${LABEL_BLOCK_HEIGHT + lineHeightPx}px">
+                        <span style="${labelSide}:0">${moneyShort(dailyTarget)} target</span>
+                    </div>
+                `;
+            })()
             : "";
 
     const barsHtml = rows.map(r => {
@@ -1965,6 +1988,88 @@ $("#targetForm").addEventListener(
    ===================================================== */
 
 
+// The buyer username armed via the "Outside shift" popover, or
+// null when not armed. Purely a logout-text convenience flag —
+// outside-shift sales still count as normal sales everywhere
+// else (totals, target progress, history). Armed for exactly
+// the next sale added, then automatically clears.
+let outsideShiftUsername = null;
+
+
+function setOutsideShiftArmed(username) {
+
+    outsideShiftUsername = username || null;
+
+    $("#outsideShiftToggle").classList.toggle(
+        "active",
+        Boolean(outsideShiftUsername)
+    );
+
+    $("#outsideShiftToggle").setAttribute(
+        "aria-pressed",
+        outsideShiftUsername ? "true" : "false"
+    );
+
+    $("#outsideShiftToggle").title =
+        outsideShiftUsername
+            ? `Outside shift: ${outsideShiftUsername} (next sale — click to change)`
+            : "Add an outside-shift sale";
+}
+
+
+$("#outsideShiftToggle").addEventListener(
+    "click",
+    function () {
+
+        const opening =
+            $("#outsideShiftPopover").classList.contains("hidden");
+
+        $("#outsideShiftPopover").classList.toggle(
+            "hidden"
+        );
+
+        if (opening) {
+
+            $("#outsideShiftBuyerField").value =
+                outsideShiftUsername || "";
+
+            $("#outsideShiftBuyerField").focus();
+        }
+    }
+);
+
+
+$("#outsideShiftForm").addEventListener(
+    "submit",
+    function (event) {
+
+        event.preventDefault();
+
+        const username =
+            $("#outsideShiftBuyerField").value.trim();
+
+        setOutsideShiftArmed(username);
+
+        $("#outsideShiftPopover").classList.add("hidden");
+    }
+);
+
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target.closest(".outside-shift-picker")) {
+            return;
+        }
+
+        $("#outsideShiftPopover").classList.add(
+            "hidden"
+        );
+    }
+);
+
+
 $("#saleForm").addEventListener(
     "submit",
     function (event) {
@@ -2002,14 +2107,23 @@ $("#saleForm").addEventListener(
         }
 
 
-        data.sales[dateKey].push({
+        const sale = {
             amount: amount,
             time: Date.now(),
             modelId: currentModelFilter
-        });
+        };
+
+        if (outsideShiftUsername) {
+            sale.outsideShift = true;
+            sale.buyerUsername = outsideShiftUsername;
+        }
+
+        data.sales[dateKey].push(sale);
 
 
         $("#saleAmount").value = "";
+
+        setOutsideShiftArmed(null);
 
 
         updateHistory();
@@ -2435,6 +2549,24 @@ function buildLogoutText(dateKey) {
 
     const net = gross * NET_RATE;
 
+    // Sales flagged as "outside shift" still count in the totals
+    // above like any other sale — this just lists them separately
+    // at the bottom of the logout text, oldest first.
+    const outsideShiftSales = sales
+        .filter(sale => sale.outsideShift)
+        .sort((a, b) => a.time - b.time);
+
+    const outsideShiftBlock =
+        outsideShiftSales.length
+            ? `\n\nOUTSIDE SHIFT:\n` +
+              outsideShiftSales
+                  .map(
+                      sale =>
+                          `${sale.buyerUsername} - ${money(Number(sale.amount) * NET_RATE)} NET`
+                  )
+                  .join("\n")
+            : "";
+
     return (
         `🌸 LOGOUT 🌸\n` +
         `${modelName} -\n\n` +
@@ -2442,7 +2574,8 @@ function buildLogoutText(dateKey) {
         `Date: ${formatDate(dateKey)}\n` +
         `Subscriptions - $\n` +
         `MM Sales - $\n` +
-        `Tips + Messages - ${money(net)}`
+        `Tips + Messages - ${money(net)}` +
+        outsideShiftBlock
     );
 }
 
