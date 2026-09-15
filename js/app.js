@@ -2562,7 +2562,7 @@ function buildLogoutText(dateKey) {
               outsideShiftSales
                   .map(
                       sale =>
-                          `${sale.buyerUsername} - ${money(Number(sale.amount) * NET_RATE)} NET`
+                          `${sale.buyerUsername} - ${money(Number(sale.amount) * NET_RATE)} net`
                   )
                   .join("\n")
             : "";
