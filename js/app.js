@@ -2457,7 +2457,10 @@ function getModelSalesForDate(dateKey, modelId) {
 
             return {
                 amount: amount,
-                net: amount * NET_RATE
+                net: amount * NET_RATE,
+                time: sale.time,
+                outsideShift: sale.outsideShift,
+                buyerUsername: sale.buyerUsername
             };
 
         });
@@ -2568,13 +2571,13 @@ function buildLogoutText(dateKey) {
             : "";
 
     return (
-        `🌸 LOGOUT 🌸\n` +
+        `🌸 LOGOUT 🌸\n\n` +
         `${modelName} -\n\n` +
         `Shift Time: 4:00PM-12:00AM\n` +
         `Date: ${formatDate(dateKey)}\n` +
         `Subscriptions - $\n` +
         `MM Sales - $\n` +
-        `Tips + Messages - ${money(net)}` +
+        `Tips + Messages - ${money(net)} net` +
         outsideShiftBlock
     );
 }
