@@ -894,11 +894,28 @@ function getModelName(id) {
         return model.title;
     }
 
-    if (data.deletedModels[id]) {
-        return data.deletedModels[id];
+    const deleted = data.deletedModels[id];
+
+    if (deleted) {
+        // Older saves stored just the title string; newer saves
+        // store { title, target } so history can still show the
+        // percent this model hit before it was deleted.
+        return typeof deleted === "string" ? deleted : deleted.title;
     }
 
     return "Unassigned";
+}
+
+
+function getDeletedModelTarget(id) {
+
+    const deleted = data.deletedModels[id];
+
+    if (!deleted) {
+        return 0;
+    }
+
+    return typeof deleted === "string" ? 0 : (Number(deleted.target) || 0);
 }
 
 
@@ -1406,6 +1423,35 @@ function renderSales() {
             ? null
             : getModelById(currentModelFilter);
 
+    // Lock the "Add a sale" form until a model is selected
+    const saleAmountInput = $("#saleAmount");
+    const addSaleBtn = $("#addSaleBtn");
+
+    if (saleAmountInput) {
+
+        saleAmountInput.disabled = !activeModel;
+
+        saleAmountInput.placeholder =
+            activeModel
+                ? ""
+                : "Select a model first";
+
+        if (!activeModel) {
+            saleAmountInput.value = "";
+        }
+    }
+
+    if (addSaleBtn) {
+
+        addSaleBtn.disabled = !activeModel;
+
+        addSaleBtn.title =
+            activeModel
+                ? ""
+                : "Select a model to add a sale";
+    }
+
+
     const visible = getVisibleSales();
     const sales = visible.map(entry => entry.sale);
 
@@ -1515,20 +1561,30 @@ function renderSales() {
     renderTargetProgress(net);
 
 
-    // Individual sales
+    // Individual sales — only shown when a model is selected
+    const listed = activeModel ? visible : [];
+
     $("#salesList").innerHTML =
-        visible.map(
+        listed.map(
             ({ sale, index }) => {
 
                 const saleNet =
                     Number(sale.amount) *
                     NET_RATE;
 
+                const tagBadge =
+                    sale.tip
+                        ? `<span class="sale-tag-badge tip" title="Tip — ${escapeHTML(sale.buyerUsername || "")}">💗 Tip</span>`
+                        : sale.outsideShift
+                            ? `<span class="sale-tag-badge outside" title="Outside shift — ${escapeHTML(sale.buyerUsername || "")}">🕐 Outside</span>`
+                            : "";
+
                 return `
                     <div class="sale-row">
 
-                        <div>
-                            ${money(sale.amount)}
+                        <div class="sale-left">
+                            <span class="sale-amount">${money(sale.amount)}</span>
+                            ${tagBadge}
                         </div>
 
                         <div class="sale-right">
@@ -1552,8 +1608,15 @@ function renderSales() {
         ).join("");
 
 
-    $("#emptySales").style.display =
-        sales.length
+    const emptySales = $("#emptySales");
+
+    emptySales.textContent =
+        activeModel
+            ? "No sales added today."
+            : "Select a model to see today's sales.";
+
+    emptySales.style.display =
+        listed.length
             ? "none"
             : "block";
 
@@ -1988,69 +2051,133 @@ $("#targetForm").addEventListener(
    ===================================================== */
 
 
-// The buyer username armed via the "Outside shift" popover, or
-// null when not armed. Purely a logout-text convenience flag —
-// outside-shift sales still count as normal sales everywhere
-// else (totals, target progress, history). Armed for exactly
-// the next sale added, then automatically clears.
-let outsideShiftUsername = null;
+// The username armed via the "Add Username" popover, or null when
+// not armed, plus the kind of tag it is: "tip" or "outside".
+// Purely a logout-text convenience flag — tagged sales still count
+// as normal sales everywhere else (totals, target progress,
+// history). Armed for exactly the next sale added, then clears.
+let armedUsername = null;
+let armedUsernameType = "tip";
 
 
-function setOutsideShiftArmed(username) {
+function usernameTypeLabel(type) {
 
-    outsideShiftUsername = username || null;
-
-    $("#outsideShiftToggle").classList.toggle(
-        "active",
-        Boolean(outsideShiftUsername)
-    );
-
-    $("#outsideShiftToggle").setAttribute(
-        "aria-pressed",
-        outsideShiftUsername ? "true" : "false"
-    );
-
-    $("#outsideShiftToggle").title =
-        outsideShiftUsername
-            ? `Outside shift: ${outsideShiftUsername} (next sale — click to change)`
-            : "Add an outside-shift sale";
+    return type === "outside"
+        ? "Outside shift"
+        : "Tip";
 }
 
 
-$("#outsideShiftToggle").addEventListener(
+function setArmedUsername(username, type) {
+
+    armedUsername = username || null;
+
+    if (type) {
+        armedUsernameType = type;
+    }
+
+    const toggle = $("#addUsernameToggle");
+
+    toggle.classList.toggle(
+        "active",
+        Boolean(armedUsername)
+    );
+
+    toggle.setAttribute(
+        "aria-pressed",
+        armedUsername ? "true" : "false"
+    );
+
+    toggle.textContent =
+        armedUsername
+            ? `${usernameTypeLabel(armedUsernameType)}: ${armedUsername}`
+            : "Add Username";
+
+    toggle.title =
+        armedUsername
+            ? `${usernameTypeLabel(armedUsernameType)} — ${armedUsername} (next sale — click to change)`
+            : "Tag the next sale with a username";
+}
+
+
+function setUsernameTypeUI(type) {
+
+    armedUsernameType = type;
+
+    document
+        .querySelectorAll(".username-type-btn")
+        .forEach(btn => {
+
+            const on =
+                btn.dataset.usernameType === type;
+
+            btn.classList.toggle("active", on);
+
+            btn.setAttribute(
+                "aria-pressed",
+                on ? "true" : "false"
+            );
+        });
+}
+
+
+document
+    .querySelectorAll(".username-type-btn")
+    .forEach(btn => {
+
+        btn.addEventListener(
+            "click",
+            function () {
+
+                setUsernameTypeUI(
+                    btn.dataset.usernameType
+                );
+
+                $("#saleTagField").focus();
+            }
+        );
+    });
+
+
+$("#addUsernameToggle").addEventListener(
     "click",
     function () {
 
         const opening =
-            $("#outsideShiftPopover").classList.contains("hidden");
+            $("#addUsernamePopover").classList.contains("hidden");
 
-        $("#outsideShiftPopover").classList.toggle(
+        $("#addUsernamePopover").classList.toggle(
             "hidden"
         );
 
         if (opening) {
 
-            $("#outsideShiftBuyerField").value =
-                outsideShiftUsername || "";
+            setUsernameTypeUI(armedUsernameType);
 
-            $("#outsideShiftBuyerField").focus();
+            $("#saleTagField").value =
+                armedUsername || "";
+
+            $("#saleTagField").focus();
         }
     }
 );
 
 
-$("#outsideShiftForm").addEventListener(
+$("#addUsernameForm").addEventListener(
     "submit",
     function (event) {
 
         event.preventDefault();
 
         const username =
-            $("#outsideShiftBuyerField").value.trim();
+            $("#saleTagField").value.trim();
 
-        setOutsideShiftArmed(username);
+        setArmedUsername(
+            username,
+            armedUsernameType
+        );
 
-        $("#outsideShiftPopover").classList.add("hidden");
+        $("#addUsernamePopover").classList.add("hidden");
     }
 );
 
@@ -2063,7 +2190,7 @@ document.addEventListener(
             return;
         }
 
-        $("#outsideShiftPopover").classList.add(
+        $("#addUsernamePopover").classList.add(
             "hidden"
         );
     }
@@ -2075,6 +2202,16 @@ $("#saleForm").addEventListener(
     function (event) {
 
         event.preventDefault();
+
+
+        if (currentModelFilter === null) {
+
+            toast(
+                "Select a model first."
+            );
+
+            return;
+        }
 
 
         const amount =
@@ -2113,9 +2250,15 @@ $("#saleForm").addEventListener(
             modelId: currentModelFilter
         };
 
-        if (outsideShiftUsername) {
-            sale.outsideShift = true;
-            sale.buyerUsername = outsideShiftUsername;
+        if (armedUsername) {
+
+            sale.buyerUsername = armedUsername;
+
+            if (armedUsernameType === "outside") {
+                sale.outsideShift = true;
+            } else {
+                sale.tip = true;
+            }
         }
 
         data.sales[dateKey].push(sale);
@@ -2123,7 +2266,7 @@ $("#saleForm").addEventListener(
 
         $("#saleAmount").value = "";
 
-        setOutsideShiftArmed(null);
+        setArmedUsername(null);
 
 
         updateHistory();
@@ -2393,7 +2536,15 @@ function getModelBreakdownForDate(dateKey) {
             const model = getModelById(modelId);
             const grossAmt = byModel[modelId] || 0;
             const net = grossAmt * NET_RATE;
-            const target = data.modelTargets[modelId] || 0;
+
+            // A deleted model no longer has an entry in
+            // data.modelTargets (it's removed on deletion), so fall
+            // back to the target it had at the moment it was
+            // deleted, kept in data.deletedModels, to keep showing
+            // its target-hit status on past days.
+            const target = model
+                ? (data.modelTargets[modelId] || 0)
+                : getDeletedModelTarget(modelId);
 
             return {
                 id: modelId,
@@ -2460,6 +2611,7 @@ function getModelSalesForDate(dateKey, modelId) {
                 net: amount * NET_RATE,
                 time: sale.time,
                 outsideShift: sale.outsideShift,
+                tip: sale.tip,
                 buyerUsername: sale.buyerUsername
             };
 
@@ -2552,22 +2704,31 @@ function buildLogoutText(dateKey) {
 
     const net = gross * NET_RATE;
 
-    // Sales flagged as "outside shift" still count in the totals
-    // above like any other sale — this just lists them separately
+    // Sales tagged with a username still count in the totals above
+    // like any other sale — these blocks just list them separately
     // at the bottom of the logout text, oldest first.
+    const usernameLine =
+        sale =>
+            `${sale.buyerUsername} - ${money(Number(sale.amount) * NET_RATE)} net`;
+
+    const tipSales = sales
+        .filter(sale => sale.tip && sale.buyerUsername)
+        .sort((a, b) => a.time - b.time);
+
+    const tipsBlock =
+        tipSales.length
+            ? `\n\nTIPS:\n` +
+              tipSales.map(usernameLine).join("\n")
+            : "";
+
     const outsideShiftSales = sales
-        .filter(sale => sale.outsideShift)
+        .filter(sale => sale.outsideShift && sale.buyerUsername)
         .sort((a, b) => a.time - b.time);
 
     const outsideShiftBlock =
         outsideShiftSales.length
             ? `\n\nOUTSIDE SHIFT:\n` +
-              outsideShiftSales
-                  .map(
-                      sale =>
-                          `${sale.buyerUsername} - ${money(Number(sale.amount) * NET_RATE)} net`
-                  )
-                  .join("\n")
+              outsideShiftSales.map(usernameLine).join("\n")
             : "";
 
     return (
@@ -2578,6 +2739,7 @@ function buildLogoutText(dateKey) {
         `Subscriptions - $\n` +
         `MM Sales - $\n` +
         `Tips + Messages - ${money(net)} net` +
+        tipsBlock +
         outsideShiftBlock
     );
 }
@@ -4184,7 +4346,7 @@ $("#contentForm").addEventListener(
         }
 
 
-        const item = {
+        let item = {
 
             id:
                 editingId ||
@@ -4224,6 +4386,15 @@ $("#contentForm").addEventListener(
                         editingId
                 );
 
+            // Merge onto the existing item instead of replacing it
+            // outright, so fields the form doesn't manage (like a
+            // model's createdDate) survive an edit.
+            if (index !== -1) {
+                item = {
+                    ...data[modalType][index],
+                    ...item
+                };
+            }
 
             data[modalType][index] =
                 item;
@@ -4325,7 +4496,14 @@ function deleteItem(
             data.models.find(item => item.id === id);
 
         if (deletedModel) {
-            data.deletedModels[id] = deletedModel.title;
+            // Keep the model's title AND the target it had at the
+            // moment of deletion, so past days can still show what
+            // percent of target it hit instead of losing that info
+            // once modelTargets[id] is deleted below.
+            data.deletedModels[id] = {
+                title: deletedModel.title,
+                target: data.modelTargets[id] || 0
+            };
         }
 
     }
