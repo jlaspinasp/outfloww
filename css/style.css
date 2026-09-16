@@ -1279,6 +1279,18 @@ h2 {
 }
 
 
+.sale-box input:disabled,
+.sale-box .btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+
+.sale-box input:disabled::placeholder {
+    font-size: 13px;
+}
+
+
 /* ================= OUTSIDE SHIFT (target card) ================= */
 
 .outside-shift-picker {
@@ -1338,6 +1350,52 @@ h2 {
 .outside-shift-popover form {
     display: flex;
     gap: 6px;
+}
+
+
+.username-type-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+
+.username-type-btn {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--muted-2);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+
+.username-type-btn:hover {
+    color: var(--text);
+    background: var(--panel-2);
+}
+
+
+.username-type-btn.active {
+    color: var(--accent-text);
+    background: var(--accent-light);
+    border-color: var(--accent-border);
+}
+
+
+#addUsernameToggle {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    line-height: 32px;
 }
 
 
@@ -1608,6 +1666,36 @@ select:focus {
 }
 
 
+/* History modal — fixed card size regardless of whether a model
+   is selected (few short rows) or not (rows + breakdowns), with
+   the date list itself scrolling once it has a lot of days. */
+#historyModal .modal-card {
+    height: min(640px, 82vh);
+    display: flex;
+    flex-direction: column;
+}
+
+
+#historyModal .section-head,
+#historyModal .history-model-name,
+#historyModal .modal-actions {
+    flex: 0 0 auto;
+}
+
+
+#historyModal .history-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+
+#historyModal #emptyHistory {
+    flex: 0 0 auto;
+}
+
+
 .sale-row,
 .history-row {
     display: flex;
@@ -1649,6 +1737,47 @@ select:focus {
     display: flex;
     align-items: center;
     gap: 14px;
+}
+
+
+.sale-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+
+.sale-amount {
+    flex-shrink: 0;
+    width: 58px;
+}
+
+
+.sale-tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+
+.sale-tag-badge.tip {
+    color: var(--accent-text);
+    background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+}
+
+
+.sale-tag-badge.outside {
+    color: #ffcf7a;
+    background: rgba(255, 191, 90, 0.14);
+    border: 1px solid rgba(255, 191, 90, 0.35);
 }
 
 
@@ -1719,7 +1848,7 @@ select:focus {
     gap: 8px;
     padding: 4px 0;
     font-size: 0.9em;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 
@@ -1731,11 +1860,28 @@ select:focus {
 
 .history-model-title {
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 
 .history-model-amount {
     margin-left: auto;
+    min-width: 78px;
+    flex-shrink: 0;
+    text-align: right;
+}
+
+
+/* Fixed width so a short badge ("0%") vs a long one ("Target
+   hit" / "No target") never shifts the net-sales amount before
+   it — every row's amount lands in the same spot. */
+.history-model-row .history-target-badge {
+    min-width: 84px;
+    flex-shrink: 0;
+    text-align: center;
 }
 
 
