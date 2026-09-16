@@ -331,25 +331,54 @@
 
                                     <button
                                         class="outside-shift-btn"
-                                        id="outsideShiftToggle"
+                                        id="addUsernameToggle"
                                         type="button"
-                                        title="Add an outside-shift sale"
+                                        title="Tag the next sale with a username"
                                         aria-pressed="false"
                                     >
-                                        Outside Shift
+                                        Add Username
                                     </button>
 
                                     <div
-                                        id="outsideShiftPopover"
+                                        id="addUsernamePopover"
                                         class="outside-shift-popover hidden"
                                     >
 
-                                        <form id="outsideShiftForm">
+                                        <div
+                                            class="username-type-row"
+                                            role="group"
+                                            aria-label="Username type"
+                                        >
+
+                                            <button
+                                                type="button"
+                                                class="username-type-btn active"
+                                                data-username-type="tip"
+                                                aria-pressed="true"
+                                            >
+                                                Tips
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="username-type-btn"
+                                                data-username-type="outside"
+                                                aria-pressed="false"
+                                            >
+                                                Outside Shift
+                                            </button>
+
+                                        </div>
+
+                                        <form
+                                            id="addUsernameForm"
+                                            autocomplete="off"
+                                        >
 
                                             <input
                                                 type="text"
-                                                id="outsideShiftBuyerField"
-                                                name="outside-shift-buyer"
+                                                id="saleTagField"
+                                                name="sale-tag"
                                                 placeholder="e.g. @u1234567"
                                                 maxlength="40"
                                                 autocomplete="off"
@@ -409,6 +438,7 @@
 
                             <button
                                 class="btn primary"
+                                id="addSaleBtn"
                                 type="submit"
                             >
                                 + Add Sale
