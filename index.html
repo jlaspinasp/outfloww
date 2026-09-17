@@ -60,6 +60,16 @@
 
         <div class="sidebar-bottom">
 
+            <button
+                class="sidebar-trash"
+                id="sidebarTrash"
+                type="button"
+                title="Drop here to delete"
+            >
+                <span class="sidebar-trash-icon">🗑️</span>
+                <span>Drop to delete</span>
+            </button>
+
             <div class="settings-group">
 
                 <button
@@ -181,12 +191,16 @@
                         </p>
                     </div>
 
-                    <button
-                        class="btn top-btn add-content"
-                        data-type="models"
-                    >
-                        + New Model
-                    </button>
+                    <div class="top-actions">
+
+                        <button
+                            class="btn top-btn add-content"
+                            data-type="models"
+                        >
+                            + New Model
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -543,12 +557,16 @@
                         </p>
                     </div>
 
-                    <button
-                        class="btn top-btn add-content"
-                        data-type="scripts"
-                    >
-                        + New Script
-                    </button>
+                    <div class="top-actions">
+
+                        <button
+                            class="btn top-btn add-content"
+                            data-type="scripts"
+                        >
+                            + New Script
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -874,34 +892,6 @@
             >
                 <span>Scroll for more ↓</span>
             </div>
-
-        </div>
-
-        <div class="modal-actions">
-
-            <button
-                class="btn"
-                id="viewModalCopy"
-                type="button"
-            >
-                📋 Copy
-            </button>
-
-            <button
-                class="btn"
-                id="viewModalEdit"
-                type="button"
-            >
-                ✏️ Edit
-            </button>
-
-            <button
-                class="btn"
-                id="viewModalDelete"
-                type="button"
-            >
-                🗑 Delete
-            </button>
 
         </div>
 
