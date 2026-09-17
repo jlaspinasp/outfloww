@@ -1433,7 +1433,7 @@ function renderSales() {
 
         saleAmountInput.placeholder =
             activeModel
-                ? ""
+                ? activeModel.title
                 : "Select a model first";
 
         if (!activeModel) {
@@ -1615,10 +1615,12 @@ function renderSales() {
             ? "No sales added today."
             : "Select a model to see today's sales.";
 
+    // "flex" (not "block") so the text centers in the card, the
+    // way the Overview card's empty state does.
     emptySales.style.display =
         listed.length
             ? "none"
-            : "block";
+            : "flex";
 
 
     // Always keep the list scrolled to the latest sale — whichever
@@ -2083,15 +2085,17 @@ function setArmedUsername(username, type) {
         Boolean(armedUsername)
     );
 
+    toggle.classList.toggle(
+        "armed-outside",
+        Boolean(armedUsername) && armedUsernameType === "outside"
+    );
+
     toggle.setAttribute(
         "aria-pressed",
         armedUsername ? "true" : "false"
     );
 
-    toggle.textContent =
-        armedUsername
-            ? `${usernameTypeLabel(armedUsernameType)}: ${armedUsername}`
-            : "Add Username";
+    toggle.textContent = "Add Username";
 
     toggle.title =
         armedUsername
@@ -3160,6 +3164,47 @@ const CATEGORIZED_TYPES = ["scripts"];
 
 
 /* =====================================================
+   CARD ACTION ICONS
+   Inline SVG (stroke = currentColor) instead of emoji, so
+   they pick up the card's text colour and stay crisp.
+   ===================================================== */
+
+const ICON_EDIT = `
+    <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+    >
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+`;
+
+const ICON_COPY = `
+    <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+    >
+        <rect x="9" y="9" width="13" height="13" rx="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+`;
+
+
+/* =====================================================
    CATEGORY MANAGEMENT (default + user-added)
    ===================================================== */
 
@@ -3178,19 +3223,6 @@ function renderChips(type) {
         currentCategory[type];
 
 
-    const items =
-        data[type] || [];
-
-
-    const countFor = category =>
-        category === "All"
-            ? items.length
-            : items.filter(
-                item =>
-                    item.category === category
-            ).length;
-
-
     const defaultChips =
         categories[type]
             .map(
@@ -3201,9 +3233,6 @@ function renderChips(type) {
                         title="${escapeHTML(category)}"
                     >
                         ${escapeHTML(category)}
-                        <span class="chip-count">
-                            ${countFor(category)}
-                        </span>
                     </button>
                 `
             )
@@ -3218,19 +3247,9 @@ function renderChips(type) {
                         class="chip chip-draggable ${active === category ? "active" : ""}"
                         draggable="true"
                         data-category="${escapeHTML(category)}"
-                        title="${escapeHTML(category)} — hold and drag to reorder"
+                        title="${escapeHTML(category)} — hold to rename, drag to reorder"
                     >
                         ${escapeHTML(category)}
-                        <span class="chip-count">
-                            ${countFor(category)}
-                        </span>
-                        <span
-                            class="chip-remove"
-                            data-category="${escapeHTML(category)}"
-                            title="Remove category"
-                        >
-                            ×
-                        </span>
                     </button>
                 `
             )
@@ -3244,9 +3263,6 @@ function renderChips(type) {
                 data-category="All"
             >
                 All
-                <span class="chip-count">
-                    ${countFor("All")}
-                </span>
             </button>
         ` +
         defaultChips +
@@ -3311,6 +3327,92 @@ function addCategory(type) {
     saveData();
 
     renderChips(type);
+}
+
+
+function renameCategory(type, oldName) {
+
+    const list =
+        data.customCategories[type] || [];
+
+
+    const index =
+        list.indexOf(oldName);
+
+
+    // Only user-added categories can be renamed.
+    if (index === -1) {
+        return;
+    }
+
+
+    const input =
+        prompt(
+            "Rename category:",
+            oldName
+        );
+
+
+    if (input === null) {
+        return;
+    }
+
+
+    const trimmed =
+        input.trim();
+
+
+    if (!trimmed || trimmed === oldName) {
+        return;
+    }
+
+
+    const alreadyExists =
+        getCategories(type)
+            .some(
+                category =>
+                    category !== oldName &&
+                    category.toLowerCase() ===
+                    trimmed.toLowerCase()
+            );
+
+
+    if (alreadyExists) {
+
+        alert(
+            "That category already exists."
+        );
+
+        return;
+    }
+
+
+    list[index] = trimmed;
+
+
+    // Re-tag every item that was filed under the old name,
+    // so nothing silently drops out of its category.
+    (data[type] || []).forEach(
+        item => {
+
+            if (item.category === oldName) {
+                item.category = trimmed;
+            }
+
+        }
+    );
+
+
+    if (currentCategory[type] === oldName) {
+        currentCategory[type] = trimmed;
+    }
+
+
+    saveData();
+
+    renderChips(type);
+
+    renderContent(type);
 }
 
 
@@ -3421,12 +3523,28 @@ function renderContent(type) {
                     onclick="openViewModal('${type}', '${item.id}')"
                 >
 
+                    <button
+                        class="card-icon-btn card-edit-btn"
+                        type="button"
+                        title="Edit"
+                        aria-label="Edit"
+                        onclick="
+                            event.stopPropagation();
+                            editItem(
+                                '${type}',
+                                '${item.id}'
+                            )
+                        "
+                    >
+                        ${ICON_EDIT}
+                    </button>
+
                     <h3>
                         ${escapeHTML(item.title)}
                     </h3>
 
                     ${
-                        usesCategories && category === "All"
+                        usesCategories
                             ? `
                                 <div class="content-meta">
                                     ${escapeHTML(item.category)}
@@ -3437,11 +3555,13 @@ function renderContent(type) {
 
                     <div class="content-text">${escapeHTML(item.text)}</div>
 
-
-                    <div class="content-actions">
+                    <div class="card-actions">
 
                         <button
-                            class="btn"
+                            class="card-icon-btn"
+                            type="button"
+                            title="Copy"
+                            aria-label="Copy"
                             onclick="
                                 event.stopPropagation();
                                 copyItem(
@@ -3450,35 +3570,7 @@ function renderContent(type) {
                                 )
                             "
                         >
-                            📋 Copy
-                        </button>
-
-
-                        <button
-                            class="btn"
-                            onclick="
-                                event.stopPropagation();
-                                editItem(
-                                    '${type}',
-                                    '${item.id}'
-                                )
-                            "
-                        >
-                            ✏️ Edit
-                        </button>
-
-
-                        <button
-                            class="btn"
-                            onclick="
-                                event.stopPropagation();
-                                deleteItem(
-                                    '${type}',
-                                    '${item.id}'
-                                )
-                            "
-                        >
-                            🗑 Delete
+                            ${ICON_COPY}
                         </button>
 
                     </div>
@@ -3573,25 +3665,6 @@ $$(".chips").forEach(
                     group.dataset.filter;
 
 
-                // Remove (×) on a custom category chip
-                const removeBtn =
-                    event.target.closest(
-                        ".chip-remove"
-                    );
-
-                if (removeBtn) {
-
-                    event.stopPropagation();
-
-                    removeCategory(
-                        type,
-                        removeBtn.dataset.category
-                    );
-
-                    return;
-                }
-
-
                 // "+ Add category" chip
                 const addChip =
                     event.target.closest(
@@ -3664,6 +3737,12 @@ let dragAutoScrollFrame = null;
 const DRAG_AUTOSCROLL_EDGE = 90;
 const DRAG_AUTOSCROLL_MAX_SPEED = 22;
 
+// How long the pointer has to sit in an edge zone before we start
+// auto-scrolling — avoids kicking off a scroll from a quick pass
+// through the edge on the way to dropping somewhere on-screen.
+const DRAG_AUTOSCROLL_DELAY = 300;
+let dragAutoScrollEdgeSince = null;
+
 
 function stepDragAutoScroll() {
 
@@ -3695,10 +3774,42 @@ function updateDragAutoScroll(clientY) {
 
     const rect = mainEl.getBoundingClientRect();
 
-    if (clientY < rect.top + DRAG_AUTOSCROLL_EDGE) {
+    // The upward trigger zone starts at the BOTTOM of the sticky
+    // page-topbar (title/search/stats/trash icon), not the top of
+    // the viewport — otherwise hovering anywhere in that header,
+    // including over the trash icon, kept scrolling the page and
+    // made it hard to actually drop on it.
+    const topbarEl = $(".page.active .page-topbar");
+
+    const topEdge =
+        topbarEl
+            ? topbarEl.getBoundingClientRect().bottom
+            : rect.top;
+
+    const inEdgeZone =
+        (clientY >= topEdge && clientY < topEdge + DRAG_AUTOSCROLL_EDGE) ||
+        clientY > rect.bottom - DRAG_AUTOSCROLL_EDGE;
+
+    if (!inEdgeZone) {
+        dragAutoScrollEdgeSince = null;
+        dragAutoScrollSpeed = 0;
+        return;
+    }
+
+    // Just entered the edge zone — start the clock, but don't scroll yet.
+    if (dragAutoScrollEdgeSince === null) {
+        dragAutoScrollEdgeSince = performance.now();
+    }
+
+    if (performance.now() - dragAutoScrollEdgeSince < DRAG_AUTOSCROLL_DELAY) {
+        dragAutoScrollSpeed = 0;
+        return;
+    }
+
+    if (clientY < topEdge + DRAG_AUTOSCROLL_EDGE) {
 
         const intensity =
-            (rect.top + DRAG_AUTOSCROLL_EDGE - clientY) /
+            (topEdge + DRAG_AUTOSCROLL_EDGE - clientY) /
             DRAG_AUTOSCROLL_EDGE;
 
         dragAutoScrollSpeed =
@@ -3706,7 +3817,7 @@ function updateDragAutoScroll(clientY) {
                 DRAG_AUTOSCROLL_MAX_SPEED * Math.min(intensity, 1)
             );
 
-    } else if (clientY > rect.bottom - DRAG_AUTOSCROLL_EDGE) {
+    } else {
 
         const intensity =
             (clientY - (rect.bottom - DRAG_AUTOSCROLL_EDGE)) /
@@ -3716,10 +3827,6 @@ function updateDragAutoScroll(clientY) {
             Math.ceil(
                 DRAG_AUTOSCROLL_MAX_SPEED * Math.min(intensity, 1)
             );
-
-    } else {
-
-        dragAutoScrollSpeed = 0;
 
     }
 
@@ -3733,6 +3840,7 @@ function updateDragAutoScroll(clientY) {
 function stopDragAutoScroll() {
 
     dragAutoScrollSpeed = 0;
+    dragAutoScrollEdgeSince = null;
 
     if (dragAutoScrollFrame) {
         cancelAnimationFrame(dragAutoScrollFrame);
@@ -4098,6 +4206,336 @@ $$(".chips").forEach(
 
     }
 );
+
+
+/* =====================================================
+   HOLD TO RENAME — SCRIPT CATEGORIES
+   Press and hold a custom category chip (mouse or finger)
+   and you get a prompt to rename it. Moving your finger /
+   mouse cancels the hold, so dragging a chip to reorder it
+   or to the trash still works exactly as before.
+   ===================================================== */
+
+
+const CATEGORY_HOLD_MS = 550;
+const CATEGORY_HOLD_MOVE_TOLERANCE = 10;
+
+let categoryHoldState = null;
+
+// Set for a moment after a hold fires, so releasing the chip
+// doesn't also register as a click and switch the filter.
+let suppressChipClick = false;
+
+
+function cancelCategoryHold() {
+
+    if (!categoryHoldState) {
+        return;
+    }
+
+    clearTimeout(categoryHoldState.timer);
+
+    categoryHoldState.chip.classList.remove(
+        "holding"
+    );
+
+    categoryHoldState = null;
+}
+
+
+$$(".chips").forEach(
+    group => {
+
+        const type =
+            group.dataset.filter;
+
+        if (!CATEGORIZED_TYPES.includes(type)) {
+            return;
+        }
+
+
+        group.addEventListener(
+            "pointerdown",
+            function (event) {
+
+                cancelCategoryHold();
+
+                suppressChipClick = false;
+
+
+                // Left button / touch / pen only.
+                if (
+                    event.pointerType === "mouse" &&
+                    event.button !== 0
+                ) {
+                    return;
+                }
+
+
+                const chip =
+                    event.target.closest(
+                        ".chip.chip-draggable"
+                    );
+
+                if (!chip) {
+                    return;
+                }
+
+
+                const category =
+                    chip.dataset.category;
+
+
+                categoryHoldState = {
+                    chip: chip,
+                    type: type,
+                    category: category,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    fired: false,
+                    timer: setTimeout(
+                        function () {
+
+                            if (!categoryHoldState) {
+                                return;
+                            }
+
+                            categoryHoldState.fired = true;
+
+                            chip.classList.remove("holding");
+
+                            suppressChipClick = true;
+
+                            categoryHoldState = null;
+
+                            renameCategory(type, category);
+
+                            // In case the release never produces a
+                            // click (the chip gets re-rendered under
+                            // your finger), don't leave the flag on.
+                            setTimeout(
+                                function () {
+                                    suppressChipClick = false;
+                                },
+                                400
+                            );
+
+                        },
+                        CATEGORY_HOLD_MS
+                    )
+                };
+
+
+                chip.classList.add("holding");
+            }
+        );
+
+
+        group.addEventListener(
+            "pointermove",
+            function (event) {
+
+                if (!categoryHoldState) {
+                    return;
+                }
+
+                const movedFar =
+                    Math.abs(
+                        event.clientX - categoryHoldState.startX
+                    ) > CATEGORY_HOLD_MOVE_TOLERANCE ||
+                    Math.abs(
+                        event.clientY - categoryHoldState.startY
+                    ) > CATEGORY_HOLD_MOVE_TOLERANCE;
+
+                if (movedFar) {
+                    cancelCategoryHold();
+                }
+            }
+        );
+
+
+        ["pointerup", "pointercancel", "pointerleave", "dragstart"].forEach(
+            evtName =>
+                group.addEventListener(
+                    evtName,
+                    cancelCategoryHold
+                )
+        );
+
+
+        // A long press on touch would otherwise pop up the
+        // browser's own text-selection / context menu on top
+        // of the rename prompt.
+        group.addEventListener(
+            "contextmenu",
+            function (event) {
+
+                if (
+                    suppressChipClick ||
+                    (
+                        categoryHoldState &&
+                        event.pointerType !== "mouse"
+                    )
+                ) {
+                    event.preventDefault();
+                }
+            }
+        );
+
+
+        // Capture phase, so this runs before the filter-switching
+        // click handler further up and can swallow the click that
+        // follows a hold.
+        group.addEventListener(
+            "click",
+            function (event) {
+
+                if (!suppressChipClick) {
+                    return;
+                }
+
+                suppressChipClick = false;
+
+                event.preventDefault();
+
+                event.stopPropagation();
+            },
+            true
+        );
+
+    }
+);
+
+
+window.addEventListener(
+    "scroll",
+    cancelCategoryHold,
+    true
+);
+
+
+/* =====================================================
+   DRAG TO DELETE — SIDEBAR TRASH DROP ZONE
+   A single trash bin, docked above the Settings button, that
+   fades in for the duration of any drag — a content-card, a
+   "target breakdown" model row, or (on Scripts) a custom
+   category chip — and fades back out as soon as the drag ends.
+   Drop the dragged thing on it to delete it.
+   ===================================================== */
+
+
+function armTrash(isArmed) {
+
+    const trash = $("#sidebarTrash");
+
+    if (!trash) {
+        return;
+    }
+
+    trash.classList.toggle("armed", isArmed);
+}
+
+
+document.addEventListener(
+    "dragstart",
+    function (event) {
+
+        if (
+            event.target.closest(".content-card") ||
+            event.target.closest(".chip.chip-draggable") ||
+            event.target.closest(".target-breakdown-row")
+        ) {
+            armTrash(true);
+        }
+
+    }
+);
+
+
+["dragend", "drop"].forEach(
+    evtName =>
+        document.addEventListener(
+            evtName,
+            function () {
+                armTrash(false);
+            }
+        )
+);
+
+
+(function () {
+
+    const trash = $("#sidebarTrash");
+
+    if (!trash) {
+        return;
+    }
+
+
+    trash.addEventListener(
+        "dragover",
+        function (event) {
+
+            if (!dragState && !categoryDragState) {
+                return;
+            }
+
+            event.preventDefault();
+
+            event.dataTransfer.dropEffect = "move";
+
+            trash.classList.add("drag-over");
+        }
+    );
+
+
+    trash.addEventListener(
+        "dragleave",
+        function () {
+            trash.classList.remove("drag-over");
+        }
+    );
+
+
+    trash.addEventListener(
+        "drop",
+        function (event) {
+
+            trash.classList.remove("drag-over");
+
+
+            if (dragState) {
+
+                event.preventDefault();
+
+                const type = dragState.type;
+                const id = dragState.id;
+
+                dragState = null;
+
+                deleteItem(type, id);
+
+                return;
+            }
+
+
+            if (categoryDragState) {
+
+                event.preventDefault();
+
+                const type = categoryDragState.type;
+                const category = categoryDragState.category;
+
+                categoryDragState = null;
+
+                removeCategory(type, category);
+
+            }
+
+        }
+    );
+
+})();
 
 
 /* =====================================================
@@ -4782,44 +5220,7 @@ $("#viewModal").addEventListener(
 );
 
 
-$("#viewModalCopy").addEventListener(
-    "click",
-    function () {
 
-        copyItem(viewType, viewId);
-
-    }
-);
-
-
-$("#viewModalEdit").addEventListener(
-    "click",
-    function () {
-
-        const type = viewType;
-        const id = viewId;
-
-        closeViewModal();
-
-        editItem(type, id);
-
-    }
-);
-
-
-$("#viewModalDelete").addEventListener(
-    "click",
-    function () {
-
-        const type = viewType;
-        const id = viewId;
-
-        deleteItem(type, id);
-
-        closeViewModal();
-
-    }
-);
 
 
 $("#settingsBtn").addEventListener("click", function (e) {
