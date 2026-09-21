@@ -21,7 +21,8 @@ const defaultData = {
         scripts: []
     },
     deletedModels: {},
-    // Per-model custom colors, e.g. { "<modelId>": "#ffd6e0" }
+    // Legacy: per-model colors from the retired color picker. Kept
+    // (unused) so saved and synced data round-trips unchanged.
     modelColors: {},
     // Shift used only in the "Copy for logout" text (24h "HH:MM")
     logoutShift: { start: "16:00", end: "00:00", cover: false }
@@ -49,7 +50,7 @@ function normalizeData(obj) {
     // records can still show a name instead of "Unassigned".
     obj.deletedModels = obj.deletedModels || {};
 
-    // Per-model custom colors, e.g. { "<modelId>": "#ffd6e0" }
+    // Legacy (unused): see defaultData.
     obj.modelColors = obj.modelColors || {};
 
     // Shift time + cover flag, used only by the "Copy for logout" text.
@@ -82,7 +83,6 @@ let currentCategory = {
 // Which model's sales page is currently active on the Sales tab.
 // null = "All" (combined, original behavior).
 let currentModelFilter = null;
-let salesStatsHideTimer = null;
 
 // Which day's row is currently expanded in the history modal.
 // Drives the fixed "Copy for Logout" button at the bottom of the
@@ -92,6 +92,26 @@ let expandedHistoryDate = null;
 // Remembers each tab's scroll position so switching tabs and
 // coming back doesn't dump you at the top.
 const pageScrollPositions = {};
+
+
+/* =====================================================
+   UI ICONS
+   Inline SVG. The look (size, stroke, colour) comes from the
+   .icon class in style.css, so every icon in the app matches.
+   ===================================================== */
+
+const svgIcon = body =>
+    `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+
+const ICONS = {
+    sun: svgIcon(`<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>`),
+    moon: svgIcon(`<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>`),
+    x: svgIcon(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`),
+    clock: svgIcon(`<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`),
+    heart: svgIcon(`<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>`),
+    edit: svgIcon(`<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>`),
+    copy: svgIcon(`<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`)
+};
 
 
 /* =====================================================
@@ -115,7 +135,7 @@ function applyTheme(theme) {
     const mobileIcon = $("#mobileThemeToggleIcon");
 
     if (icon) {
-        icon.textContent = theme === "light" ? "☀️" : "🌙";
+        icon.innerHTML = theme === "light" ? ICONS.sun : ICONS.moon;
     }
 
     if (label) {
@@ -123,7 +143,17 @@ function applyTheme(theme) {
     }
 
     if (mobileIcon) {
-        mobileIcon.textContent = theme === "light" ? "☀️" : "🌙";
+        mobileIcon.innerHTML = theme === "light" ? ICONS.sun : ICONS.moon;
+    }
+
+    // Keep the browser chrome (mobile address bar) in step with the theme.
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+
+    if (themeMeta) {
+        themeMeta.setAttribute(
+            "content",
+            theme === "light" ? "#f3f2ef" : "#17191d"
+        );
     }
 
 }
@@ -708,26 +738,9 @@ function renderTrends(range) {
                 const lineHeightPx =
                     Math.min((dailyTarget / maxNet) * TRACK_HEIGHT, TRACK_HEIGHT);
 
-                // Height (in px) of a bar's fill, matching the same
-                // math used to size .trend-bar-fill below.
-                const barHeightPx = r =>
-                    r.net > 0
-                        ? (Math.max((r.net / maxNet) * 100, 4) / 100) * TRACK_HEIGHT
-                        : 0;
-
-                // The label sits at either edge of the chart, right
-                // next to whichever bar is there (oldest day on the
-                // left, today on the right). Anchor it to whichever
-                // edge's bar has more headroom under the target line,
-                // so a tall bar at either end doesn't cover it.
-                const labelSide =
-                    barHeightPx(rows[0]) <= barHeightPx(rows[rows.length - 1])
-                        ? "left"
-                        : "right";
-
                 return `
                     <div class="trend-target-line" style="bottom:${LABEL_BLOCK_HEIGHT + lineHeightPx}px">
-                        <span style="${labelSide}:0">${moneyShort(dailyTarget)} target</span>
+                        <span>${moneyShort(dailyTarget)} target</span>
                     </div>
                 `;
             })()
@@ -1075,23 +1088,64 @@ function rgbToHsl(r, g, b) {
 }
 
 
-// A heavier, high-contrast version of a model's (often pale) color,
-// for use as text on top of the neutral card background rather than
-// as a background fill. Darker in light mode, brighter in dark mode,
-// with saturation floored so it still reads as "that model's color."
-function getAccentTextColor(colorStr) {
+function relativeLuminance({ r, g, b }) {
 
-    const { r, g, b } = parseColorToRgb(colorStr);
-    const { h, s } = rgbToHsl(r, g, b);
+    const channel = value => {
+        const c = value / 255;
+        return c <= 0.03928
+            ? c / 12.92
+            : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
 
-    const isLightTheme =
-        document.documentElement.getAttribute("data-theme") === "light";
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
 
-    const sat = Math.max(s, 65);
-    const light = isLightTheme ? 22 : 72;
 
-    return `hsl(${h}, ${sat}%, ${light}%)`;
+function contrastRatio(a, b) {
 
+    const la = relativeLuminance(a);
+    const lb = relativeLuminance(b);
+
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+
+// A model's colour, as text on the card. If the model's own colour is
+// already readable on the card it is used exactly. Otherwise its hue and
+// saturation are kept and only the lightness moves, just far enough to
+// read clearly (so yellow becomes a deeper yellow, white becomes grey,
+// never a different colour).
+function getModelTextColor(colorStr) {
+
+    const MIN_CONTRAST = 3.5; // the name is set large (28px)
+
+    const own = parseColorToRgb(colorStr);
+
+    const cardBg = parseColorToRgb(
+        getComputedStyle(document.documentElement)
+            .getPropertyValue("--bg-card")
+            .trim() || "#ffffff"
+    );
+
+    if (contrastRatio(own, cardBg) >= MIN_CONTRAST) {
+        return `rgb(${own.r}, ${own.g}, ${own.b})`;
+    }
+
+    const { h, s, l } = rgbToHsl(own.r, own.g, own.b);
+    const cardIsLight = relativeLuminance(cardBg) > 0.5;
+    const step = cardIsLight ? -1 : 1;
+
+    for (let lightness = l; lightness >= 0 && lightness <= 100; lightness += step) {
+
+        const candidate = hslToRgb(h, s, lightness);
+
+        if (contrastRatio(candidate, cardBg) >= MIN_CONTRAST) {
+            return `rgb(${candidate.r}, ${candidate.g}, ${candidate.b})`;
+        }
+
+    }
+
+    return cardIsLight ? "#000000" : "#ffffff";
 }
 
 
@@ -1124,14 +1178,16 @@ function getRowInk(colorStr) {
 
 
 /* =====================================================
-   MODEL COLOR PICKER (pastel swatches, "Add a sale" list)
+   MODEL COLOR PICKER (swatches, "Add a sale" list)
    ===================================================== */
 
-const PASTEL_SWATCHES = [
-    "#FFD6E0", "#FFE0B5", "#FFF3B0", "#D9F2B4",
-    "#B8F2E6", "#B5DEFF", "#C9C4FF", "#F0C4FF",
-    "#FFC4E1", "#FFCFCF", "#D4E4BC", "#BDEAEA",
-    "#C6DEFF", "#E3D0FF", "#FFDAB9", "#E6E6FA"
+const MODEL_SWATCHES = [
+    // light + neutral
+    "#FFFFFF", "#E4E6EB", "#FFD6E0", "#FFE0B5", "#FFF3B0", "#F7F150",
+    // mid
+    "#FF9EC4", "#FFB562", "#B5EFA0", "#8FE3D0", "#9CCBFF", "#C0B4FF",
+    // bold
+    "#FF5FA8", "#FF6B6B", "#4ECB71", "#3FB6E8", "#6D5DF0", "#2B2D31"
 ];
 
 let colorPickerModelId = null;
@@ -1178,7 +1234,7 @@ function openColorSwatchPopover(modelId, anchorEl) {
     pop.className = "color-swatch-popover";
 
     pop.innerHTML = `
-        ${PASTEL_SWATCHES.map(color => `
+        ${MODEL_SWATCHES.map(color => `
             <button
                 type="button"
                 class="color-swatch${color.toLowerCase() === currentColor ? " active" : ""}"
@@ -1429,6 +1485,33 @@ function computeModelDailyRows(modelId, excludeToday) {
 }
 
 
+// The model name in the "Today's sales" header is set large; long names
+// shrink to fit on one line (same idea as the model rows).
+function fitTodaySalesName() {
+
+    const el = $("#todaySalesModelName");
+
+    if (!el || el.classList.contains("hidden")) {
+        return;
+    }
+
+    const MAX_FONT = 28;
+    const MIN_FONT = 15;
+
+    let size = MAX_FONT;
+
+    el.style.fontSize = size + "px";
+
+    while (el.scrollWidth > el.clientWidth && size > MIN_FONT) {
+        size -= 1;
+        el.style.fontSize = size + "px";
+    }
+
+}
+
+window.addEventListener("resize", fitTodaySalesName);
+
+
 function renderSales() {
 
     const activeModel =
@@ -1493,20 +1576,24 @@ function renderSales() {
 
         if (activeModel) {
 
-            const badgeColor = getAvatarColor(activeModel.id);
-            const badgeInk = getRowInk(badgeColor);
+            modelBadge.style.setProperty(
+                "--badge-color",
+                getAvatarColor(activeModel.id)
+            );
 
-            modelBadge.style.setProperty("--badge-color", badgeColor);
-            modelBadge.style.setProperty("--badge-text", badgeInk.strong);
-            modelBadge.style.setProperty("--badge-dot", badgeInk.strong);
-
-            modelBadge.textContent = activeModel.title;
+            modelBadge.innerHTML =
+                `<span class="active-model-name">${escapeHTML(activeModel.title)}</span>`;
             modelBadge.classList.remove("hidden");
-            modelBadge.title = "Back to all models";
+            modelBadge.title = "Clear selection — back to all models";
+            modelBadge.setAttribute(
+                "aria-label",
+                `Selected model: ${activeModel.title}. Clear selection`
+            );
 
         } else {
 
             modelBadge.textContent = "";
+            modelBadge.style.removeProperty("--badge-color");
             modelBadge.classList.add("hidden");
 
         }
@@ -1534,13 +1621,14 @@ function renderSales() {
             todaySalesCard.style.setProperty("--card-accent", cardColor);
             todaySalesCard.style.setProperty(
                 "--card-accent-text",
-                getAccentTextColor(cardColor)
+                getModelTextColor(cardColor)
             );
 
             if (todaySalesModelName) {
                 todaySalesModelName.textContent = activeModel.title;
                 todaySalesModelName.title = activeModel.title;
                 todaySalesModelName.classList.remove("hidden");
+                fitTodaySalesName();
             }
 
         } else {
@@ -1559,59 +1647,25 @@ function renderSales() {
     }
 
 
-    // Gross / net / PPV totals belong to a single model, so they only
-    // exist while one is selected. With no model selected the cards are
-    // collapsed and removed, and no totals are kept in them.
+    // Gross / net / PPV totals belong to a single model. The cards are
+    // always on screen so choosing or clearing a model never changes the
+    // page height or moves anything; with no model selected they show a
+    // dash instead of a total.
     const salesPage = $("#sales");
-    const salesStats = $("#salesStats");
 
-    clearTimeout(salesStatsHideTimer);
+    $("#gross").textContent =
+        activeModel ? money(gross) : "—";
 
-    if (activeModel) {
+    $("#net").textContent =
+        activeModel ? money(net) : "—";
 
-        if (salesStats && salesStats.hidden) {
-            salesStats.hidden = false;
-            void salesStats.offsetHeight; // let the open animation run
-        }
-
-        $("#gross").textContent =
-            money(gross);
-
-        $("#net").textContent =
-            money(net);
-
-        $("#saleCount").textContent =
-            sales.length;
-
-    } else {
-
-        // Wait for the collapse animation, then wipe the values and
-        // take the cards out of the page entirely.
-        salesStatsHideTimer = setTimeout(function () {
-
-            if (currentModelFilter !== null) {
-                return;
-            }
-
-            $("#gross").textContent = "";
-            $("#net").textContent = "";
-            $("#saleCount").textContent = "";
-
-            if (salesStats) {
-                salesStats.hidden = true;
-            }
-
-        }, 300);
-
-    }
+    $("#saleCount").textContent =
+        activeModel ? sales.length : "—";
 
     if (salesPage) {
         salesPage.classList.toggle("has-model", !!activeModel);
     }
 
-    if (salesStats) {
-        salesStats.setAttribute("aria-hidden", activeModel ? "false" : "true");
-    }
 
 
     // Target progress (based on net earnings, per current context)
@@ -1631,9 +1685,9 @@ function renderSales() {
 
                 const tagBadge =
                     sale.tip
-                        ? `<span class="sale-tag-badge tip" title="Tip — ${escapeHTML(sale.buyerUsername || "")}">💗 Tip</span>`
+                        ? `<span class="sale-tag-badge tip" title="Tip — ${escapeHTML(sale.buyerUsername || "")}">${ICONS.heart}Tip</span>`
                         : sale.outsideShift
-                            ? `<span class="sale-tag-badge outside" title="Outside shift — ${escapeHTML(sale.buyerUsername || "")}">🕐 Outside</span>`
+                            ? `<span class="sale-tag-badge outside" title="Outside shift — ${escapeHTML(sale.buyerUsername || "")}">${ICONS.clock}Outside</span>`
                             : "";
 
                 return `
@@ -1653,8 +1707,10 @@ function renderSales() {
                             <button
                                 class="delete"
                                 onclick="deleteSale(${index})"
+                                title="Delete sale"
+                                aria-label="Delete sale"
                             >
-                                ×
+                                ${ICONS.x}
                             </button>
 
                         </div>
@@ -1797,7 +1853,7 @@ function renderTargetBreakdown() {
             const ink = getRowInk(rowColor);
 
             return `
-                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}" data-model="${model.id}" draggable="true" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}" data-model="${model.id}" draggable="true" role="button" tabindex="0" aria-pressed="${model.id === currentModelFilter}" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
 
                     <div class="target-breakdown-head">
                         <span class="target-breakdown-name">
@@ -1873,11 +1929,14 @@ $("#targetBreakdown").addEventListener(
             return;
         }
 
-        selectModel(
+        const nextId =
             row.dataset.model === currentModelFilter
                 ? null
-                : row.dataset.model
-        );
+                : row.dataset.model;
+
+        // The wiggle is pure CSS on `.selected`, so it persists across
+        // re-renders and stops as soon as the model is deselected.
+        selectModel(nextId);
     }
 );
 
@@ -2151,8 +2210,6 @@ function setArmedUsername(username, type) {
         "aria-pressed",
         armedUsername ? "true" : "false"
     );
-
-    toggle.textContent = "Add Username";
 
     toggle.title =
         armedUsername
@@ -2489,7 +2546,7 @@ function renderHistory() {
         const modelHistoryRowsHtml =
             modelHistory.map(
                 item => `
-                    <div class="history-row" data-date="${item.date}" style="cursor:pointer">
+                    <div class="history-row" data-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
 
                         <div class="history-date">
                             ${formatDate(item.date)}
@@ -2538,7 +2595,7 @@ function renderHistory() {
     const historyRowsHtml =
         history.map(
             item => `
-                <div class="history-row" data-date="${item.date}" style="cursor:pointer">
+                <div class="history-row" data-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
                     <div class="history-date">
                         ${formatDate(item.date)}
                     </div>
@@ -2610,7 +2667,6 @@ function getModelBreakdownForDate(dateKey) {
             return {
                 id: modelId,
                 title: getModelName(modelId === "unassigned" ? null : modelId),
-                color: model ? getAvatarColor(model.id) : "#888",
                 net: net,
                 targetPercent: getTargetPercent(net, target)
             };
@@ -2628,11 +2684,6 @@ function renderModelBreakdownRow(dateKey, container) {
         rows.map(
             row => `
                 <div class="history-model-row">
-
-                    <span
-                        class="avatar-dot"
-                        style="background:${row.color}"
-                    ></span>
 
                     <span class="history-model-title">
                         ${escapeHTML(row.title)}
@@ -3332,43 +3383,13 @@ const CATEGORIZED_TYPES = ["scripts"];
 
 /* =====================================================
    CARD ACTION ICONS
-   Inline SVG (stroke = currentColor) instead of emoji, so
+   Shared inline SVGs (see ICONS at the top of this file), so
    they pick up the card's text colour and stay crisp.
    ===================================================== */
 
-const ICON_EDIT = `
-    <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-    >
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-`;
+const ICON_EDIT = ICONS.edit;
 
-const ICON_COPY = `
-    <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-    >
-        <rect x="9" y="9" width="13" height="13" rx="2" />
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-`;
+const ICON_COPY = ICONS.copy;
 
 
 /* =====================================================
@@ -3686,6 +3707,7 @@ function renderContent(type) {
                 <article
                     class="card content-card"
                     draggable="true"
+                    tabindex="0"
                     data-id="${item.id}"
                     onclick="openViewModal('${type}', '${item.id}')"
                 >
@@ -5620,6 +5642,34 @@ $("#importFileInput").addEventListener(
         // Reset so selecting the same file again
         // still fires the change event.
         event.target.value = "";
+    }
+);
+
+
+/* =====================================================
+   KEYBOARD: rows that act like buttons
+   Model rows, history dates and content cards are clickable
+   divs; Enter / Space now activates them like a real button.
+   ===================================================== */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key !== "Enter" && event.key !== " ") {
+            return;
+        }
+
+        const el = event.target;
+
+        if (
+            el.matches &&
+            el.matches(".target-breakdown-row, .history-row, .content-card")
+        ) {
+            event.preventDefault();
+            el.click();
+        }
+
     }
 );
 
