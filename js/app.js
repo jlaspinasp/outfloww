@@ -50,6 +50,10 @@ function normalizeData(obj) {
     // records can still show a name instead of "Unassigned".
     obj.deletedModels = obj.deletedModels || {};
 
+    // Shifts saved to history from the Shift Report window:
+    // { "<dateKey>": { "<modelId>": [ { shift, times, at } ] } }
+    obj.closedShifts = obj.closedShifts || {};
+
     // Legacy (unused): see defaultData.
     obj.modelColors = obj.modelColors || {};
 
@@ -84,10 +88,18 @@ let currentCategory = {
 // null = "All" (combined, original behavior).
 let currentModelFilter = null;
 
-// Which day's row is currently expanded in the history modal.
-// Drives the fixed "Copy for Logout" button at the bottom of the
-// modal, since that button needs to know which day to build from.
+// Which day's row is currently expanded in the history modal. When a
+// model is selected this is a row key (a day can have more than one
+// row — one per saved shift), not just a date. Drives the fixed
+// "Copy for Logout" button at the bottom of the modal, since that
+// button needs to know which day (and which shift) to build from.
 let expandedHistoryDate = null;
+
+// Row key -> { dateKey, shift, times } for whatever the model-specific
+// history list last rendered. Lets the expand/copy-logout code turn a
+// row key back into the real date, its saved shift, and exactly the
+// sale times that belong to that one row.
+let historyRowMeta = {};
 
 // Remembers each tab's scroll position so switching tabs and
 // coming back doesn't dump you at the top.
@@ -326,6 +338,9 @@ function setSyncStatus(state) {
 
 
 function renderAll() {
+    if (autoCloseStaleShifts()) {
+        saveData();
+    }
     updateHistory();
     renderSales();
     renderChips("scripts");
@@ -571,6 +586,8 @@ function initAuthGate() {
     const syncStatus = $("#syncStatus");
     const signOutBtn = $("#signOutBtn");
     const accountEmail = $("#accountEmail");
+    const mobileSignOutBtn = $("#mobileSignOutBtn");
+    const mobileAccountEmail = $("#mobileAccountEmail");
 
     googleSignInBtn.addEventListener("click", function () {
 
@@ -598,8 +615,78 @@ function initAuthGate() {
 
     });
 
-    signOutBtn.addEventListener("click", function () {
-        auth.signOut();
+    // Signing out wipes this device's cache, so ask first.
+    const signOutModal = $("#signOutModal");
+    const signOutWarning = $("#signOutWarning");
+    const cancelSignOut = $("#cancelSignOut");
+    const confirmSignOut = $("#confirmSignOut");
+
+    function openSignOutConfirm() {
+
+        // Warn if the last sync hadn't finished (or we're offline):
+        // those changes only exist on this device.
+        const state = syncStatus.classList;
+
+        signOutWarning.classList.toggle(
+            "hidden",
+            !(state.contains("syncing") || state.contains("offline"))
+        );
+
+        signOutModal.classList.remove("hidden");
+
+        // Focus the safe choice, not the destructive one.
+        cancelSignOut.focus();
+
+    }
+
+    function closeSignOutConfirm() {
+
+        signOutModal.classList.add("hidden");
+
+        signOutBtn.focus();
+
+    }
+
+    signOutBtn.addEventListener("click", openSignOutConfirm);
+    mobileSignOutBtn.addEventListener("click", function () {
+
+        // Close the popover it lives in before showing the modal.
+        const group = $("#mobileSettingsGroup");
+        if (group) group.classList.remove("open");
+
+        openSignOutConfirm();
+
+    });
+
+    cancelSignOut.addEventListener("click", closeSignOutConfirm);
+
+    signOutModal.addEventListener("click", function (event) {
+
+        if (event.target === signOutModal) {
+            closeSignOutConfirm();
+        }
+
+    });
+
+    document.addEventListener("keydown", function (event) {
+
+        if (
+            event.key === "Escape" &&
+            !signOutModal.classList.contains("hidden")
+        ) {
+            closeSignOutConfirm();
+        }
+
+    });
+
+    confirmSignOut.addEventListener("click", function () {
+
+        signOutModal.classList.add("hidden");
+
+        auth.signOut().catch(function () {
+            toast("Couldn't sign out. Please try again.", "error");
+        });
+
     });
 
     auth.onAuthStateChanged(function (user) {
@@ -630,6 +717,9 @@ function initAuthGate() {
             signOutBtn.classList.remove("hidden");
             accountEmail.textContent = user.email || "Signed in";
 
+            mobileSignOutBtn.classList.remove("hidden");
+            mobileAccountEmail.textContent = user.email || "Signed in";
+
             startCloudSync(user.uid);
 
         } else {
@@ -641,6 +731,7 @@ function initAuthGate() {
             authGate.classList.remove("hidden");
             syncStatus.classList.add("hidden");
             signOutBtn.classList.add("hidden");
+            mobileSignOutBtn.classList.add("hidden");
 
         }
 
@@ -694,6 +785,137 @@ function getTodaySales() {
     const key = getDateKey();
 
     return data.sales[key] || [];
+}
+
+
+/* -----------------------------------------------------
+   SAVED SHIFTS
+   "Copy for logout" in the Shift Report window can also save the
+   shift: those sales are marked done, leave Today's sales, and show
+   up in Sales History straight away (with the shift time).
+
+   Sales are never edited or moved. Each saved shift is just a
+   record of which sales (by their unique `time`) it settled, so the
+   normal add / delete / sync of sales works exactly as before.
+   ----------------------------------------------------- */
+
+function getClosedRecords(dateKey, modelId) {
+
+    const byModel = (data.closedShifts || {})[dateKey];
+
+    return (byModel && byModel[modelId]) || [];
+}
+
+
+function isSaleClosed(dateKey, sale) {
+
+    return getClosedRecords(dateKey, sale.modelId)
+        .some(record => (record.times || []).includes(sale.time));
+}
+
+
+function hasClosedShift(dateKey) {
+
+    const byModel = (data.closedShifts || {})[dateKey];
+
+    return !!byModel &&
+        Object.values(byModel).some(records => records.length > 0);
+}
+
+
+function getRecordedShift(dateKey, modelId) {
+
+    const records = getClosedRecords(dateKey, modelId);
+
+    return records.length
+        ? records[records.length - 1].shift
+        : undefined;
+}
+
+
+// e.g. "4:00PM-12:00AM cover" — every saved shift for that day, once each.
+function getShiftLabel(dateKey, modelId) {
+
+    const records = getClosedRecords(dateKey, modelId);
+
+    return [
+        ...new Set(
+            records.map(record => getShiftTimeText(record.shift))
+        )
+    ].join(", ");
+}
+
+
+// A day that ends without an explicit "Copy for logout" close (you
+// just stop, or the app is closed) shouldn't leave sales stranded —
+// once that day is no longer today, whatever wasn't already saved to
+// a shift gets swept into history automatically, tagged with
+// whatever shift is currently set in Shift Report. This runs the
+// same way a manual shift close does: it never touches or moves the
+// sales themselves, it just records which ones that "shift" covers.
+function autoCloseStaleShifts() {
+
+    const today = getDateKey();
+
+    let changed = false;
+
+    Object.keys(data.sales).forEach(dateKey => {
+
+        if (dateKey >= today) {
+            return;
+        }
+
+        const salesByModel = {};
+
+        (data.sales[dateKey] || []).forEach(sale => {
+
+            if (!sale.modelId) {
+                return;
+            }
+
+            if (!salesByModel[sale.modelId]) {
+                salesByModel[sale.modelId] = [];
+            }
+
+            salesByModel[sale.modelId].push(sale);
+
+        });
+
+        Object.keys(salesByModel).forEach(modelId => {
+
+            const unclosed = salesByModel[modelId]
+                .filter(sale => !isSaleClosed(dateKey, sale));
+
+            if (!unclosed.length) {
+                return;
+            }
+
+            if (!data.closedShifts[dateKey]) {
+                data.closedShifts[dateKey] = {};
+            }
+
+            if (!data.closedShifts[dateKey][modelId]) {
+                data.closedShifts[dateKey][modelId] = [];
+            }
+
+            data.closedShifts[dateKey][modelId].push({
+                shift: {
+                    start: data.logoutShift.start,
+                    end: data.logoutShift.end,
+                    cover: data.logoutShift.cover
+                },
+                times: unclosed.map(sale => sale.time),
+                at: Date.now(),
+                auto: true
+            });
+
+            changed = true;
+
+        });
+
+    });
+
+    return changed;
 }
 
 
@@ -1005,12 +1227,12 @@ $("#trendBars").addEventListener(
         openHistoryModal();
 
         // Give the modal a frame to become visible before we hunt
-        // for the row and expand it, so the click feels immediate.
-        // This always ends up expanded (never toggles it closed),
-        // regardless of whatever state it was left in last time the
-        // modal was open.
+        // for the day's rows and expand them, so the click feels
+        // immediate. A day worked in more than one shift has more
+        // than one row for the same calendar date — expand all of
+        // them together rather than guessing which one was meant.
         requestAnimationFrame(() => {
-            expandHistoryRow(dateKey);
+            expandAllHistoryRowsForDate(dateKey);
         });
 
     }
@@ -1532,14 +1754,21 @@ document.addEventListener(
 
 function getVisibleSales() {
 
+    const dateKey = getDateKey();
+
     const sales = getTodaySales();
 
     return sales
         .map((sale, index) => ({ sale, index }))
         .filter(
             entry =>
-                currentModelFilter === null ||
-                entry.sale.modelId === currentModelFilter
+                // Sales already saved to history by a shift report
+                // are done, so they no longer show as today's sales.
+                !isSaleClosed(dateKey, entry.sale) &&
+                (
+                    currentModelFilter === null ||
+                    entry.sale.modelId === currentModelFilter
+                )
         );
 }
 
@@ -1579,26 +1808,78 @@ function computeModelDailyRows(modelId, excludeToday) {
 
     Object.keys(data.sales).forEach(dateKey => {
 
-        if (excludeToday && dateKey === today) {
-            return;
-        }
-
-        const sales = (data.sales[dateKey] || [])
+        const allSales = (data.sales[dateKey] || [])
             .filter(sale => sale.modelId === modelId);
 
-        if (!sales.length) {
+        if (!allSales.length) {
             return;
         }
 
-        const gross = getTotal(sales);
-        const net = gross * NET_RATE;
         const target = data.modelTargets[modelId] || 0;
+        const records = getClosedRecords(dateKey, modelId);
+        const closedTimes = new Set();
+
+        // One row per saved shift — a day worked in two shifts always
+        // gets two rows here, never lumped into one combined row.
+        records.forEach((record, index) => {
+
+            const times = (record.times || [])
+                .filter(time => allSales.some(sale => sale.time === time));
+
+            times.forEach(time => closedTimes.add(time));
+
+            if (!times.length) {
+                return;
+            }
+
+            const shiftSales = allSales.filter(
+                sale => times.includes(sale.time)
+            );
+
+            const gross = getTotal(shiftSales);
+            const net = gross * NET_RATE;
+
+            rows.push({
+                date: dateKey,
+                rowKey: `${dateKey}::${record.at || index}`,
+                shiftText: getShiftTimeText(record.shift),
+                shift: record.shift,
+                times,
+                gross,
+                net,
+                count: shiftSales.length,
+                target,
+                targetPercent:
+                    target > 0
+                        ? Math.round((net / target) * 100)
+                        : null
+            });
+
+        });
+
+        // Sales no saved shift covers yet. Today's still count as
+        // "live" and stay off the history list; a past day's leftover
+        // (from before any auto-close ran) still needs its own row.
+        const leftover = allSales.filter(
+            sale => !closedTimes.has(sale.time)
+        );
+
+        if (!leftover.length || (excludeToday && dateKey === today)) {
+            return;
+        }
+
+        const gross = getTotal(leftover);
+        const net = gross * NET_RATE;
 
         rows.push({
             date: dateKey,
+            rowKey: `${dateKey}::open`,
+            shiftText: "",
+            shift: null,
+            times: leftover.map(sale => sale.time),
             gross,
             net,
-            count: sales.length,
+            count: leftover.length,
             target,
             targetPercent:
                 target > 0
@@ -1729,7 +2010,7 @@ function renderSales() {
 
 
     $("#shiftSettingsBtn").title =
-        `Logout shift: ${getShiftTimeText()}`;
+        `Shift Report: ${getShiftTimeText()}`;
 
 
     // "Today's sales" card picks up the selected model's color as a
@@ -1910,7 +2191,11 @@ function renderTargetProgress(net) {
 
 function renderTargetBreakdown() {
 
-    const todaySales = getTodaySales();
+    const todayKey = getDateKey();
+
+    const todaySales = getTodaySales().filter(
+        sale => !isSaleClosed(todayKey, sale)
+    );
 
     const rows = data.models.map(model => {
 
@@ -2287,6 +2572,8 @@ $("#targetForm").addEventListener(
         renderSales();
 
         closeTargetModal();
+
+        toast("Target saved", "success");
     }
 );
 
@@ -2472,8 +2759,9 @@ $("#saleForm").addEventListener(
 
         if (amount > 200) {
 
-            alert(
-                "The maximum amount for a single sale is $200."
+            toast(
+                "The maximum amount for a single sale is $200.",
+                "error"
             );
 
             return;
@@ -2555,6 +2843,7 @@ function deleteSale(index) {
 
     if (removedSale) {
         pushSaleRemoved(dateKey, removedSale);
+        toast(`${money(removedSale.amount)} sale removed`, "success");
     }
 
     renderSales();
@@ -2677,13 +2966,33 @@ function renderHistory() {
             computeModelDailyRows(currentModelFilter, true)
                 .sort((a, b) => b.date.localeCompare(a.date));
 
+        // Rebuilt every render so a row key always maps back to the
+        // right date + saved shift + exact sale times, even across a
+        // day with more than one shift.
+        historyRowMeta = {};
+
+        modelHistory.forEach(item => {
+            historyRowMeta[item.rowKey] = {
+                dateKey: item.date,
+                shift: item.shift,
+                times: item.times
+            };
+        });
+
         const modelHistoryRowsHtml =
             modelHistory.map(
                 item => `
-                    <div class="history-row" data-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
+                    <div class="history-row" data-date="${item.rowKey}" data-calendar-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
 
-                        <div class="history-date">
-                            ${formatDate(item.date)}
+                        <div class="history-row-main">
+                            <div class="history-date">
+                                ${formatDate(item.date)}
+                            </div>
+                            ${
+                                item.shiftText
+                                    ? `<div class="history-shift">${escapeHTML(item.shiftText)}</div>`
+                                    : ""
+                            }
                         </div>
 
                         <span class="history-target-badge ${item.targetPercent !== null && item.targetPercent >= 100 ? "hit" : ""}">
@@ -2698,7 +3007,7 @@ function renderHistory() {
 
                     </div>
 
-                    <div class="history-model-breakdown hidden" data-breakdown="${item.date}"></div>
+                    <div class="history-model-breakdown hidden" data-breakdown="${item.rowKey}"></div>
                 `
             ).join("");
 
@@ -2723,13 +3032,13 @@ function renderHistory() {
     // Click a date to see each model's net and target status for it.
     const history =
         data.history
-            .filter(item => item.date !== today)
+            .filter(item => item.date !== today || hasClosedShift(item.date))
             .sort((a, b) => b.date.localeCompare(a.date));
 
     const historyRowsHtml =
         history.map(
             item => `
-                <div class="history-row" data-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
+                <div class="history-row" data-date="${item.date}" data-calendar-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
                     <div class="history-date">
                         ${formatDate(item.date)}
                     </div>
@@ -2751,8 +3060,13 @@ function renderHistory() {
 
 function getModelBreakdownForDate(dateKey) {
 
+    // Today only counts for what a shift report has already saved.
     const sales =
-        data.sales[dateKey] || [];
+        (data.sales[dateKey] || []).filter(
+            sale =>
+                dateKey !== getDateKey() ||
+                isSaleClosed(dateKey, sale)
+        );
 
     const byModel = {};
 
@@ -2800,6 +3114,7 @@ function getModelBreakdownForDate(dateKey) {
 
             return {
                 id: modelId,
+                shiftText: getShiftLabel(dateKey, modelId),
                 title: getModelName(modelId === "unassigned" ? null : modelId),
                 net: net,
                 targetPercent: getTargetPercent(net, target)
@@ -2821,6 +3136,11 @@ function renderModelBreakdownRow(dateKey, container) {
 
                     <span class="history-model-title">
                         ${escapeHTML(row.title)}
+                        ${
+                            row.shiftText
+                                ? `<small class="history-model-shift">${escapeHTML(row.shiftText)}</small>`
+                                : ""
+                        }
                     </span>
 
                     <span class="history-model-amount">
@@ -2844,10 +3164,31 @@ function renderModelBreakdownRow(dateKey, container) {
 }
 
 
-function getModelSalesForDate(dateKey, modelId) {
+// scope "live": today's sales that haven't been saved by a shift report.
+// Otherwise the History view: a past day in full; today only what a
+// shift report has already saved.
+function getModelSalesForDate(dateKey, modelId, scope) {
 
-    return (data.sales[dateKey] || [])
-        .filter(sale => sale.modelId === modelId)
+    let sales = (data.sales[dateKey] || [])
+        .filter(sale => sale.modelId === modelId);
+
+    if (Array.isArray(scope)) {
+
+        // An explicit list of sale times — exactly one saved shift's
+        // own sales, so a multi-shift day never mixes them together.
+        sales = sales.filter(sale => scope.includes(sale.time));
+
+    } else if (scope === "live") {
+
+        sales = sales.filter(sale => !isSaleClosed(dateKey, sale));
+
+    } else if (dateKey === getDateKey()) {
+
+        sales = sales.filter(sale => isSaleClosed(dateKey, sale));
+
+    }
+
+    return sales
         .map(sale => {
 
             const amount = Number(sale.amount);
@@ -2865,12 +3206,21 @@ function getModelSalesForDate(dateKey, modelId) {
 }
 
 
-function renderModelDayDetail(dateKey, container) {
+function renderModelDayDetail(rowKey, container) {
+
+    // rowKey is a plain date for the "all models" view, or a
+    // date::shift key for the model-specific view — resolve it back
+    // to the real date and (when there is one) that row's own shift
+    // times, so a two-shift day's detail never mixes the two shifts.
+    const meta = historyRowMeta[rowKey];
+
+    const dateKey = meta ? meta.dateKey : rowKey;
 
     const sales =
         getModelSalesForDate(
             dateKey,
-            currentModelFilter
+            currentModelFilter,
+            meta ? meta.times : undefined
         );
 
     const gross =
@@ -2928,7 +3278,7 @@ function renderModelDayDetail(dateKey, container) {
 }
 
 
-function buildLogoutText(dateKey) {
+function buildLogoutText(dateKey, shift, scope) {
 
     const activeModel =
         getModelById(currentModelFilter);
@@ -2939,8 +3289,15 @@ function buildLogoutText(dateKey) {
     const sales =
         getModelSalesForDate(
             dateKey,
-            currentModelFilter
+            currentModelFilter,
+            scope
         );
+
+    // A day saved from the Shift Report window remembers its shift, so
+    // copying it again from History prints that shift, not whatever is
+    // saved now.
+    const shiftForText =
+        shift || getRecordedShift(dateKey, currentModelFilter);
 
     const gross =
         sales.reduce(
@@ -2980,7 +3337,7 @@ function buildLogoutText(dateKey) {
     return (
         `🌸 LOGOUT 🌸\n\n` +
         `${modelName} -\n\n` +
-        `Shift Time: ${getShiftTimeText()}\n` +
+        `Shift Time: ${getShiftTimeText(shiftForText)}\n` +
         `Date: ${formatDate(dateKey)}\n` +
         `Subscriptions - $\n` +
         `MM Sales - $\n` +
@@ -2991,28 +3348,77 @@ function buildLogoutText(dateKey) {
 }
 
 
-async function copyLogoutText(dateKey) {
+// Older / stricter browsers (and non-HTTPS pages) refuse the modern
+// clipboard API. This copies through a hidden textarea instead, so the
+// text still lands on the clipboard without any pop-up box.
+function copyTextLegacy(text) {
 
-    const text = buildLogoutText(dateKey);
+    const area = document.createElement("textarea");
+
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.setAttribute("aria-hidden", "true");
+
+    // 16px stops iOS zooming in; off-screen so nothing flashes.
+    area.style.cssText =
+        "position:fixed;top:0;left:-9999px;opacity:0;font-size:16px;";
+
+    document.body.appendChild(area);
+
+    area.focus();
+    area.select();
+    area.setSelectionRange(0, text.length);
+
+    let copied = false;
+
+    try {
+        copied = document.execCommand("copy");
+    } catch {
+        copied = false;
+    }
+
+    area.remove();
+
+    return copied;
+}
+
+
+// Returns true when the text made it to the clipboard. `quiet` skips
+// the success toast (the caller shows its own); errors always toast.
+async function copyLogoutText(dateKey, shift, scope, quiet) {
+
+    const text = buildLogoutText(dateKey, shift, scope);
+
+    let copied = false;
 
     try {
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(text);
-        } else {
-            throw new Error("Clipboard API unavailable");
+            copied = true;
         }
 
-        toast("Logout text copied!", "success");
-
     } catch {
+        copied = false;
+    }
 
-        prompt(
-            "Copy this text:",
-            text
-        );
+    if (!copied) {
+        copied = copyTextLegacy(text);
+    }
+
+    if (copied) {
+
+        if (!quiet) {
+            toast("Logout text copied!", "success");
+        }
+
+    } else {
+
+        toast("Couldn't copy. Please try again.", "error");
 
     }
+
+    return copied;
 }
 
 
@@ -3080,6 +3486,67 @@ function expandHistoryRow(dateKey) {
     if (row) {
         row.scrollIntoView({ block: "nearest" });
     }
+}
+
+
+// A trend bar represents one calendar date, but that date can have
+// several rows in History (one per saved shift). Clicking the bar
+// opens every one of that day's shifts at once, rather than guessing
+// which single shift the person meant.
+function expandAllHistoryRowsForDate(calendarDate) {
+
+    const rows =
+        document.querySelectorAll(
+            `.history-row[data-calendar-date="${calendarDate}"]`
+        );
+
+    if (!rows.length) {
+        return;
+    }
+
+    document
+        .querySelectorAll(".history-model-breakdown")
+        .forEach(el => el.classList.add("hidden"));
+
+    rows.forEach(row => {
+
+        const rowKey = row.dataset.date;
+
+        const breakdown =
+            $(`[data-breakdown="${rowKey}"]`);
+
+        if (!breakdown) {
+            return;
+        }
+
+        if (currentModelFilter !== null) {
+
+            renderModelDayDetail(
+                rowKey,
+                breakdown
+            );
+
+        } else {
+
+            renderModelBreakdownRow(
+                rowKey,
+                breakdown
+            );
+
+        }
+
+        breakdown.classList.remove("hidden");
+
+    });
+
+    // More than one shift can now be open at once, so there's no
+    // single row left for the fixed "Copy for logout" button to point
+    // at — hide it until the person narrows it down by clicking one
+    // row directly, which collapses the rest back down.
+    expandedHistoryDate = null;
+    updateCopyLogoutButton();
+
+    rows[0].scrollIntoView({ block: "nearest" });
 }
 
 
@@ -3195,6 +3662,15 @@ function renderShiftModal() {
         draft.start && draft.end
             ? `Shift Time: ${getShiftTimeText(draft)}`
             : "Pick a start and end time.";
+
+    // The logout text is built for the selected model, so copying
+    // needs one (and a complete shift to print).
+    const hasModel = currentModelFilter !== null;
+
+    $("#copyShiftLogoutBtn").disabled =
+        !hasModel || !draft.start || !draft.end;
+
+    $("#shiftCopyNote").classList.toggle("hidden", hasModel);
 }
 
 
@@ -3272,6 +3748,189 @@ $("#shiftTypeToggle").addEventListener(
 );
 
 
+// "Copy for logout" in this window is the end-of-shift button: it copies
+// the logout text using the shift shown above (saved or not), then —
+// after a confirmation — saves the shift so those sales are cleared from
+// Today's sales and go straight into Sales History.
+
+let pendingShiftSave = null;
+
+
+function openShiftSaveConfirm() {
+
+    const draft = readShiftDraft();
+
+    const model = getModelById(currentModelFilter);
+
+    if (!model || !draft.start || !draft.end) {
+        return;
+    }
+
+    const dateKey = getDateKey();
+
+    const live = getModelSalesForDate(dateKey, model.id, "live");
+
+    // Nothing left to save: just copy the text.
+    if (!live.length) {
+        copyLogoutText(dateKey, draft, "live");
+        return;
+    }
+
+    pendingShiftSave = {
+        dateKey: dateKey,
+        modelId: model.id,
+        shift: draft
+    };
+
+    const gross = live.reduce((total, sale) => total + sale.amount, 0);
+
+    $("#shiftSaveModel").textContent = model.title;
+
+    $("#shiftSaveSummary").textContent =
+        `Date: ${formatDate(dateKey)}\n` +
+        `Shift Time: ${getShiftTimeText(draft)}\n` +
+        `${live.length} sale${live.length === 1 ? "" : "s"} · ` +
+        `${money(gross * NET_RATE)} net`;
+
+    $("#confirmShiftSave").disabled = false;
+
+    $("#shiftSaveModal").classList.remove("hidden");
+
+    // Focus the safe choice, not the one that clears sales.
+    $("#cancelShiftSave").focus();
+}
+
+
+function closeShiftSaveConfirm() {
+
+    pendingShiftSave = null;
+
+    $("#shiftSaveModal").classList.add("hidden");
+}
+
+
+function saveShiftToHistory(pending, times) {
+
+    if (!data.closedShifts[pending.dateKey]) {
+        data.closedShifts[pending.dateKey] = {};
+    }
+
+    const byModel = data.closedShifts[pending.dateKey];
+
+    if (!byModel[pending.modelId]) {
+        byModel[pending.modelId] = [];
+    }
+
+    byModel[pending.modelId].push({
+        shift: {
+            start: pending.shift.start,
+            end: pending.shift.end,
+            cover: pending.shift.cover
+        },
+        times: times,
+        at: Date.now()
+    });
+
+    updateHistory();
+
+    saveData();
+
+    renderSales();
+}
+
+
+async function confirmShiftSave() {
+
+    const pending = pendingShiftSave;
+
+    if (!pending || pending.modelId !== currentModelFilter) {
+        closeShiftSaveConfirm();
+        return;
+    }
+
+    $("#confirmShiftSave").disabled = true;
+
+    // Work out exactly which sales the copied text covers, in the same
+    // breath as building it, so what's saved matches what's copied.
+    const times =
+        getModelSalesForDate(pending.dateKey, pending.modelId, "live")
+            .map(sale => sale.time);
+
+    const copied = await copyLogoutText(
+        pending.dateKey,
+        pending.shift,
+        "live",
+        true
+    );
+
+    if (!copied) {
+        // Nothing was copied, so nothing is saved or cleared.
+        $("#confirmShiftSave").disabled = false;
+        return;
+    }
+
+    if (times.length) {
+        saveShiftToHistory(pending, times);
+    }
+
+    closeShiftSaveConfirm();
+
+    closeShiftModal();
+
+    toast(
+        times.length
+            ? `Logout text copied — ${times.length} sale${times.length === 1 ? "" : "s"} saved to history`
+            : "Logout text copied!",
+        "success"
+    );
+}
+
+
+$("#copyShiftLogoutBtn").addEventListener(
+    "click",
+    openShiftSaveConfirm
+);
+
+
+$("#confirmShiftSave").addEventListener(
+    "click",
+    confirmShiftSave
+);
+
+
+$("#cancelShiftSave").addEventListener(
+    "click",
+    closeShiftSaveConfirm
+);
+
+
+$("#shiftSaveModal").addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target.id === "shiftSaveModal") {
+            closeShiftSaveConfirm();
+        }
+
+    }
+);
+
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "Escape" &&
+            !$("#shiftSaveModal").classList.contains("hidden")
+        ) {
+            closeShiftSaveConfirm();
+        }
+
+    }
+);
+
+
 $("#shiftForm").addEventListener(
     "submit",
     function (event) {
@@ -3292,7 +3951,7 @@ $("#shiftForm").addEventListener(
 
         closeShiftModal();
 
-        toast("Logout shift saved", "success");
+        toast("Shift saved", "success");
     }
 );
 
@@ -3355,6 +4014,14 @@ $("#copyLogoutBtn").addEventListener(
             return;
         }
 
+        const meta = historyRowMeta[expandedHistoryDate];
+
+        if (meta) {
+            // Copy exactly the shift that's expanded, not the whole day.
+            copyLogoutText(meta.dateKey, meta.shift, meta.times);
+            return;
+        }
+
         copyLogoutText(expandedHistoryDate);
     }
 );
@@ -3387,7 +4054,14 @@ $("#clearHistory").addEventListener(
 
         if (currentModelFilter === null) {
 
-            data.history = [];
+            // A shift saved today stays listed until the day is over.
+            const todayKey = getDateKey();
+
+            data.history = data.history.filter(
+                item =>
+                    item.date === todayKey &&
+                    hasClosedShift(todayKey)
+            );
 
         } else {
 
@@ -3417,6 +4091,13 @@ $("#clearHistory").addEventListener(
         renderSales();
 
         closeHistoryModal();
+
+        toast(
+            activeModel
+                ? `${activeModel.title}'s history cleared`
+                : "History cleared",
+            "success"
+        );
     }
 );
 
@@ -3535,12 +4216,18 @@ $$("#faqBtn, #mobileFaqBtn").forEach(
 
                 $("#faq").classList.add("active");
 
-                // Close the settings popover if it happened to be open.
+                // Close the settings popover(s) if they happened to be open.
                 const settingsGroup =
                     $("#settingsBtn") && $("#settingsBtn").closest(".settings-group");
 
                 if (settingsGroup) {
                     settingsGroup.classList.remove("open");
+                }
+
+                const mobileSettingsGroup = $("#mobileSettingsGroup");
+
+                if (mobileSettingsGroup) {
+                    mobileSettingsGroup.classList.remove("open");
                 }
 
                 requestAnimationFrame(
@@ -3792,8 +4479,9 @@ function addCategory(type) {
 
     if (alreadyExists) {
 
-        alert(
-            "That category already exists."
+        toast(
+            "That category already exists.",
+            "error"
         );
 
         return;
@@ -3860,8 +4548,9 @@ function renameCategory(type, oldName) {
 
     if (alreadyExists) {
 
-        alert(
-            "That category already exists."
+        toast(
+            "That category already exists.",
+            "error"
         );
 
         return;
@@ -3925,6 +4614,8 @@ function removeCategory(type, category) {
     renderChips(type);
 
     renderContent(type);
+
+    toast(`"${category}" category removed`, "success");
 }
 
 
@@ -5340,8 +6031,9 @@ $("#contentForm").addEventListener(
 
             if (!category) {
 
-                alert(
-                    "Add at least one category first (use the + Add category chip), then pick it here."
+                toast(
+                    "Add at least one category first (use the + Add category chip), then pick it here.",
+                    "error"
                 );
 
                 return;
@@ -5433,6 +6125,8 @@ $("#contentForm").addEventListener(
 
 
         const savedType = modalType;
+        const wasEditing = Boolean(editingId);
+        const savedTitle = item.title;
 
         saveData();
 
@@ -5454,6 +6148,13 @@ $("#contentForm").addEventListener(
         if (savedType === "models") {
             renderSales();
         }
+
+        const noun = savedType === "models" ? "Model" : "Script";
+
+        toast(
+            `${noun} ${wasEditing ? "updated" : "added"}: "${savedTitle}"`,
+            "success"
+        );
     }
 );
 
@@ -5485,9 +6186,14 @@ function deleteItem(
     id
 ) {
 
+    const deletedTitle =
+        data[type].find(item => item.id === id)?.title;
+
     if (
         !confirm(
-            "Delete this item?"
+            deletedTitle
+                ? `Delete "${deletedTitle}"?`
+                : "Delete this item?"
         )
     ) {
         return;
@@ -5544,6 +6250,11 @@ function deleteItem(
     if (type === "models") {
         renderSales();
     }
+
+    toast(
+        deletedTitle ? `"${deletedTitle}" deleted` : "Deleted",
+        "success"
+    );
 }
 
 
@@ -5566,14 +6277,32 @@ function playKaching() {
    TOAST FEEDBACK
    ===================================================== */
 
-function toast(message, type = "") {
+// type: "success" | "notice" (default — a heads-up or something
+// to fix) | "error" (an action failed). Each gets its own tinted
+// icon chip; the card itself stays neutral, matching how status
+// badges are done elsewhere in the app.
+const TOAST_ICONS = {
+    success: '<path d="M20 6 9 17l-5-5"/>',
+    notice: '<path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/>',
+    error: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'
+};
+
+function toast(message, type = "notice") {
 
     const stack = $("#toastStack");
     if (!stack) return;
 
+    const iconPath = TOAST_ICONS[type] || TOAST_ICONS.notice;
+
     const el = document.createElement("div");
     el.className = `toast ${type}`;
-    el.textContent = message;
+    el.setAttribute("role", type === "error" ? "alert" : "status");
+
+    el.innerHTML =
+        `<span class="toast-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${iconPath}</svg></span>` +
+        `<span class="toast-msg"></span>`;
+
+    el.querySelector(".toast-msg").textContent = message;
 
     stack.appendChild(el);
 
@@ -5801,6 +6530,21 @@ document.addEventListener("click", function (e) {
     }
 });
 
+
+// Mobile header's Settings menu (settings-group's off-screen on
+// phones, so this is the phone equivalent — same actions, own popover).
+$("#mobileSettingsBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    $("#mobileSettingsGroup").classList.toggle("open");
+});
+
+document.addEventListener("click", function (e) {
+    const group = $("#mobileSettingsGroup");
+    if (group.classList.contains("open") && !group.contains(e.target)) {
+        group.classList.remove("open");
+    }
+});
+
 $("#themeToggle").addEventListener(
     "click",
     toggleTheme
@@ -5854,6 +6598,8 @@ function exportData() {
     a.remove();
 
     URL.revokeObjectURL(url);
+
+    toast("Backup downloaded", "success");
 }
 
 
@@ -5887,8 +6633,9 @@ function importData(file) {
             parsed = JSON.parse(event.target.result);
         } catch {
 
-            alert(
-                "That file isn't valid JSON. Please pick a backup file exported from this tool."
+            toast(
+                "That file isn't valid JSON. Please pick a backup file exported from this tool.",
+                "error"
             );
 
             return;
@@ -5905,8 +6652,9 @@ function importData(file) {
 
         if (!isValidImportedData(incoming)) {
 
-            alert(
-                "This doesn't look like a valid Chatter Tool backup file."
+            toast(
+                "This doesn't look like a valid Chatter Tool backup file.",
+                "error"
             );
 
             return;
@@ -5942,8 +6690,9 @@ function importData(file) {
 
     reader.onerror = function () {
 
-        alert(
-            "Couldn't read that file. Please try again."
+        toast(
+            "Couldn't read that file. Please try again.",
+            "error"
         );
     };
 
@@ -5981,6 +6730,39 @@ $("#importFileInput").addEventListener(
 
         // Reset so selecting the same file again
         // still fires the change event.
+        event.target.value = "";
+    }
+);
+
+
+$("#mobileExportDataBtn").addEventListener(
+    "click",
+    exportData
+);
+
+
+$("#mobileImportDataBtn").addEventListener(
+    "click",
+    function () {
+        $("#mobileImportFileInput").click();
+    }
+);
+
+
+$("#mobileImportFileInput").addEventListener(
+    "change",
+    function (event) {
+
+        const file =
+            event.target.files &&
+            event.target.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        importData(file);
+
         event.target.value = "";
     }
 );
@@ -6352,3 +7134,21 @@ initSidebarCollapse();
 renderAll();
 
 initAuthGate();
+
+
+// If the app is left open across midnight, "today" quietly becomes
+// yesterday — check once a minute and re-render as soon as it does,
+// so yesterday's leftover sales get auto-closed and drop into
+// History without needing a refresh.
+let lastKnownDateKey = getDateKey();
+
+setInterval(function () {
+
+    const key = getDateKey();
+
+    if (key !== lastKnownDateKey) {
+        lastKnownDateKey = key;
+        renderAll();
+    }
+
+}, 60000);
