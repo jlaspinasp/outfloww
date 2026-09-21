@@ -14,6 +14,7 @@
    11. Modals, toasts, sync status
    12. Responsive
    13. Reduced motion
+   14. Splash screen
 
    Rules of the road
    - Colour lives in section 1 only. Components use tokens.
@@ -2938,6 +2939,13 @@ label {
         overflow: visible;
         border-top: 1px solid var(--sb-border);
         border-right: 0;
+        transition: transform 0.25s ease, background-color var(--ease);
+    }
+
+    /* Scrolling down tucks the tab bar away, scrolling up brings it
+       back. app.js toggles .nav-hidden on <body>. */
+    body.nav-hidden .sidebar {
+        transform: translateY(100%);
     }
 
     .sidebar .logo,
@@ -3112,6 +3120,11 @@ label {
 
     .sync-status {
         bottom: 80px;
+        transition: opacity 0.4s ease, bottom 0.25s ease;
+    }
+
+    body.nav-hidden .sync-status {
+        bottom: var(--sp-4);
     }
 
     .toast-stack {
@@ -3134,6 +3147,55 @@ label {
 
 
 /* =====================================================
+   PULL TO REFRESH (phone)
+   The indicator is created and driven by app.js. It follows the
+   finger while .pulling, then eases away or spins while refreshing.
+   ===================================================== */
+
+.ptr {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin-left: -18px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    box-shadow: var(--shadow-sm);
+    color: var(--accent-text);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-48px);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.ptr.pulling {
+    transition: none;
+}
+
+.ptr.ready {
+    border-color: var(--accent-border);
+}
+
+.ptr .icon {
+    transform: rotate(var(--ptr-rot, 0deg));
+}
+
+.ptr.refreshing .icon {
+    animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+
+/* =====================================================
    13. REDUCED MOTION
    ===================================================== */
 
@@ -3149,4 +3211,150 @@ label {
         transition-duration: 0.01ms !important;
     }
 
+}
+
+
+/* =====================================================
+   14. SPLASH SCREEN
+   Shown on load until sign-in state is known. Uses the
+   theme tokens, so it follows light / dark automatically.
+   ===================================================== */
+
+.splash {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: var(--sp-6);
+    background: var(--bg-primary);
+    box-shadow: 0 1px 0 var(--accent);
+    transition: transform 0.8s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.splash.is-leaving {
+    transform: translateY(-101%);
+    pointer-events: none;
+}
+
+.splash-inner {
+    display: grid;
+    justify-items: start;
+    transition: opacity 0.3s ease;
+}
+
+.splash.is-leaving .splash-inner {
+    opacity: 0;
+}
+
+/* Wordmark: letters rise out of a mask, one after another. */
+
+.splash-word {
+    display: flex;
+    padding: 0.06em 0.02em;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    font-size: clamp(44px, 11vw, 104px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+
+.splash-out {
+    color: var(--accent);
+}
+
+.splash-floww {
+    color: var(--text-primary);
+}
+
+.splash-ch {
+    display: inline-block;
+    transform: translateY(110%);
+}
+
+.splash--play .splash-ch {
+    animation: splash-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * 55ms);
+}
+
+/* Rule: draws in under the wordmark, then a soft highlight
+   keeps travelling along it while the app finishes loading. */
+
+.splash-rule {
+    position: relative;
+    width: 100%;
+    height: 2px;
+    margin-top: var(--sp-4);
+    overflow: hidden;
+    background: var(--border-subtle);
+}
+
+.splash-rule::before,
+.splash-rule::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+
+.splash-rule::before {
+    left: 0;
+    right: 0;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+}
+
+.splash-rule::after {
+    left: 0;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, var(--text-primary), transparent);
+    opacity: 0;
+    transform: translateX(-100%);
+}
+
+.splash--play .splash-rule::before {
+    animation: splash-draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.55s both;
+}
+
+.splash--play .splash-rule::after {
+    animation: splash-sweep 1.4s ease-in-out 1.5s infinite both;
+}
+
+.splash-tag {
+    justify-self: end;
+    margin: var(--sp-3) 0 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--text-muted);
+    opacity: 0;
+}
+
+.splash--play .splash-tag {
+    animation: splash-fade 0.6s ease 1.05s both;
+}
+
+@keyframes splash-rise {
+    from { transform: translateY(110%); }
+    to   { transform: translateY(0); }
+}
+
+@keyframes splash-draw {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+}
+
+@keyframes splash-sweep {
+    0%   { opacity: 0;   transform: translateX(-100%); }
+    20%  { opacity: 0.5; }
+    80%  { opacity: 0.5; }
+    100% { opacity: 0;   transform: translateX(340%); }
+}
+
+@keyframes splash-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
