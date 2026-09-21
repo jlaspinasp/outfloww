@@ -4000,18 +4000,16 @@ function updateDragAutoScroll(clientY) {
     // the viewport — otherwise hovering anywhere in that header,
     // including over the trash icon, kept scrolling the page and
     // made it hard to actually drop on it.
+    // On Scripts this is also the anchor: the floating category bar
+    // sits inside the upward zone rather than pushing it lower, so
+    // dragging a script toward the top scrolls as soon as it reaches
+    // the bottom of the top bar.
     const topbarEl = $(".page.active .page-topbar");
 
-    // Scripts has a floating category bar hanging below the top bar;
-    // the edge zone starts below that instead.
-    const floatBarEl = $(".page.active .floating-chips");
-
     const topEdge =
-        floatBarEl
-            ? floatBarEl.getBoundingClientRect().bottom
-            : topbarEl
-                ? topbarEl.getBoundingClientRect().bottom
-                : rect.top;
+        topbarEl
+            ? topbarEl.getBoundingClientRect().bottom
+            : rect.top;
 
     const inEdgeZone =
         (clientY >= topEdge && clientY < topEdge + DRAG_AUTOSCROLL_EDGE) ||
