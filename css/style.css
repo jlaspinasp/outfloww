@@ -15,6 +15,7 @@
    12. Responsive
    13. Reduced motion
    14. Splash screen
+   15. Sign-in page + sign-out confirm
 
    Rules of the road
    - Colour lives in section 1 only. Components use tokens.
@@ -746,6 +747,37 @@ nav {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
+}
+
+.mobile-settings-group {
+    position: relative;
+    display: none;
+}
+
+.mobile-settings-popover {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 40;
+    flex-direction: column;
+    gap: 4px;
+    width: 208px;
+    padding: var(--sp-2);
+    background: var(--sb-raised);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.mobile-settings-group.open .mobile-settings-popover {
+    display: flex;
+    animation: pop-in 0.12s ease;
+}
+
+.mobile-settings-divider {
+    margin: 2px 0;
+    border-top: 1px solid var(--sb-border);
 }
 
 .page {
@@ -2049,6 +2081,12 @@ label {
     gap: 6px;
 }
 
+/* Let history rows shrink to the modal instead of stretching it when a
+   line (like a shift time) is long. */
+.history-list > * {
+    min-width: 0;
+}
+
 .sales-list {
     position: absolute;
     inset: 0;
@@ -2253,12 +2291,37 @@ label {
 }
 
 .history-date {
+    flex: none;
     font-size: var(--fs-base);
     font-weight: 600;
     color: var(--text-primary);
 }
 
+/* Wraps the date + shift text on a model's history row so the shift
+   sits right after the date, on the same line — not under it. */
+.history-row-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    flex: 1;
+    min-width: 0;
+    gap: var(--sp-4);
+}
+
 /* Target status: text always says what it is; tint only reinforces */
+
+/* Shift time saved from the Shift Report window, right after the date */
+.history-shift {
+    flex: none;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: left;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--text-muted);
+}
 
 .history-target-badge {
     display: inline-block;
@@ -2314,6 +2377,18 @@ label {
     font-style: italic;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+/* Same idea inside the all-models breakdown, under the model name */
+.history-model-shift {
+    display: block;
+    margin-top: 1px;
+    white-space: normal;
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-style: normal;
+    font-weight: 500;
+    color: var(--text-muted);
 }
 
 .history-model-amount {
@@ -2428,6 +2503,21 @@ label {
 
 .shift-toggle-btn {
     height: 34px;
+}
+
+/* "Copy for logout" inside the Logout window, under the preview. */
+.shift-copy-btn {
+    width: 100%;
+    margin-top: var(--sp-3);
+}
+
+.shift-copy-note {
+    margin: var(--sp-2) 0 0;
+    text-align: center;
+}
+
+.shift-copy-note.hidden {
+    display: none;
 }
 
 .shift-preview {
@@ -2801,6 +2891,9 @@ label {
 
 
 /* ---------- Toasts ---------- */
+/* Same card + soft-icon-chip language as the status badges
+   elsewhere (.history-target-badge, .sale-tag-badge): a tinted
+   circle carries the type, the card itself stays neutral. */
 
 .toast-stack {
     position: fixed;
@@ -2810,32 +2903,69 @@ label {
     display: flex;
     flex-direction: column;
     gap: var(--sp-2);
+    width: min(320px, calc(100vw - var(--sp-8)));
     pointer-events: none;
 }
 
 .toast {
-    max-width: 300px;
-    padding: 10px var(--sp-4);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
     background: var(--bg-raised);
     border: 1px solid var(--border-color);
-    border-left: 3px solid var(--border-strong);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
-    color: var(--text-primary);
-    font-size: var(--fs-base);
-    font-weight: 500;
     opacity: 0;
-    transform: translateY(-8px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transform: translateY(-8px) scale(0.98);
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .toast.show {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
 }
 
-.toast.success {
-    border-left-color: var(--success);
+.toast-icon {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin-top: 1px;
+    background: var(--bg-tertiary);
+    border-radius: 50%;
+    color: var(--text-muted);
+}
+
+.toast-icon .icon {
+    width: 15px;
+    height: 15px;
+    stroke-width: 2.25;
+}
+
+.toast-msg {
+    padding-top: 4px;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+.toast.success .toast-icon {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.toast.notice .toast-icon {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.toast.error .toast-icon {
+    background: var(--danger-bg);
+    color: var(--danger);
 }
 
 
@@ -3136,6 +3266,10 @@ label {
         color: var(--text-secondary);
     }
 
+    .mobile-settings-group {
+        display: flex;
+    }
+
     .mobile-theme-toggle:hover {
         background: var(--bg-hover);
     }
@@ -3248,10 +3382,7 @@ label {
 
     .toast-stack {
         left: var(--sp-4);
-    }
-
-    .toast {
-        max-width: none;
+        width: auto;
     }
 
     .modal {
@@ -3476,4 +3607,281 @@ label {
 @keyframes splash-fade {
     from { opacity: 0; }
     to   { opacity: 1; }
+}
+
+
+/* =====================================================
+   15. SIGN-IN PAGE
+   Shown when nobody is signed in (app.js toggles .hidden on
+   #authGate). Mirrors the app shell: the dark brand pane uses
+   the sidebar tokens, the form sits on the main surface. The
+   wordmark lockup is the same one the splash screen plays.
+   ===================================================== */
+
+.auth-page {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    grid-template-columns: minmax(360px, 5fr) 7fr;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--bg-primary);
+}
+
+.auth-page.hidden {
+    display: none;
+}
+
+
+/* ---------- Brand pane ---------- */
+
+.auth-brand {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--sp-10);
+    padding: var(--sp-10);
+    background: var(--sb-bg);
+    border-right: 1px solid var(--sb-border);
+    color: var(--sb-text);
+}
+
+.auth-lockup {
+    display: grid;
+    justify-items: start;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.auth-word {
+    font-size: clamp(36px, 4.4vw, 56px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: var(--sb-text);
+}
+
+.auth-word span {
+    color: var(--sb-accent);
+}
+
+.auth-rule {
+    width: 100%;
+    height: 2px;
+    margin-top: var(--sp-4);
+    background: var(--sb-accent);
+}
+
+.auth-tag {
+    justify-self: end;
+    margin: var(--sp-3) 0 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--sb-muted);
+}
+
+.auth-features {
+    display: grid;
+    gap: var(--sp-5);
+    margin: 0;
+    padding: var(--sp-6) 0 0;
+    list-style: none;
+    border-top: 1px solid var(--sb-border);
+}
+
+.auth-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+}
+
+.auth-features .icon {
+    margin-top: 2px;
+    color: var(--sb-muted);
+}
+
+.auth-feature-title {
+    display: block;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    color: var(--sb-text);
+}
+
+.auth-feature-text {
+    display: block;
+    font-size: var(--fs-sm);
+    color: var(--sb-muted);
+}
+
+
+/* ---------- Sign-in card ---------- */
+
+.auth-main {
+    display: grid;
+    place-items: center;
+    padding: var(--sp-8) var(--sp-6);
+}
+
+.auth-card {
+    width: min(400px, 100%);
+    padding: var(--sp-8);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.auth-card .sub {
+    margin-top: var(--sp-2);
+    line-height: 1.55;
+}
+
+.auth-card .auth-error {
+    margin: var(--sp-5) 0 0;
+    padding: var(--sp-3);
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--danger);
+}
+
+.auth-btn {
+    width: 100%;
+    height: 44px;
+    margin-top: var(--sp-6);
+    font-size: var(--fs-md);
+}
+
+.auth-btn-g {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: #ffffff;
+    border-radius: var(--radius-sm);
+}
+
+.auth-btn-g svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+
+/* While the Google popup is open app.js disables the button:
+   swap the logo for a small spinner. */
+
+.auth-btn:disabled .auth-btn-g {
+    display: none;
+}
+
+.auth-btn:disabled::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+    to { transform: rotate(360deg); }
+}
+
+.auth-note {
+    margin-top: var(--sp-5);
+    padding-top: var(--sp-4);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--fs-sm);
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 860px) {
+
+    .auth-page {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    .auth-brand {
+        gap: 0;
+        padding: var(--sp-6);
+        border-right: 0;
+        border-bottom: 1px solid var(--sb-border);
+    }
+
+    .auth-word {
+        font-size: 32px;
+    }
+
+    .auth-tag {
+        font-size: var(--fs-md);
+    }
+
+    .auth-features {
+        display: none;
+    }
+
+}
+
+@media (max-width: 480px) {
+
+    .auth-main {
+        align-items: start;
+        padding: var(--sp-5) var(--sp-4);
+    }
+
+    .auth-card {
+        padding: var(--sp-6);
+    }
+
+}
+
+
+/* ---------- Save shift confirmation (Shift Report window) ---------- */
+
+.shift-save-summary {
+    margin-top: var(--sp-4);
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+
+/* ---------- Sign-out confirmation ---------- */
+
+.confirm-card {
+    width: min(400px, 100%);
+}
+
+.confirm-card .sub {
+    line-height: 1.55;
+}
+
+.confirm-warning {
+    margin-top: var(--sp-4);
+    padding: var(--sp-3);
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--warning);
+}
+
+.confirm-warning.hidden {
+    display: none;
+}
+
+.confirm-card .modal-actions {
+    margin-top: var(--sp-6);
 }
