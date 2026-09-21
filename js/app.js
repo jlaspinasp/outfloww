@@ -93,6 +93,13 @@ let expandedHistoryDate = null;
 // coming back doesn't dump you at the top.
 const pageScrollPositions = {};
 
+// Same idea, one level deeper: remembers scroll position per
+// category filter (e.g. Scripts categories), keyed by
+// categoryScrollPositions[type][categoryName], so flipping between
+// chips restores where you were instead of wherever a shorter list
+// happened to clamp the scroll to.
+const categoryScrollPositions = {};
+
 
 /* =====================================================
    UI ICONS
@@ -327,6 +334,20 @@ function renderAll() {
 }
 
 
+// Everything except `sales`, for the general push below. Sales get
+// their own additive channel (see pushSaleAdded / pushSaleRemoved)
+// so two devices adding sales at once can't overwrite each other —
+// this field is deliberately left out here so a merge write never
+// clobbers it with a possibly-stale local copy.
+function dataWithoutSales() {
+
+    const { sales, ...rest } = data;
+
+    return rest;
+
+}
+
+
 function pushToCloud() {
 
     if (!cloudDocRef || isApplyingRemoteData) {
@@ -343,11 +364,13 @@ function pushToCloud() {
 
         pushPending = false;
 
-        const json = JSON.stringify(data);
-        lastPushedJSON = json;
-
-        pushInFlight = cloudDocRef.set(data)
+        pushInFlight = cloudDocRef.set(dataWithoutSales(), { merge: true })
             .then(function () {
+                // The write only ever touched non-sales fields, and
+                // those already matched local before it went out, so
+                // the full local snapshot is still an accurate record
+                // of what the cloud now holds.
+                lastPushedJSON = JSON.stringify(data);
                 setSyncStatus("synced");
             })
             .catch(function (err) {
@@ -370,10 +393,9 @@ function flushCloudPush() {
         clearTimeout(pushTimer);
         pushPending = false;
 
-        lastPushedJSON = JSON.stringify(data);
-
-        pushInFlight = cloudDocRef.set(data)
+        pushInFlight = cloudDocRef.set(dataWithoutSales(), { merge: true })
             .then(function () {
+                lastPushedJSON = JSON.stringify(data);
                 setSyncStatus("synced");
             })
             .catch(function (err) {
@@ -384,6 +406,62 @@ function flushCloudPush() {
     }
 
     return pushInFlight || Promise.resolve();
+
+}
+
+
+// Sales get pushed as targeted array operations rather than folded
+// into the general document push above. That's what makes them safe
+// to add from two devices at once: arrayUnion appends server-side
+// against whatever is already there, instead of a whole-document
+// write silently overwriting a sale the other device just added.
+function pushSaleAdded(dateKey, sale) {
+
+    if (!cloudDocRef) {
+        return;
+    }
+
+    setSyncStatus("syncing");
+
+    cloudDocRef.set(
+        { sales: { [dateKey]: firebase.firestore.FieldValue.arrayUnion(sale) } },
+        { merge: true }
+    )
+        .then(function () {
+            lastPushedJSON = JSON.stringify(data);
+            setSyncStatus("synced");
+        })
+        .catch(function (err) {
+            console.error("Cloud sync failed:", err);
+            setSyncStatus("offline");
+        });
+
+}
+
+
+// Mirrors pushSaleAdded: arrayRemove takes an exact match of the sale
+// object being removed (every sale carries its own `time`, so this
+// can't accidentally remove a different sale with the same amount).
+function pushSaleRemoved(dateKey, sale) {
+
+    if (!cloudDocRef) {
+        return;
+    }
+
+    setSyncStatus("syncing");
+
+    cloudDocRef.set(
+        { sales: { [dateKey]: firebase.firestore.FieldValue.arrayRemove(sale) } },
+        { merge: true }
+    )
+        .then(function () {
+            lastPushedJSON = JSON.stringify(data);
+            setSyncStatus("synced");
+        })
+        .catch(function (err) {
+            console.error("Cloud sync failed:", err);
+            setSyncStatus("offline");
+        });
 
 }
 
@@ -2440,6 +2518,8 @@ $("#saleForm").addEventListener(
 
         saveData();
 
+        pushSaleAdded(dateKey, sale);
+
         renderSales();
 
         playKaching();
@@ -2462,15 +2542,20 @@ function deleteSale(index) {
         getDateKey();
 
 
-    data.sales[dateKey].splice(
-        index,
-        1
-    );
+    const [removedSale] =
+        data.sales[dateKey].splice(
+            index,
+            1
+        );
 
 
     updateHistory();
 
     saveData();
+
+    if (removedSale) {
+        pushSaleRemoved(dateKey, removedSale);
+    }
 
     renderSales();
 }
@@ -3415,6 +3500,165 @@ $$(".nav-btn").forEach(
 
 
 /* =====================================================
+   FAQ
+   ===================================================== */
+
+
+// The FAQ button lives outside the main nav rail (in the sidebar,
+// above Settings, and as an icon on the mobile header), so it gets
+// its own small switcher instead of joining the .nav-btn group —
+// but it still plays by the same rules: no nav item stays "active"
+// while FAQ is open, and leaving FAQ via any .nav-btn already works
+// for free, since that handler hides every .page (FAQ included).
+$$("#faqBtn, #mobileFaqBtn").forEach(
+    button => {
+
+        button.addEventListener(
+            "click",
+            function () {
+
+                const mainEl = $(".main");
+                const outgoingPage = $(".page.active");
+
+                if (mainEl && outgoingPage) {
+                    pageScrollPositions[outgoingPage.id] =
+                        getScroller().scrollTop;
+                }
+
+                $$(".nav-btn").forEach(
+                    btn => btn.classList.remove("active")
+                );
+
+                $$(".page").forEach(
+                    page => page.classList.remove("active")
+                );
+
+                $("#faq").classList.add("active");
+
+                // Close the settings popover if it happened to be open.
+                const settingsGroup =
+                    $("#settingsBtn") && $("#settingsBtn").closest(".settings-group");
+
+                if (settingsGroup) {
+                    settingsGroup.classList.remove("open");
+                }
+
+                requestAnimationFrame(
+                    () => {
+                        getScroller().scrollTop =
+                            pageScrollPositions.faq || 0;
+                    }
+                );
+
+            }
+        );
+
+    }
+);
+
+
+// Accordion: click a question to reveal its answer. Several can be
+// open at once — nothing forces the others shut.
+$$("#faq .faq-q").forEach(
+    q => {
+
+        q.addEventListener(
+            "click",
+            function () {
+
+                const item = this.closest(".faq-item");
+                const isOpen = item.classList.toggle("open");
+
+                this.setAttribute(
+                    "aria-expanded",
+                    isOpen ? "true" : "false"
+                );
+
+            }
+        );
+
+    }
+);
+
+
+// Quick-nav chips: jump to a group and mark the chip closest to
+// what's actually on screen as active while scrolling.
+(function () {
+
+    const chips = $$("#faqChips .chip");
+    const groups = $$("#faq .faq-group");
+
+    if (!chips.length || !groups.length) {
+        return;
+    }
+
+    chips.forEach(
+        chip => {
+
+            chip.addEventListener(
+                "click",
+                function () {
+
+                    const target = $("#" + this.dataset.faqJump);
+
+                    if (!target) {
+                        return;
+                    }
+
+                    const floatBar = $("#faqFloatBar");
+                    const offset =
+                        (floatBar ? floatBar.offsetHeight : 0) + 24;
+
+                    const top =
+                        target.getBoundingClientRect().top +
+                        getScroller().scrollTop -
+                        offset;
+
+                    getScroller().scrollTo(
+                        { top: top, behavior: "smooth" }
+                    );
+
+                }
+            );
+
+        }
+    );
+
+    if (window.IntersectionObserver) {
+
+        const observer = new IntersectionObserver(
+            entries => {
+
+                entries.forEach(
+                    entry => {
+
+                        if (!entry.isIntersecting) {
+                            return;
+                        }
+
+                        chips.forEach(
+                            chip =>
+                                chip.classList.toggle(
+                                    "active",
+                                    chip.dataset.faqJump === entry.target.id
+                                )
+                        );
+
+                    }
+                );
+
+            },
+            { rootMargin: "-30% 0px -60% 0px" }
+        );
+
+        groups.forEach(group => observer.observe(group));
+
+    }
+
+})();
+
+
+/* =====================================================
    CONTENT CATEGORIES
    ===================================================== */
 
@@ -3927,6 +4171,24 @@ $$(".chips").forEach(
                 }
 
 
+                // Remember where we were scrolled to on the category
+                // we're leaving, so flipping back to it later restores
+                // the spot instead of wherever a shorter list clamped
+                // the scroll position to.
+                const outgoingCategory =
+                    currentCategory[type];
+
+                if (outgoingCategory) {
+
+                    categoryScrollPositions[type] =
+                        categoryScrollPositions[type] || {};
+
+                    categoryScrollPositions[type][outgoingCategory] =
+                        getScroller().scrollTop;
+
+                }
+
+
                 group
                     .querySelectorAll(
                         ".chip"
@@ -3944,11 +4206,33 @@ $$(".chips").forEach(
                 );
 
 
-                currentCategory[type] =
+                const incomingCategory =
                     chip.dataset.category;
+
+                currentCategory[type] =
+                    incomingCategory;
 
 
                 renderContent(type);
+
+
+                // Layout for the freshly-rendered list isn't settled
+                // until the next frame, so wait for it before
+                // restoring scroll position.
+                requestAnimationFrame(
+                    () => {
+
+                        const saved =
+                            (categoryScrollPositions[type] || {})[
+                                incomingCategory
+                            ];
+
+                        getScroller().scrollTop =
+                            saved || 0;
+
+                    }
+                );
+
             }
         );
 
@@ -4002,34 +4286,39 @@ function stepDragAutoScroll() {
 }
 
 
-/* Keep the Scripts floating category bar pinned right under the sticky
-   top bar, whatever height the top bar ends up being. */
+/* Keep a page's floating category/quick-nav bar pinned right under
+   the sticky top bar, whatever height the top bar ends up being.
+   Applies to any page that has both — currently Scripts and FAQ. */
 (function () {
 
-    const page = $("#scripts");
-    const topbar = page ? page.querySelector(".page-topbar") : null;
+    $$(".page").forEach(page => {
 
-    if (!page || !topbar) {
-        return;
-    }
+        const topbar = page.querySelector(".page-topbar");
+        const floatBar = page.querySelector(".floating-chips");
 
-    function syncTopbarHeight() {
-
-        const height = topbar.offsetHeight;
-
-        if (height > 0) {
-            page.style.setProperty("--topbar-h", height + "px");
+        if (!topbar || !floatBar) {
+            return;
         }
 
-    }
+        function syncTopbarHeight() {
 
-    syncTopbarHeight();
+            const height = topbar.offsetHeight;
 
-    if (window.ResizeObserver) {
-        new ResizeObserver(syncTopbarHeight).observe(topbar);
-    }
+            if (height > 0) {
+                page.style.setProperty("--topbar-h", height + "px");
+            }
 
-    window.addEventListener("resize", syncTopbarHeight);
+        }
+
+        syncTopbarHeight();
+
+        if (window.ResizeObserver) {
+            new ResizeObserver(syncTopbarHeight).observe(topbar);
+        }
+
+        window.addEventListener("resize", syncTopbarHeight);
+
+    });
 
 })();
 
@@ -5636,6 +5925,7 @@ function importData(file) {
         saveData();
 
         currentCategory.scripts = "All";
+        categoryScrollPositions.scripts = {};
         currentModelFilter = null;
 
         updateHistory();
