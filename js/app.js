@@ -398,6 +398,33 @@ function pushToCloud() {
 }
 
 
+// Reserved for explicit, user-initiated full replacements (import,
+// restoring a backup) where sales SHOULD be overwritten too — unlike
+// the routine push above, which deliberately leaves sales out.
+function pushFullDataToCloud() {
+
+    if (!cloudDocRef) {
+        return;
+    }
+
+    setSyncStatus("syncing");
+
+    clearTimeout(pushTimer);
+    pushPending = false;
+
+    pushInFlight = cloudDocRef.set(data)
+        .then(function () {
+            lastPushedJSON = JSON.stringify(data);
+            setSyncStatus("synced");
+        })
+        .catch(function (err) {
+            console.error("Cloud sync failed:", err);
+            setSyncStatus("offline");
+        });
+
+}
+
+
 // Send any edit that's still waiting out the 500ms debounce right now,
 // and resolve once the latest write has settled. Used before a reload
 // so a change made just before refreshing isn't lost.
@@ -6670,7 +6697,16 @@ function importData(file) {
 
         data = normalizeData(incoming);
 
-        saveData();
+        // A full replace — including sales — needs to overwrite the
+        // cloud copy too, not just the local one. saveData()'s normal
+        // push deliberately skips sales, so that would leave the old
+        // cloud sales in place after an import.
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(data)
+        );
+
+        pushFullDataToCloud();
 
         currentCategory.scripts = "All";
         categoryScrollPositions.scripts = {};
