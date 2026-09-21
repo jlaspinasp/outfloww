@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=13">
+    <link rel="stylesheet" href="css/style.css?v=15">
 
     <script>
         (function () {
@@ -25,6 +25,99 @@
 </head>
 
 <body>
+
+<!-- ================= SPLASH ================= -->
+
+<div
+    id="splash"
+    class="splash"
+    role="status"
+    aria-label="Loading Outfloww"
+>
+
+    <div class="splash-inner">
+
+        <div class="splash-word" aria-hidden="true">
+            <span class="splash-out"><span class="splash-ch" style="--i:0">O</span><span class="splash-ch" style="--i:1">U</span><span class="splash-ch" style="--i:2">T</span></span><span class="splash-floww"><span class="splash-ch" style="--i:3">F</span><span class="splash-ch" style="--i:4">L</span><span class="splash-ch" style="--i:5">O</span><span class="splash-ch" style="--i:6">W</span><span class="splash-ch" style="--i:7">W</span></span>
+        </div>
+
+        <div class="splash-rule" aria-hidden="true"></div>
+
+        <p class="splash-tag" aria-hidden="true">By Castor 演ス</p>
+
+    </div>
+
+</div>
+
+<script>
+    /* Splash controller. Plays the intro, then lifts once app.js
+       reports that sign-in state is known (window.hideSplash).
+       Stays up at least MIN_VISIBLE so the intro always finishes,
+       and gives up after MAX_VISIBLE so a failed script can never
+       leave the app covered. */
+    (function () {
+
+        var splash = document.getElementById("splash");
+        if (!splash) return;
+
+        var reduced = window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        var MIN_VISIBLE = reduced ? 500 : 1900;
+        var MAX_VISIBLE = 8000;
+
+        var shownAt = 0;
+        var requested = false;
+        var scheduled = false;
+
+        function leave() {
+            splash.classList.add("is-leaving");
+            splash.setAttribute("aria-hidden", "true");
+            setTimeout(function () {
+                if (splash.parentNode) splash.parentNode.removeChild(splash);
+            }, 1000);
+        }
+
+        function maybeLeave() {
+            if (!requested || !shownAt || scheduled) return;
+            scheduled = true;
+            setTimeout(leave, Math.max(0, MIN_VISIBLE - (Date.now() - shownAt)));
+        }
+
+        function play() {
+            if (shownAt) return;
+            shownAt = Date.now();
+            splash.classList.add("splash--play");
+            maybeLeave();
+        }
+
+        window.hideSplash = function () {
+            requested = true;
+            maybeLeave();
+        };
+
+        // Wait for the brand fonts so the wordmark never flashes
+        // in a fallback face, but don't wait long.
+        var fontsReady = Promise.resolve();
+        if (document.fonts && document.fonts.load) {
+            fontsReady = Promise.race([
+                Promise.all([
+                    document.fonts.load('700 1em "IBM Plex Sans"'),
+                    document.fonts.load('italic 600 1em "Playfair Display"')
+                ]),
+                new Promise(function (r) { setTimeout(r, 600); })
+            ]);
+        }
+        fontsReady.then(play, play);
+
+        setTimeout(function () {
+            play();
+            window.hideSplash();
+        }, MAX_VISIBLE);
+
+    })();
+</script>
+
 
 <div class="app">
 
@@ -1062,7 +1155,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/app.js?v=6"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
