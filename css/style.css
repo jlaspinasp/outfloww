@@ -760,44 +760,131 @@ h2 {
 
 /* ================= SALES ================= */
 
+/* Stat cards live in the sticky Sales top bar. They stay collapsed
+   until a model is selected (#sales.has-model), then ease open. */
+
+.stats-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition:
+        grid-template-rows 0.25s ease,
+        visibility 0s linear 0.25s;
+}
+
+.stats-collapse[hidden] {
+    display: none;
+}
+
+.stats-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+#sales.has-model .stats-collapse {
+    grid-template-rows: 1fr;
+    visibility: visible;
+    transition:
+        grid-template-rows 0.25s ease,
+        visibility 0s;
+}
+
+#sales.has-model .stats-inner {
+    opacity: 1;
+    transition-delay: 0.05s;
+}
+
+/* Title row gives back some of its bottom gap while the cards are open */
+#sales .top {
+    transition: margin-bottom 0.25s ease;
+}
+
+#sales.has-model .top {
+    margin-bottom: 12px;
+}
+
+
 .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    gap: 10px;
+    padding-bottom: 4px;
+}
+
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 9px 14px;
+    box-shadow: none;
 }
 
 
 .stat-icon {
     display: inline-flex;
-    font-size: 13px;
-    margin-right: 5px;
-    opacity: 0.85;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+    line-height: 1;
+    border-radius: var(--radius);
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+}
+
+
+.stat-body {
+    min-width: 0;
 }
 
 
 .stat-label {
-    display: flex;
-    align-items: center;
+    display: block;
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
     text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 
 .stat {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 800;
-    margin-top: 8px;
-    letter-spacing: -0.3px;
+    line-height: 1.2;
+    margin-top: 2px;
+    letter-spacing: -0.2px;
     color: var(--text);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 
 .net {
     color: var(--success);
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+    .stats-collapse,
+    .stats-inner,
+    #sales .top {
+        transition: none;
+    }
+
 }
 
 
@@ -2050,13 +2137,6 @@ select:focus {
 
 /* ================= CONTENT ================= */
 
-.toolbar {
-    display: grid;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-
 .chips {
     display: flex;
     align-items: flex-end;
@@ -2129,6 +2209,67 @@ select:focus {
 
 .chip.chip-draggable.drag-over {
     border-bottom-color: var(--accent-border);
+}
+
+
+/* ================= FLOATING CATEGORY BAR (Scripts) =================
+   Sticks just below the top bar (which keeps the same fixed height as
+   the other tabs). The bar always spans the full content width, and
+   when there are more categories than fit on a line they wrap onto the
+   next row. --topbar-h is kept up to date by app.js. */
+
+#scripts {
+    --float-gap: 8px;
+}
+
+#scripts .page-topbar {
+    margin-bottom: var(--float-gap);
+}
+
+.floating-chips {
+    position: sticky;
+    top: calc(var(--topbar-h, 96px) + var(--float-gap));
+    z-index: 19;
+    width: 100%;
+    margin-bottom: 14px;
+    padding: 5px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+}
+
+.floating-chips .chips {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.floating-chips .chip {
+    height: 28px;
+    padding: 0 12px;
+    border-bottom: 0;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.floating-chips .chip:hover {
+    background: var(--panel-2);
+}
+
+.floating-chips .chip.active {
+    color: var(--accent-text);
+    background: var(--accent-light);
+    box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.floating-chips .chip.add-chip:hover {
+    background: var(--accent-light);
+}
+
+.floating-chips .chip.chip-draggable.drag-over {
+    background: var(--panel-2);
+    box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 
 
@@ -2469,6 +2610,91 @@ label {
 }
 
 
+/* ================= LOGOUT SHIFT MODAL ================= */
+
+.shift-modal-note {
+    margin: -6px 0 4px;
+}
+
+
+.shift-time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+
+#shiftModal input[type="time"] {
+    color-scheme: dark;
+}
+
+
+[data-theme="light"] #shiftModal input[type="time"] {
+    color-scheme: light;
+}
+
+
+.shift-field {
+    display: grid;
+    gap: 7px;
+    margin: 14px 0;
+}
+
+
+.shift-field-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+
+.shift-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px;
+}
+
+
+.shift-toggle-btn {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+}
+
+
+.shift-toggle-btn:hover {
+    color: var(--text);
+}
+
+
+.shift-toggle-btn.active {
+    background: var(--accent-gradient);
+    color: rgba(0, 0, 0, 0.82);
+}
+
+
+.shift-preview {
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+
 .modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -2745,18 +2971,44 @@ label {
     }
 
 
-    .stats {
-        grid-template-columns: 1fr 1fr;
+    #scripts .page-topbar {
+        margin: 0 -16px var(--float-gap);
     }
 
 
-    .stats .card:first-child {
-        grid-column: span 2;
+    .stats {
+        gap: 8px;
+    }
+
+
+    .stat-card {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0;
+        padding: 8px 10px;
+    }
+
+
+    .stat-icon,
+    .stat-rate {
+        display: none;
+    }
+
+
+    .stat-body {
+        width: 100%;
+    }
+
+
+    .stat-label {
+        font-size: 9.5px;
+        letter-spacing: 0.3px;
     }
 
 
     .stat {
-        font-size: 24px;
+        font-size: 17px;
     }
 
 
