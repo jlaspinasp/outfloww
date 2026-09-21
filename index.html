@@ -244,8 +244,8 @@
 
                     <div class="top-actions">
 
-                        <button class="btn top-btn" id="clearSales">
-                            Clear today
+                        <button class="btn top-btn" id="shiftSettingsBtn" type="button">
+                            Shift time
                         </button>
 
                     </div>
@@ -253,46 +253,38 @@
                 </div>
 
 
-                <!-- STATS -->
+                <!-- STATS (only visible while a model is selected) -->
 
-                <div class="stats">
+                <div class="stats-collapse" id="salesStats" aria-hidden="true" hidden>
+                    <div class="stats-inner">
+                        <div class="stats">
 
-                    <div class="card">
-                        <div class="stat-label">
-                            <span class="stat-icon">💵</span>Gross sales
-                        </div>
+                            <div class="card stat-card">
+                                <span class="stat-icon">💵</span>
+                                <div class="stat-body">
+                                    <div class="stat-label">Gross sales</div>
+                                    <div class="stat" id="gross"></div>
+                                </div>
+                            </div>
 
-                        <div class="stat" id="gross">
-                            $0.00
+                            <div class="card stat-card">
+                                <span class="stat-icon">💸</span>
+                                <div class="stat-body">
+                                    <div class="stat-label">Net earnings<span class="stat-rate"> · 80%</span></div>
+                                    <div class="stat net" id="net"></div>
+                                </div>
+                            </div>
+
+                            <div class="card stat-card">
+                                <span class="stat-icon">🔓</span>
+                                <div class="stat-body">
+                                    <div class="stat-label">PPVs Unlocked</div>
+                                    <div class="stat" id="saleCount"></div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-
-
-                    <div class="card">
-
-                        <div class="stat-label">
-                            <span class="stat-icon">💸</span>Net earnings · 80%
-                        </div>
-
-                        <div class="stat net" id="net">
-                            $0.00
-                        </div>
-
-                    </div>
-
-
-                    <div class="card">
-
-                        <div class="stat-label">
-                            <span class="stat-icon">🔓</span>PPVs Unlocked
-                        </div>
-
-                        <div class="stat" id="saleCount">
-                            0
-                        </div>
-
-                    </div>
-
                 </div>
 
             </div>
@@ -571,15 +563,18 @@
                 </div>
 
 
-                <div class="toolbar">
+            </div>
 
-                    <div
-                        class="chips"
-                        data-filter="scripts"
-                        id="scriptsChips"
-                    ></div>
 
-                </div>
+            <!-- Floating category bar: sticks just under the top bar and
+                 wraps onto extra rows when there are many categories. -->
+            <div class="floating-chips" id="scriptsFloatBar">
+
+                <div
+                    class="chips"
+                    data-filter="scripts"
+                    id="scriptsChips"
+                ></div>
 
             </div>
 
@@ -672,6 +667,114 @@
                     type="button"
                     class="btn"
                     id="cancelTargetModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= LOGOUT SHIFT MODAL ================= -->
+
+<div
+    id="shiftModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="section-head">
+
+            <h2>
+                Logout shift
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeShiftModal"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <p class="sub shift-modal-note">
+            Only used in the "Copy for logout" text.
+        </p>
+
+
+        <form id="shiftForm">
+
+            <div class="shift-time-row">
+
+                <label>
+                    Start
+                    <input
+                        id="shiftStart"
+                        type="time"
+                        required
+                    >
+                </label>
+
+                <label>
+                    End
+                    <input
+                        id="shiftEnd"
+                        type="time"
+                        required
+                    >
+                </label>
+
+            </div>
+
+
+            <div class="shift-field">
+
+                <span class="shift-field-label">Shift type</span>
+
+                <div class="shift-toggle" id="shiftTypeToggle">
+                    <button
+                        type="button"
+                        class="shift-toggle-btn"
+                        data-cover="false"
+                    >
+                        Regular
+                    </button>
+                    <button
+                        type="button"
+                        class="shift-toggle-btn"
+                        data-cover="true"
+                    >
+                        Cover
+                    </button>
+                </div>
+
+            </div>
+
+
+            <div class="shift-preview" id="shiftPreview"></div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelShiftModal"
                 >
                     Cancel
                 </button>
