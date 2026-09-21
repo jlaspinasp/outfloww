@@ -253,6 +253,18 @@ function $$(selector) {
 }
 
 
+/* What scrolls the app? On phones the document itself scrolls, so
+   the browser's address bar and toolbars can tuck away. On larger
+   screens the app fills the window and .main scrolls inside it. */
+const phoneScrollQuery = window.matchMedia("(max-width: 700px)");
+
+function getScroller() {
+    return phoneScrollQuery.matches
+        ? (document.scrollingElement || document.documentElement)
+        : $(".main");
+}
+
+
 function saveData() {
     localStorage.setItem(
         STORAGE_KEY,
@@ -3344,7 +3356,7 @@ $$(".nav-btn").forEach(
 
                 if (mainEl && outgoingPage) {
                     pageScrollPositions[outgoingPage.id] =
-                        mainEl.scrollTop;
+                        getScroller().scrollTop;
                 }
 
 
@@ -3384,7 +3396,7 @@ $$(".nav-btn").forEach(
                 if (mainEl) {
 
                     const restoreScroll = () => {
-                        mainEl.scrollTop =
+                        getScroller().scrollTop =
                             pageScrollPositions[targetPageId] || 0;
                     };
 
@@ -3972,11 +3984,11 @@ let dragAutoScrollEdgeSince = null;
 
 function stepDragAutoScroll() {
 
-    const mainEl = $(".main");
+    const scroller = getScroller();
 
-    if (dragAutoScrollSpeed !== 0 && mainEl) {
+    if (dragAutoScrollSpeed !== 0 && scroller) {
 
-        mainEl.scrollTop += dragAutoScrollSpeed;
+        scroller.scrollTop += dragAutoScrollSpeed;
 
         dragAutoScrollFrame =
             requestAnimationFrame(stepDragAutoScroll);
@@ -4030,7 +4042,10 @@ function updateDragAutoScroll(clientY) {
         return;
     }
 
-    const rect = mainEl.getBoundingClientRect();
+    // On phones the whole window scrolls; otherwise .main does.
+    const rect = phoneScrollQuery.matches
+        ? { top: 0, bottom: window.innerHeight }
+        : mainEl.getBoundingClientRect();
 
     // The upward trigger zone starts at the BOTTOM of the sticky
     // page-topbar (title/search/stats/trash icon), not the top of
@@ -5733,7 +5748,8 @@ document.addEventListener(
     // small jitters and finger wobble don't make it flicker.
     const TRAVEL = 10;
 
-    let lastY = mainEl.scrollTop;
+    // On phones the window scrolls (not .main), so listen there.
+    let lastY = window.scrollY;
     let travel = 0;
     let suppressUntil = 0;
 
@@ -5741,11 +5757,11 @@ document.addEventListener(
         document.body.classList.toggle("nav-hidden", hidden);
     }
 
-    mainEl.addEventListener(
+    window.addEventListener(
         "scroll",
         function () {
 
-            const y = Math.max(mainEl.scrollTop, 0);
+            const y = Math.max(window.scrollY, 0);
             const dy = y - lastY;
 
             lastY = y;
@@ -5816,8 +5832,8 @@ document.addEventListener(
 
 /* =====================================================
    PHONE: PULL DOWN FROM THE TOP TO RELOAD
-   The page scrolls inside .main (and the browser's own
-   pull-to-refresh is switched off), so this is done by hand:
+   The browser's own pull-to-refresh is switched off, so this
+   is done by hand:
    drag down while already at the top, past the threshold,
    and let go to reload.
    ===================================================== */
@@ -5929,7 +5945,7 @@ document.addEventListener(
                 refreshing ||
                 !phoneQuery.matches ||
                 event.touches.length !== 1 ||
-                mainEl.scrollTop > 0 ||
+                getScroller().scrollTop > 0 ||
                 $(".modal:not(.hidden)") ||
                 insideScrolledChild(event.target)
             ) {
@@ -5985,7 +6001,7 @@ document.addEventListener(
 
             // The page moved (or the finger came back up past the
             // start): stop pulling and let normal scrolling take over.
-            if (mainEl.scrollTop > 0 || dy <= 0) {
+            if (getScroller().scrollTop > 0 || dy <= 0) {
                 resetIndicator();
                 return;
             }
