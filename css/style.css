@@ -669,6 +669,7 @@ nav {
 .app.sidebar-collapsed .nav-btn span,
 .app.sidebar-collapsed .settings-btn span:not(.settings-btn-icon),
 .app.sidebar-collapsed .account-btn span:not(.backup-btn-icon),
+.app.sidebar-collapsed #faqBtn span:not(.backup-btn-icon),
 .app.sidebar-collapsed .sidebar-trash span:not(.sidebar-trash-icon),
 .app.sidebar-collapsed .sidebar-note {
     display: none;
@@ -702,6 +703,7 @@ nav {
 
 .app.sidebar-collapsed .settings-btn,
 .app.sidebar-collapsed .account-btn,
+.app.sidebar-collapsed #faqBtn,
 .app.sidebar-collapsed .sidebar-trash.armed {
     justify-content: center;
     width: 40px;
@@ -738,6 +740,12 @@ nav {
 
 .mobile-theme-toggle {
     display: none;
+}
+
+.mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
 }
 
 .page {
@@ -812,9 +820,9 @@ h2 {
 }
 
 /* Selected model, shown beside the page title as a breadcrumb:
-   Sales | ● Name ×  — divider, the model's colour as a small dot, the
-   name in the italic serif used for models everywhere, and a clear
-   button. Click (or Enter) returns to all models. */
+   Sales | Name ×  — divider, the name in the italic serif used for
+   models everywhere, and a clear button. Click (or Enter) returns
+   to all models. */
 
 .active-model-badge {
     display: inline-flex;
@@ -831,16 +839,6 @@ h2 {
     color: var(--text-primary);
     cursor: pointer;
     animation: slide-in-left 0.18s ease;
-}
-
-.active-model-badge::before {
-    content: "";
-    flex: none;
-    width: 10px;
-    height: 10px;
-    background: var(--badge-color, var(--accent));
-    border-radius: 50%;
-    box-shadow: 0 0 0 1px var(--border-strong);
 }
 
 .active-model-name {
@@ -2890,6 +2888,106 @@ label {
 
 .sync-status.offline::before {
     background: var(--danger);
+}
+
+
+/* =====================================================
+   15. FAQ
+   ===================================================== */
+
+#faq {
+    --float-gap: var(--sp-2);
+}
+
+#faq .page-topbar {
+    margin-bottom: var(--float-gap);
+}
+
+.faq-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+    max-width: 760px;
+    padding-bottom: var(--sp-10);
+}
+
+.faq-group-title {
+    margin-bottom: var(--sp-3);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--accent-text);
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.faq-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: background-color var(--ease), border-color var(--ease);
+}
+
+.faq-q {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-4) var(--sp-5);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    font-size: var(--fs-md);
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: left;
+    transition: background-color 0.12s;
+}
+
+.faq-q:hover {
+    background: var(--bg-hover);
+}
+
+.faq-chev {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+    transition: transform 0.18s ease, color 0.12s;
+}
+
+.faq-item.open .faq-chev {
+    color: var(--accent-text);
+    transform: rotate(180deg);
+}
+
+.faq-a {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s ease;
+}
+
+.faq-a > div {
+    overflow: hidden;
+}
+
+.faq-a p {
+    margin: 0 var(--sp-5) var(--sp-4);
+    color: var(--text-secondary);
+    font-size: var(--fs-base);
+    line-height: 1.6;
+}
+
+.faq-item.open .faq-a {
+    grid-template-rows: 1fr;
 }
 
 
