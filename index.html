@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=16">
+    <link rel="stylesheet" href="css/style.css?v=20">
 
     <script>
         (function () {
@@ -295,6 +295,64 @@
                     <span id="mobileThemeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
                 </button>
 
+                <div class="mobile-settings-group" id="mobileSettingsGroup">
+
+                    <button
+                        class="mobile-theme-toggle"
+                        id="mobileSettingsBtn"
+                        type="button"
+                        title="Settings"
+                        aria-label="Settings"
+                    >
+                        <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                    </button>
+
+                    <div class="mobile-settings-popover" id="mobileSettingsPopover">
+
+                        <button
+                            class="backup-btn"
+                            id="mobileExportDataBtn"
+                            type="button"
+                            title="Export all data to a file"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span>
+                            <span>Export data</span>
+                        </button>
+
+                        <button
+                            class="backup-btn"
+                            id="mobileImportDataBtn"
+                            type="button"
+                            title="Import data from a backup file"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span>
+                            <span>Import data</span>
+                        </button>
+
+                        <input
+                            type="file"
+                            id="mobileImportFileInput"
+                            accept=".json,application/json"
+                            hidden
+                        >
+
+                        <div class="mobile-settings-divider"></div>
+
+                        <button
+                            class="backup-btn account-btn hidden"
+                            id="mobileSignOutBtn"
+                            type="button"
+                            title="Sign out"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
+                            <span id="mobileAccountEmail">Signed in</span>
+                            <span class="account-btn-signout">Sign out</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
             </div>
         </header>
 
@@ -386,7 +444,7 @@
                         </div>
 
                         <button class="btn primary top-btn" id="shiftSettingsBtn" type="button">
-                            Shift time
+                            Shift Report
                         </button>
 
                     </div>
@@ -879,7 +937,7 @@
                                 <span>How do I see past days?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Click the history icon at the top right of the Overview card to open Sales History — every previous day is listed there, broken down by model.</p></div></div>
+                            <div class="faq-a"><div><p>Click the history icon at the top right of the Overview card to open Sales History — every previous day is listed there, broken down by model. If you worked more than one shift in a day, each saved shift gets its own row with its own time and total instead of being lumped together.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -887,15 +945,23 @@
                                 <span>What does "Copy for logout" do?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>From Sales History, it copies a ready-to-paste handoff summary of the day, including any Tips and Outside Shift sales you tagged — handy for logging off at the end of a shift.</p></div></div>
+                            <div class="faq-a"><div><p>It copies a ready-to-paste handoff summary of the day, including any Tips and Outside Shift sales you tagged. When your shift ends, use the Shift Report button on the Sales page: it copies the summary and, after you confirm, saves those sales to Sales History with the shift time and clears them from Today's sales. In Sales History, Copy for logout just copies the summary for whichever shift you have expanded.</p></div></div>
                         </div>
 
                         <div class="faq-item">
                             <button type="button" class="faq-q" aria-expanded="false">
-                                <span>What is the Shift time setting for?</span>
+                                <span>What is the Shift Report button for?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Set your shift's start and end time, and whether it's a regular shift or a cover shift, from the "Shift time" button. It only affects the wording in "Copy for logout" — it doesn't change any totals.</p></div></div>
+                            <div class="faq-a"><div><p>Set your shift's start and end time, and whether it's a regular shift or a cover shift, from the "Shift Report" button, then copy today's logout text from the same window. Your shift only affects the wording in the logout text — it doesn't change any totals.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What happens if I forget to close my shift?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Nothing is lost. Once a day is no longer today, any sales that were never saved through Shift Report move into Sales History on their own, tagged with whatever shift time was set in Shift Report at that point.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1096,12 +1162,12 @@
     class="modal hidden"
 >
 
-    <div role="dialog" aria-modal="true" aria-label="Logout shift" class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Shift Report" class="modal-card">
 
         <div class="section-head">
 
             <h2>
-                Logout shift
+                Shift Report
             </h2>
 
             <button
@@ -1117,7 +1183,7 @@
         </div>
 
         <p class="sub shift-modal-note">
-            Only used in the "Copy for logout" text.
+            Set your shift, then copy today's logout text.
         </p>
 
 
@@ -1173,6 +1239,21 @@
             <div class="shift-preview" id="shiftPreview"></div>
 
 
+            <!-- Copies today's logout text using the shift shown above. -->
+            <button
+                type="button"
+                class="btn shift-copy-btn"
+                id="copyShiftLogoutBtn"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy for logout
+            </button>
+
+            <p class="sub shift-copy-note hidden" id="shiftCopyNote">
+                Select a model on the Sales page to copy.
+            </p>
+
+
             <div class="modal-actions">
 
                 <button
@@ -1193,6 +1274,60 @@
             </div>
 
         </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SAVE SHIFT CONFIRM ================= -->
+<!-- Sits right after the Shift Report window so it opens on top of it. -->
+
+<div
+    id="shiftSaveModal"
+    class="modal hidden"
+>
+
+    <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="shiftSaveTitle"
+        aria-describedby="shiftSaveDesc"
+        class="modal-card confirm-card"
+    >
+
+        <div class="section-head">
+            <h2 id="shiftSaveTitle">Save this shift?</h2>
+        </div>
+
+        <p class="sub" id="shiftSaveDesc">
+            This copies the logout text and marks all of
+            <strong id="shiftSaveModel"></strong>'s sales from this shift
+            as done. They'll be cleared from Today's sales and saved to
+            Sales History.
+        </p>
+
+        <div class="shift-preview shift-save-summary" id="shiftSaveSummary"></div>
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="btn"
+                id="cancelShiftSave"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                class="btn primary"
+                id="confirmShiftSave"
+            >
+                Copy &amp; save
+            </button>
+
+        </div>
 
     </div>
 
@@ -1416,35 +1551,136 @@
 </div>
 
 
-<!-- ================= SIGN IN GATE ================= -->
+<!-- ================= SIGN OUT CONFIRM ================= -->
 
 <div
-    id="authGate"
+    id="signOutModal"
     class="modal hidden"
 >
 
-    <div role="dialog" aria-modal="true" aria-label="Sign in" class="modal-card">
+    <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="signOutTitle"
+        aria-describedby="signOutDesc"
+        class="modal-card confirm-card"
+    >
 
         <div class="section-head">
-            <h2>Sign in</h2>
+            <h2 id="signOutTitle">Sign out?</h2>
         </div>
 
-        <p class="sub">
-            Sign in with your Google account to sync your data across devices.
+        <p class="sub" id="signOutDesc">
+            This clears the data stored on this device. Sign in again to load it back from your account.
         </p>
 
-        <p id="authError" class="auth-error hidden"></p>
+        <p
+            id="signOutWarning"
+            class="confirm-warning hidden"
+            role="status"
+        >
+            Some recent changes haven't finished syncing and will be lost.
+        </p>
 
         <div class="modal-actions">
 
             <button
                 type="button"
+                class="btn"
+                id="cancelSignOut"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
                 class="btn primary"
+                id="confirmSignOut"
+            >
+                Sign out
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SIGN IN PAGE ================= -->
+
+<div
+    id="authGate"
+    class="auth-page hidden"
+    role="region"
+    aria-label="Sign in to Outfloww"
+>
+
+    <aside class="auth-brand">
+
+        <div class="auth-lockup" aria-hidden="true">
+            <div class="auth-word"><span>OUT</span>FLOWW</div>
+            <div class="auth-rule"></div>
+            <p class="auth-tag">By Castor 演ス</p>
+        </div>
+
+        <ul class="auth-features">
+
+            <li>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <div>
+                    <span class="auth-feature-title">Models</span>
+                    <span class="auth-feature-text">Info, preferences and notes for each model.</span>
+                </div>
+            </li>
+
+            <li>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                <div>
+                    <span class="auth-feature-title">Sales</span>
+                    <span class="auth-feature-text">Log sales and track daily targets.</span>
+                </div>
+            </li>
+
+            <li>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
+                <div>
+                    <span class="auth-feature-title">Scripts</span>
+                    <span class="auth-feature-text">Your reusable conversation scripts.</span>
+                </div>
+            </li>
+
+        </ul>
+
+    </aside>
+
+
+    <div class="auth-main">
+
+        <div class="auth-card">
+
+            <h1>Sign in</h1>
+
+            <p class="sub">
+                Use your Google account to sync your models, sales and scripts across devices.
+            </p>
+
+            <p id="authError" class="auth-error hidden" role="alert"></p>
+
+            <button
+                type="button"
+                class="btn primary auth-btn"
                 id="googleSignInBtn"
             >
-                <span class="google-icon" aria-hidden="true">G</span>
+                <span class="auth-btn-g" aria-hidden="true">
+                    <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                </span>
                 Sign in with Google
             </button>
+
+            <p class="auth-note">
+                Signing in on another device with the same account picks up right where you left off.
+            </p>
 
         </div>
 
@@ -1463,7 +1699,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=12"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
