@@ -167,6 +167,17 @@
                 <span>Drop to delete</span>
             </button>
 
+            <button
+                class="backup-btn"
+                id="faqBtn"
+                type="button"
+                data-page="faq"
+                title="FAQ"
+            >
+                <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
+                <span>FAQ</span>
+            </button>
+
             <div class="settings-group">
 
                 <button
@@ -261,15 +272,30 @@
                  <span>OUT</span>FLOWW
             </div>
 
-            <button
-                class="mobile-theme-toggle"
-                id="mobileThemeToggle"
-                type="button"
-                title="Toggle light/dark mode"
-                aria-label="Toggle light/dark mode"
-            >
-                <span id="mobileThemeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
-            </button>
+            <div class="mobile-header-actions">
+
+                <button
+                    class="mobile-theme-toggle"
+                    id="mobileFaqBtn"
+                    type="button"
+                    data-page="faq"
+                    title="FAQ"
+                    aria-label="FAQ"
+                >
+                    <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
+                </button>
+
+                <button
+                    class="mobile-theme-toggle"
+                    id="mobileThemeToggle"
+                    type="button"
+                    title="Toggle light/dark mode"
+                    aria-label="Toggle light/dark mode"
+                >
+                    <span id="mobileThemeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+                </button>
+
+            </div>
         </header>
 
 
@@ -680,6 +706,288 @@
                 class="empty"
             >
                 No scripts yet. Add your first one.
+            </div>
+
+        </section>
+
+
+
+        <!-- ================= FAQ ================= -->
+
+        <section id="faq" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+
+                    <div>
+                        <h1>FAQ</h1>
+
+                        <p class="sub">
+                            How Outfloww works, and answers to common questions.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Floating quick-nav: sticks just under the top bar,
+                 same pattern as the Scripts category bar. -->
+            <div class="floating-chips" id="faqFloatBar">
+
+                <div class="chips" id="faqChips">
+                    <button type="button" class="chip active" data-faq-jump="faq-general">General</button>
+                    <button type="button" class="chip" data-faq-jump="faq-models">Models</button>
+                    <button type="button" class="chip" data-faq-jump="faq-sales">Sales</button>
+                    <button type="button" class="chip" data-faq-jump="faq-scripts">Scripts</button>
+                    <button type="button" class="chip" data-faq-jump="faq-settings">Settings &amp; Sync</button>
+                </div>
+
+            </div>
+
+
+            <div class="faq-content">
+
+                <div class="faq-group" id="faq-general">
+
+                    <h2 class="faq-group-title">General</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What is Outfloww?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Outfloww is your personal chatter tool. It keeps your models, your daily sales, and your reusable scripts in one place so you can track earnings and work faster during a shift.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Where is my data stored?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Everything is saved locally in your browser first, so it works even offline. If you sign in with Google, the same data is also synced to your account and kept up to date across every device you sign into.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Do I need to sign in to use it?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>No. Outfloww works fully on its own with local storage. Signing in with Google is optional — it only exists to sync and back up your data across devices.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I switch between light and dark mode?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings in the sidebar and click "Dark mode" / "Light mode" to flip it. Your choice is remembered the next time you open the app.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-models">
+
+                    <h2 class="faq-group-title">Models</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I add a model?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Go to Models and click "New Model". Give it a title and add any notes or preferences you want on hand — it'll then show up as an option whenever you log a sale.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I pick which model I'm logging sales for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>On the Sales page, open the model picker — the small target icon next to "Add a sale" — and select a model. The stats strip, target progress and today's sales list all switch to that model.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I set a model's daily target?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open the model picker and select a model to set its daily target, based on net earnings. Once set, a progress bar fills as sales come in, and you can give the model its own color from the same screen.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I delete a model?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Drag the model's card onto "Drop to delete" at the bottom of the sidebar. Sales already logged for that model keep its name in your history, so old records stay intact.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-sales">
+
+                    <h2 class="faq-group-title">Sales</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I log a sale?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Type the amount into the "Add a sale" box and click "+ Add Sale" (or hit Enter). The maximum for a single sale is $200.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What's the difference between Gross and Net?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Gross is the full total of everything sold. Net is your 80% cut of that, worked out automatically — it's what your daily targets and progress bars are based on.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What does the PPVs count mean?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>It's simply how many sales (pay-per-view unlocks) you've added for the day and model currently selected.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What are the Tips and Outside Shift tags for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the small person icon next to the amount field before adding a sale to tag it with a buyer's username, either as a Tip or as an Outside Shift sale. Tagged sales are broken out separately in Sales History and in the "Copy for logout" summary.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I see past days?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the history icon at the top right of the Overview card to open Sales History — every previous day is listed there, broken down by model.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What does "Copy for logout" do?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>From Sales History, it copies a ready-to-paste handoff summary of the day, including any Tips and Outside Shift sales you tagged — handy for logging off at the end of a shift.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What is the Shift time setting for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Set your shift's start and end time, and whether it's a regular shift or a cover shift, from the "Shift time" button. It only affects the wording in "Copy for logout" — it doesn't change any totals.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What's the difference between the Daily and Monthly overview?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>The toggle above the Overview chart switches its bars between a day-by-day view of the current week and a month-by-month view, so you can spot trends at either scale.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-scripts">
+
+                    <h2 class="faq-group-title">Scripts</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I add a script?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Go to Scripts and click "New Script". Give it a title, choose or create a category for it, and paste in the text you want saved.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What are the category chips for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>They filter your scripts by category — click one to show only that category's scripts. Press and hold a chip to rename it, or drag chips to reorder them.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I use a saved script?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open its card to view the full text, then copy it straight into your chat.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-settings">
+
+                    <h2 class="faq-group-title">Settings &amp; Sync</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I back up my data?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings and click "Export data" to download a file with everything — models, sales, history and scripts — so you always have a copy of your own.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I restore a backup?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings and click "Import data", then choose a file you previously exported. This replaces what's currently in the app with the backup, so use it carefully.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I sync my data across devices?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Sign in with Google when prompted. Your data is then kept in sync automatically — sign in with the same account on another device and everything picks up right where you left off.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I sign out?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Once you're signed in, an account button appears at the bottom of the sidebar showing your email — click "Sign out" on it.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
             </div>
 
         </section>
