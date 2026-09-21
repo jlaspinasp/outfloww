@@ -10,9 +10,9 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=2">
+    <link rel="stylesheet" href="css/style.css?v=13">
 
     <script>
         (function () {
@@ -36,8 +36,9 @@
             id="sidebarCollapseBtn"
             type="button"
             title="Collapse sidebar"
+            aria-label="Collapse sidebar"
         >
-            ‹
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
 
         <div class="logo">
@@ -46,15 +47,18 @@
 
         <nav>
             <button class="nav-btn" data-page="models" title="Models">
-                👩 <span>Models</span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Models</span>
             </button>
 
             <button class="nav-btn active" data-page="sales" title="Sales">
-                💰 <span>Sales</span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                <span>Sales</span>
             </button>
 
             <button class="nav-btn" data-page="scripts" title="Scripts">
-                📝 <span>Scripts</span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
+                <span>Scripts</span>
             </button>
         </nav>
 
@@ -66,7 +70,7 @@
                 type="button"
                 title="Drop here to delete"
             >
-                <span class="sidebar-trash-icon">🗑️</span>
+                <span class="sidebar-trash-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></span>
                 <span>Drop to delete</span>
             </button>
 
@@ -78,7 +82,7 @@
                     type="button"
                     title="Settings"
                 >
-                    <span class="settings-btn-icon">⚙️</span>
+                    <span class="settings-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
                     <span>Settings</span>
                 </button>
 
@@ -91,10 +95,10 @@
                         title="Toggle light/dark mode"
                     >
                         <span>
-                            <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
+                            <span class="theme-toggle-icon" id="themeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
                             <span id="themeToggleLabel">Dark mode</span>
                         </span>
-                        <span>⇄</span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
                     </button>
 
                     <div class="backup-group">
@@ -105,7 +109,7 @@
                             type="button"
                             title="Export all data to a file"
                         >
-                            <span class="backup-btn-icon">⬇️</span>
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span>
                             <span>Export data</span>
                         </button>
 
@@ -115,7 +119,7 @@
                             type="button"
                             title="Import data from a backup file"
                         >
-                            <span class="backup-btn-icon">⬆️</span>
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span>
                             <span>Import data</span>
                         </button>
 
@@ -139,7 +143,7 @@
                 type="button"
                 title="Sign out"
             >
-                <span class="backup-btn-icon">🚪</span>
+                <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
                 <span id="accountEmail">Signed in</span>
                 <span class="account-btn-signout">Sign out</span>
             </button>
@@ -169,8 +173,9 @@
                 id="mobileThemeToggle"
                 type="button"
                 title="Toggle light/dark mode"
+                aria-label="Toggle light/dark mode"
             >
-                <span id="mobileThemeToggleIcon">🌙</span>
+                <span id="mobileThemeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
             </button>
         </header>
 
@@ -194,10 +199,10 @@
                     <div class="top-actions">
 
                         <button
-                            class="btn top-btn add-content"
+                            class="btn primary top-btn add-content"
                             data-type="models"
                         >
-                            + New Model
+                            New Model
                         </button>
 
                     </div>
@@ -234,57 +239,39 @@
                     <div>
                         <div class="sales-title-row">
                             <h1>Sales</h1>
-                            <span
+                            <button
+                                type="button"
                                 id="activeModelBadge"
                                 class="active-model-badge hidden"
-                            ></span>
+                            ></button>
                         </div>
                         <p class="sub" id="todayLabel"></p>
                     </div>
 
                     <div class="top-actions">
 
-                        <button class="btn top-btn" id="shiftSettingsBtn" type="button">
+                        <!-- Totals strip (always shown; dashes until a model is selected) -->
+                        <div class="stat-strip" id="salesStats" title="Select a model to see its totals">
+                            <span class="stat-item">
+                                <span class="stat-k">Gross</span>
+                                <span class="stat" id="gross"></span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-k">Net</span>
+                                <span class="stat net" id="net" title="Net earnings (80%)"></span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-k">PPVs</span>
+                                <span class="stat" id="saleCount" title="PPVs unlocked"></span>
+                            </span>
+                        </div>
+
+                        <button class="btn primary top-btn" id="shiftSettingsBtn" type="button">
                             Shift time
                         </button>
 
                     </div>
 
-                </div>
-
-
-                <!-- STATS (only visible while a model is selected) -->
-
-                <div class="stats-collapse" id="salesStats" aria-hidden="true" hidden>
-                    <div class="stats-inner">
-                        <div class="stats">
-
-                            <div class="card stat-card">
-                                <span class="stat-icon">💵</span>
-                                <div class="stat-body">
-                                    <div class="stat-label">Gross sales</div>
-                                    <div class="stat" id="gross"></div>
-                                </div>
-                            </div>
-
-                            <div class="card stat-card">
-                                <span class="stat-icon">💸</span>
-                                <div class="stat-body">
-                                    <div class="stat-label">Net earnings<span class="stat-rate"> · 80%</span></div>
-                                    <div class="stat net" id="net"></div>
-                                </div>
-                            </div>
-
-                            <div class="card stat-card">
-                                <span class="stat-icon">🔓</span>
-                                <div class="stat-body">
-                                    <div class="stat-label">PPVs Unlocked</div>
-                                    <div class="stat" id="saleCount"></div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
                 </div>
 
             </div>
@@ -303,11 +290,14 @@
                             id="openHistoryModal"
                             type="button"
                             title="View full history"
+                            aria-label="View full history"
                         >
-                            ⤢
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>
                         </button>
-                        <button class="trend-toggle-btn active" data-range="day">Daily</button>
-                        <button class="trend-toggle-btn" data-range="month">Monthly</button>
+                        <div class="segmented" role="group" aria-label="Chart range">
+                            <button class="trend-toggle-btn active" data-range="day">Daily</button>
+                            <button class="trend-toggle-btn" data-range="month">Monthly</button>
+                        </div>
                     </div>
                 </div>
 
@@ -333,82 +323,6 @@
 
                             <div class="target-head-actions">
 
-                                <div class="outside-shift-picker">
-
-                                    <button
-                                        class="outside-shift-btn"
-                                        id="addUsernameToggle"
-                                        type="button"
-                                        title="Tag the next sale with a username"
-                                        aria-pressed="false"
-                                    >
-                                        Add Username
-                                    </button>
-
-                                    <div
-                                        id="addUsernamePopover"
-                                        class="outside-shift-popover hidden"
-                                    >
-
-                                        <div
-                                            class="username-type-row"
-                                            role="group"
-                                            aria-label="Username type"
-                                        >
-
-                                            <button
-                                                type="button"
-                                                class="username-type-btn active"
-                                                data-username-type="tip"
-                                                aria-pressed="true"
-                                            >
-                                                Tips
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                class="username-type-btn"
-                                                data-username-type="outside"
-                                                aria-pressed="false"
-                                            >
-                                                Outside Shift
-                                            </button>
-
-                                        </div>
-
-                                        <form
-                                            id="addUsernameForm"
-                                            autocomplete="off"
-                                        >
-
-                                            <input
-                                                type="text"
-                                                id="saleTagField"
-                                                name="sale-tag"
-                                                placeholder="e.g. @u1234567"
-                                                maxlength="40"
-                                                autocomplete="off"
-                                                autocorrect="off"
-                                                autocapitalize="off"
-                                                spellcheck="false"
-                                                data-lpignore="true"
-                                                data-1p-ignore="true"
-                                                data-form-type="other"
-                                            >
-
-                                            <button
-                                                class="btn primary"
-                                                type="submit"
-                                            >
-                                                Set
-                                            </button>
-
-                                        </form>
-
-                                    </div>
-
-                                </div>
-
                                 <div class="model-picker">
 
                                     <button
@@ -416,8 +330,9 @@
                                         id="openModelPicker"
                                         type="button"
                                         title="Set a model's target"
+                                        aria-label="Set a model's target"
                                     >
-                                        🎯
+                                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
                                     </button>
 
                                     <div
@@ -431,10 +346,11 @@
                         </div>
 
 
-                        <form class="sale-box" id="saleForm">
+                        <div class="sale-box">
 
                             <input
                                 id="saleAmount"
+                                form="saleForm"
                                 type="number"
                                 min="0.01"
                                 max="200"
@@ -446,11 +362,93 @@
                                 class="btn primary"
                                 id="addSaleBtn"
                                 type="submit"
+                                form="saleForm"
                             >
                                 + Add Sale
                             </button>
 
-                        </form>
+                            <div class="outside-shift-picker">
+
+                                <button
+                                    class="outside-shift-btn"
+                                    id="addUsernameToggle"
+                                    type="button"
+                                    title="Tag the next sale with a username"
+                                    aria-label="Add username"
+                                    aria-pressed="false"
+                                >
+                                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </button>
+
+                                <div
+                                    id="addUsernamePopover"
+                                    class="outside-shift-popover hidden"
+                                >
+
+                                    <div
+                                        class="username-type-row"
+                                        role="group"
+                                        aria-label="Username type"
+                                    >
+
+                                        <button
+                                            type="button"
+                                            class="username-type-btn active"
+                                            data-username-type="tip"
+                                            aria-pressed="true"
+                                        >
+                                            Tips
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="username-type-btn"
+                                            data-username-type="outside"
+                                            aria-pressed="false"
+                                        >
+                                            Outside Shift
+                                        </button>
+
+                                    </div>
+
+                                    <form
+                                        id="addUsernameForm"
+                                        autocomplete="off"
+                                    >
+
+                                        <input
+                                            type="text"
+                                            id="saleTagField"
+                                            name="sale-tag"
+                                            placeholder="e.g. @u1234567"
+                                            maxlength="40"
+                                            autocomplete="off"
+                                            autocorrect="off"
+                                            autocapitalize="off"
+                                            spellcheck="false"
+                                            data-lpignore="true"
+                                            data-1p-ignore="true"
+                                            data-form-type="other"
+                                        >
+
+                                        <button
+                                            class="btn primary"
+                                            type="submit"
+                                        >
+                                            Set
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <!-- Owns the amount input and Add Sale button via their form="saleForm"
+                             attribute, so the username popover's own form isn't nested inside it. -->
+                        <form id="saleForm"></form>
 
 
                         <div
@@ -552,10 +550,10 @@
                     <div class="top-actions">
 
                         <button
-                            class="btn top-btn add-content"
+                            class="btn primary top-btn add-content"
                             data-type="scripts"
                         >
-                            + New Script
+                            New Script
                         </button>
 
                     </div>
@@ -608,7 +606,7 @@
     class="modal hidden"
 >
 
-    <div class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Set daily target" class="modal-card">
 
         <div class="section-head">
 
@@ -623,8 +621,9 @@
                     id="targetModalColorBtn"
                     type="button"
                     title="Change this model's color"
+                    aria-label="Change this model's color"
                 >
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L19 8l-3-3 2.5-2.5Z" fill="currentColor"/>
                         <path d="M16 5 5 16v3h3L19 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M2 22l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -637,8 +636,10 @@
                 class="icon-btn"
                 id="closeTargetModal"
                 type="button"
+            
+                aria-label="Close"
             >
-                ×
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
@@ -694,7 +695,7 @@
     class="modal hidden"
 >
 
-    <div class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Logout shift" class="modal-card">
 
         <div class="section-head">
 
@@ -706,8 +707,10 @@
                 class="icon-btn"
                 id="closeShiftModal"
                 type="button"
+            
+                aria-label="Close"
             >
-                ×
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
@@ -802,7 +805,7 @@
     class="modal hidden"
 >
 
-    <div class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Sales history" class="modal-card">
 
         <div class="section-head">
 
@@ -814,8 +817,10 @@
                 class="icon-btn"
                 id="closeHistoryModal"
                 type="button"
+            
+                aria-label="Close"
             >
-                ×
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
@@ -844,11 +849,14 @@
                 id="copyLogoutBtn"
                 type="button"
             >
-                🌸 Copy for Logout
+                
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy for logout
+            
             </button>
 
             <button
-                class="btn"
+                class="btn danger"
                 id="clearHistory"
                 type="button"
             >
@@ -869,7 +877,7 @@
     class="modal hidden"
 >
 
-    <div class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Add or edit item" class="modal-card">
 
         <div class="section-head">
 
@@ -881,8 +889,10 @@
                 class="icon-btn"
                 id="closeModal"
                 type="button"
+            
+                aria-label="Close"
             >
-                ×
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
@@ -959,7 +969,7 @@
     class="modal hidden"
 >
 
-    <div class="modal-card wide">
+    <div role="dialog" aria-modal="true" aria-label="Details" class="modal-card wide">
 
         <div class="section-head">
 
@@ -971,8 +981,10 @@
                 class="icon-btn"
                 id="closeViewModal"
                 type="button"
+            
+                aria-label="Close"
             >
-                ×
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
@@ -1010,7 +1022,7 @@
     class="modal hidden"
 >
 
-    <div class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Sign in" class="modal-card">
 
         <div class="section-head">
             <h2>Sign in</h2>
@@ -1050,7 +1062,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/app.js?v=5"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
