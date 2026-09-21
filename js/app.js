@@ -22,7 +22,9 @@ const defaultData = {
     },
     deletedModels: {},
     // Per-model custom colors, e.g. { "<modelId>": "#ffd6e0" }
-    modelColors: {}
+    modelColors: {},
+    // Shift used only in the "Copy for logout" text (24h "HH:MM")
+    logoutShift: { start: "16:00", end: "00:00", cover: false }
 };
 
 
@@ -50,6 +52,16 @@ function normalizeData(obj) {
     // Per-model custom colors, e.g. { "<modelId>": "#ffd6e0" }
     obj.modelColors = obj.modelColors || {};
 
+    // Shift time + cover flag, used only by the "Copy for logout" text.
+    const TIME_RE = /^\d{1,2}:\d{2}$/;
+    const shift = obj.logoutShift || {};
+
+    obj.logoutShift = {
+        start: TIME_RE.test(shift.start) ? shift.start : "16:00",
+        end: TIME_RE.test(shift.end) ? shift.end : "00:00",
+        cover: shift.cover === true
+    };
+
     return obj;
 
 }
@@ -70,6 +82,7 @@ let currentCategory = {
 // Which model's sales page is currently active on the Sales tab.
 // null = "All" (combined, original behavior).
 let currentModelFilter = null;
+let salesStatsHideTimer = null;
 
 // Which day's row is currently expanded in the history modal.
 // Drives the fixed "Copy for Logout" button at the bottom of the
@@ -1501,8 +1514,8 @@ function renderSales() {
     }
 
 
-    $("#clearSales").textContent =
-        activeModel ? "Clear today" : "Clear today";
+    $("#shiftSettingsBtn").title =
+        `Logout shift: ${getShiftTimeText()}`;
 
 
     // "Today's sales" card picks up the selected model's color as a
@@ -1546,15 +1559,59 @@ function renderSales() {
     }
 
 
-    // Stats
-    $("#gross").textContent =
-        money(gross);
+    // Gross / net / PPV totals belong to a single model, so they only
+    // exist while one is selected. With no model selected the cards are
+    // collapsed and removed, and no totals are kept in them.
+    const salesPage = $("#sales");
+    const salesStats = $("#salesStats");
 
-    $("#net").textContent =
-        money(net);
+    clearTimeout(salesStatsHideTimer);
 
-    $("#saleCount").textContent =
-        sales.length;
+    if (activeModel) {
+
+        if (salesStats && salesStats.hidden) {
+            salesStats.hidden = false;
+            void salesStats.offsetHeight; // let the open animation run
+        }
+
+        $("#gross").textContent =
+            money(gross);
+
+        $("#net").textContent =
+            money(net);
+
+        $("#saleCount").textContent =
+            sales.length;
+
+    } else {
+
+        // Wait for the collapse animation, then wipe the values and
+        // take the cards out of the page entirely.
+        salesStatsHideTimer = setTimeout(function () {
+
+            if (currentModelFilter !== null) {
+                return;
+            }
+
+            $("#gross").textContent = "";
+            $("#net").textContent = "";
+            $("#saleCount").textContent = "";
+
+            if (salesStats) {
+                salesStats.hidden = true;
+            }
+
+        }, 300);
+
+    }
+
+    if (salesPage) {
+        salesPage.classList.toggle("has-model", !!activeModel);
+    }
+
+    if (salesStats) {
+        salesStats.setAttribute("aria-hidden", activeModel ? "false" : "true");
+    }
 
 
     // Target progress (based on net earnings, per current context)
@@ -2738,7 +2795,7 @@ function buildLogoutText(dateKey) {
     return (
         `🌸 LOGOUT 🌸\n\n` +
         `${modelName} -\n\n` +
-        `Shift Time: 4:00PM-12:00AM\n` +
+        `Shift Time: ${getShiftTimeText()}\n` +
         `Date: ${formatDate(dateKey)}\n` +
         `Subscriptions - $\n` +
         `MM Sales - $\n` +
@@ -2896,51 +2953,161 @@ $("#historyList").addEventListener(
 
 
 /* =====================================================
-   CLEAR SALES
+   LOGOUT SHIFT (shift time + cover flag)
+   Only feeds the "Copy for logout" text — nothing else reads it.
    ===================================================== */
 
 
-$("#clearSales").addEventListener(
+// "16:00" -> "4:00PM", "00:00" -> "12:00AM"
+function formatShiftTime(value) {
+
+    const [hours, minutes] = String(value).split(":").map(Number);
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+
+    return `${hour12}:${String(minutes).padStart(2, "0")}${period}`;
+}
+
+
+function getShiftTimeText(shift) {
+
+    const current = shift || data.logoutShift;
+
+    return (
+        `${formatShiftTime(current.start)}-${formatShiftTime(current.end)}` +
+        (current.cover ? " cover" : "")
+    );
+}
+
+
+// Cover choice while the modal is open (only saved on "Save").
+let shiftDraftCover = false;
+
+
+function readShiftDraft() {
+
+    return {
+        start: $("#shiftStart").value,
+        end: $("#shiftEnd").value,
+        cover: shiftDraftCover
+    };
+}
+
+
+function renderShiftModal() {
+
+    $$("#shiftTypeToggle .shift-toggle-btn").forEach(
+        btn => btn.classList.toggle(
+            "active",
+            (btn.dataset.cover === "true") === shiftDraftCover
+        )
+    );
+
+    const draft = readShiftDraft();
+
+    $("#shiftPreview").textContent =
+        draft.start && draft.end
+            ? `Shift Time: ${getShiftTimeText(draft)}`
+            : "Pick a start and end time.";
+}
+
+
+function openShiftModal() {
+
+    $("#shiftStart").value = data.logoutShift.start;
+    $("#shiftEnd").value = data.logoutShift.end;
+
+    shiftDraftCover = data.logoutShift.cover;
+
+    renderShiftModal();
+
+    $("#shiftModal").classList.remove("hidden");
+
+    $("#shiftStart").focus();
+}
+
+
+function closeShiftModal() {
+
+    $("#shiftModal").classList.add("hidden");
+}
+
+
+$("#shiftSettingsBtn").addEventListener(
     "click",
-    function () {
+    openShiftModal
+);
 
-        const activeModel =
-            currentModelFilter === null
-                ? null
-                : getModelById(currentModelFilter);
 
-        if (
-            !confirm(
-                activeModel
-                    ? `Clear today's sales for ${activeModel.title}?`
-                    : "Clear all sales for today?"
-            )
-        ) {
+$("#closeShiftModal").addEventListener(
+    "click",
+    closeShiftModal
+);
+
+
+$("#cancelShiftModal").addEventListener(
+    "click",
+    closeShiftModal
+);
+
+
+$("#shiftModal").addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target.id === "shiftModal") {
+            closeShiftModal();
+        }
+
+    }
+);
+
+
+["#shiftStart", "#shiftEnd"].forEach(
+    selector =>
+        $(selector).addEventListener("input", renderShiftModal)
+);
+
+
+$("#shiftTypeToggle").addEventListener(
+    "click",
+    function (event) {
+
+        const btn = event.target.closest(".shift-toggle-btn");
+
+        if (!btn) {
             return;
         }
 
+        shiftDraftCover = btn.dataset.cover === "true";
 
-        const dateKey = getDateKey();
+        renderShiftModal();
+    }
+);
 
-        if (currentModelFilter === null) {
 
-            delete data.sales[dateKey];
+$("#shiftForm").addEventListener(
+    "submit",
+    function (event) {
 
-        } else {
+        event.preventDefault();
 
-            data.sales[dateKey] =
-                (data.sales[dateKey] || []).filter(
-                    sale => sale.modelId !== currentModelFilter
-                );
+        const draft = readShiftDraft();
 
+        if (!draft.start || !draft.end) {
+            return;
         }
 
-
-        updateHistory();
+        data.logoutShift = draft;
 
         saveData();
 
         renderSales();
+
+        closeShiftModal();
+
+        toast("Logout shift saved", "success");
     }
 );
 
@@ -3764,6 +3931,38 @@ function stepDragAutoScroll() {
 }
 
 
+/* Keep the Scripts floating category bar pinned right under the sticky
+   top bar, whatever height the top bar ends up being. */
+(function () {
+
+    const page = $("#scripts");
+    const topbar = page ? page.querySelector(".page-topbar") : null;
+
+    if (!page || !topbar) {
+        return;
+    }
+
+    function syncTopbarHeight() {
+
+        const height = topbar.offsetHeight;
+
+        if (height > 0) {
+            page.style.setProperty("--topbar-h", height + "px");
+        }
+
+    }
+
+    syncTopbarHeight();
+
+    if (window.ResizeObserver) {
+        new ResizeObserver(syncTopbarHeight).observe(topbar);
+    }
+
+    window.addEventListener("resize", syncTopbarHeight);
+
+})();
+
+
 function updateDragAutoScroll(clientY) {
 
     const mainEl = $(".main");
@@ -3781,10 +3980,16 @@ function updateDragAutoScroll(clientY) {
     // made it hard to actually drop on it.
     const topbarEl = $(".page.active .page-topbar");
 
+    // Scripts has a floating category bar hanging below the top bar;
+    // the edge zone starts below that instead.
+    const floatBarEl = $(".page.active .floating-chips");
+
     const topEdge =
-        topbarEl
-            ? topbarEl.getBoundingClientRect().bottom
-            : rect.top;
+        floatBarEl
+            ? floatBarEl.getBoundingClientRect().bottom
+            : topbarEl
+                ? topbarEl.getBoundingClientRect().bottom
+                : rect.top;
 
     const inEdgeZone =
         (clientY >= topEdge && clientY < topEdge + DRAG_AUTOSCROLL_EDGE) ||
