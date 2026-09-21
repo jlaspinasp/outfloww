@@ -2922,9 +2922,30 @@ label {
 
 @media (max-width: 700px) {
 
+    /* On phones the page itself scrolls (instead of an inner box),
+       which is what lets the browser's address bar and toolbars
+       collapse as you scroll down. */
+    html,
+    body {
+        height: auto;
+        overflow: visible;
+    }
+
+    .app {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
     .main {
         --gutter: var(--sp-4);
         padding-bottom: 96px;
+        overflow: visible;
+    }
+
+    /* Keep the page still behind an open dialog. */
+    html:has(.modal:not(.hidden)) {
+        overflow: hidden;
     }
 
     .sidebar,
