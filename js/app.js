@@ -272,6 +272,8 @@ let cloudUnsubscribe = null;
 let isApplyingRemoteData = false;
 let lastPushedJSON = null;
 let pushTimer = null;
+let pushPending = false;
+let pushInFlight = null;
 
 
 let syncFadeTimer = null;
@@ -323,12 +325,16 @@ function pushToCloud() {
 
     clearTimeout(pushTimer);
 
+    pushPending = true;
+
     pushTimer = setTimeout(function () {
+
+        pushPending = false;
 
         const json = JSON.stringify(data);
         lastPushedJSON = json;
 
-        cloudDocRef.set(data)
+        pushInFlight = cloudDocRef.set(data)
             .then(function () {
                 setSyncStatus("synced");
             })
@@ -338,6 +344,34 @@ function pushToCloud() {
             });
 
     }, 500);
+
+}
+
+
+// Send any edit that's still waiting out the 500ms debounce right now,
+// and resolve once the latest write has settled. Used before a reload
+// so a change made just before refreshing isn't lost.
+function flushCloudPush() {
+
+    if (cloudDocRef && pushPending) {
+
+        clearTimeout(pushTimer);
+        pushPending = false;
+
+        lastPushedJSON = JSON.stringify(data);
+
+        pushInFlight = cloudDocRef.set(data)
+            .then(function () {
+                setSyncStatus("synced");
+            })
+            .catch(function (err) {
+                console.error("Cloud sync failed:", err);
+                setSyncStatus("offline");
+            });
+
+    }
+
+    return pushInFlight || Promise.resolve();
 
 }
 
@@ -479,6 +513,9 @@ function initAuthGate() {
     });
 
     auth.onAuthStateChanged(function (user) {
+
+        // Sign-in state is known: let the splash screen lift.
+        if (window.hideSplash) window.hideSplash();
 
         if (user) {
 
@@ -5670,6 +5707,331 @@ document.addEventListener(
 
     }
 );
+
+
+/* =====================================================
+   PHONE: HIDE TAB BAR ON SCROLL
+   On a phone the sidebar is a bottom tab bar. Scrolling down
+   slides it away to give the content room; scrolling up (or
+   getting back near the top) brings it back.
+   ===================================================== */
+
+(function () {
+
+    const mainEl = $(".main");
+
+    if (!mainEl) {
+        return;
+    }
+
+    const phoneQuery = window.matchMedia("(max-width: 700px)");
+
+    // Don't hide until we're this far from the top of the page.
+    const HIDE_AFTER = 48;
+
+    // Distance to travel in one direction before the bar reacts, so
+    // small jitters and finger wobble don't make it flicker.
+    const TRAVEL = 10;
+
+    let lastY = mainEl.scrollTop;
+    let travel = 0;
+    let suppressUntil = 0;
+
+    function setNavHidden(hidden) {
+        document.body.classList.toggle("nav-hidden", hidden);
+    }
+
+    mainEl.addEventListener(
+        "scroll",
+        function () {
+
+            const y = Math.max(mainEl.scrollTop, 0);
+            const dy = y - lastY;
+
+            lastY = y;
+
+            if (!phoneQuery.matches) {
+                return;
+            }
+
+            // Near the top: the bar is always visible.
+            if (y <= HIDE_AFTER && dy <= 0) {
+                travel = 0;
+                setNavHidden(false);
+                return;
+            }
+
+            // Scrolls we caused ourselves (switching tabs restores a
+            // saved position; drag auto-scroll) aren't the user
+            // flicking the page, so they shouldn't move the bar.
+            if (performance.now() < suppressUntil || dragState) {
+                travel = 0;
+                return;
+            }
+
+            // Changing direction restarts the count.
+            if ((dy > 0) !== (travel > 0)) {
+                travel = 0;
+            }
+
+            travel += dy;
+
+            if (travel > TRAVEL && y > HIDE_AFTER) {
+                setNavHidden(true);
+            } else if (travel < -TRAVEL) {
+                setNavHidden(false);
+            }
+
+        },
+        { passive: true }
+    );
+
+    // Switching tabs: bring the bar back and ignore the scroll jump
+    // that restoring the other tab's position causes.
+    $$(".nav-btn").forEach(
+        button => {
+            button.addEventListener(
+                "click",
+                function () {
+                    suppressUntil = performance.now() + 500;
+                    travel = 0;
+                    setNavHidden(false);
+                }
+            );
+        }
+    );
+
+    // Leaving phone width (rotate / resize): never leave it hidden.
+    phoneQuery.addEventListener(
+        "change",
+        function () {
+            if (!phoneQuery.matches) {
+                setNavHidden(false);
+            }
+        }
+    );
+
+})();
+
+
+/* =====================================================
+   PHONE: PULL DOWN FROM THE TOP TO RELOAD
+   The page scrolls inside .main (and the browser's own
+   pull-to-refresh is switched off), so this is done by hand:
+   drag down while already at the top, past the threshold,
+   and let go to reload.
+   ===================================================== */
+
+(function () {
+
+    const mainEl = $(".main");
+
+    if (!mainEl) {
+        return;
+    }
+
+    const phoneQuery = window.matchMedia("(max-width: 700px)");
+
+    const THRESHOLD = 64;   // pull distance (after resistance) that triggers a reload
+    const MAX_PULL = 96;
+    const RESISTANCE = 0.5; // finger travels 2px for every 1px the indicator moves
+    const SLOP = 8;         // finger movement before we decide it's a pull
+
+    const indicator = document.createElement("div");
+
+    indicator.className = "ptr";
+    indicator.setAttribute("aria-hidden", "true");
+    indicator.innerHTML =
+        `<svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>`;
+
+    document.body.appendChild(indicator);
+
+    let startX = 0;
+    let startY = 0;
+    let pull = 0;
+    let tracking = false;
+    let pulling = false;
+    let refreshing = false;
+
+
+    function showIndicator(distance) {
+
+        const progress = Math.min(distance / THRESHOLD, 1);
+
+        indicator.style.opacity = progress;
+        indicator.style.transform = `translateY(${distance - 44}px)`;
+        indicator.style.setProperty("--ptr-rot", (progress * 270) + "deg");
+
+    }
+
+
+    function resetIndicator() {
+
+        indicator.classList.remove("pulling", "ready");
+
+        // Hand control back to the stylesheet so it eases away.
+        indicator.style.opacity = "";
+        indicator.style.transform = "";
+        indicator.style.removeProperty("--ptr-rot");
+
+        pull = 0;
+        pulling = false;
+        tracking = false;
+
+    }
+
+
+    // Is the touch inside something that's scrolled down (like the
+    // sales list)? Then a downward drag should scroll that, not pull.
+    function insideScrolledChild(el) {
+
+        while (el && el !== mainEl) {
+
+            if (el.scrollTop > 0) {
+                return true;
+            }
+
+            el = el.parentElement;
+        }
+
+        return false;
+    }
+
+
+    function startRefresh() {
+
+        refreshing = true;
+
+        indicator.classList.remove("pulling", "ready");
+        indicator.classList.add("refreshing");
+        showIndicator(THRESHOLD);
+
+        // Let any edit that hasn't reached the cloud yet finish
+        // first, otherwise the reload could bring back older data.
+        const settled = Promise.race([
+            flushCloudPush(),
+            new Promise(resolve => setTimeout(resolve, 2500))
+        ]);
+
+        settled.then(
+            () => location.reload(),
+            () => location.reload()
+        );
+
+    }
+
+
+    mainEl.addEventListener(
+        "touchstart",
+        function (event) {
+
+            if (
+                refreshing ||
+                !phoneQuery.matches ||
+                event.touches.length !== 1 ||
+                mainEl.scrollTop > 0 ||
+                $(".modal:not(.hidden)") ||
+                insideScrolledChild(event.target)
+            ) {
+                tracking = false;
+                return;
+            }
+
+            startX = event.touches[0].clientX;
+            startY = event.touches[0].clientY;
+
+            tracking = true;
+            pulling = false;
+            pull = 0;
+
+        },
+        { passive: true }
+    );
+
+
+    mainEl.addEventListener(
+        "touchmove",
+        function (event) {
+
+            if (!tracking || refreshing) {
+                return;
+            }
+
+            // A second finger (pinch etc.) cancels the pull.
+            if (event.touches.length !== 1) {
+                resetIndicator();
+                return;
+            }
+
+            const dx = event.touches[0].clientX - startX;
+            const dy = event.touches[0].clientY - startY;
+
+            if (!pulling) {
+
+                // Scrolling up, or sideways (chip strips, etc.):
+                // not ours.
+                if (dy < -SLOP || Math.abs(dx) > Math.abs(dy)) {
+                    tracking = false;
+                    return;
+                }
+
+                if (dy < SLOP) {
+                    return;
+                }
+
+                pulling = true;
+                indicator.classList.add("pulling");
+            }
+
+            // The page moved (or the finger came back up past the
+            // start): stop pulling and let normal scrolling take over.
+            if (mainEl.scrollTop > 0 || dy <= 0) {
+                resetIndicator();
+                return;
+            }
+
+            if (event.cancelable) {
+                event.preventDefault();
+            }
+
+            pull = Math.min((dy - SLOP) * RESISTANCE, MAX_PULL);
+
+            indicator.classList.toggle("ready", pull >= THRESHOLD);
+
+            showIndicator(pull);
+
+        },
+        { passive: false }
+    );
+
+
+    function endPull(event) {
+
+        if (!tracking) {
+            return;
+        }
+
+        const shouldRefresh =
+            pulling &&
+            event.type === "touchend" &&
+            pull >= THRESHOLD;
+
+        if (shouldRefresh) {
+            tracking = false;
+            pulling = false;
+            startRefresh();
+            return;
+        }
+
+        resetIndicator();
+
+    }
+
+
+    mainEl.addEventListener("touchend", endPull);
+    mainEl.addEventListener("touchcancel", endPull);
+
+})();
 
 
 /* =====================================================
