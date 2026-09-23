@@ -5,20 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1e1f22">
     <title>Outfloww</title>
-    <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="icon" href="images/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
     <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=20">
+    <link rel="stylesheet" href="css/style.css?v=21">
 
     <script>
         (function () {
             var t = localStorage.getItem("chatterTool_theme");
             if (t === "light") {
                 document.documentElement.setAttribute("data-theme", "light");
+            }
+            if (localStorage.getItem("chatterTool_reduceMotion") === "true") {
+                document.documentElement.setAttribute("data-reduce-motion", "true");
             }
         })();
     </script>
@@ -60,10 +65,15 @@
         var splash = document.getElementById("splash");
         if (!splash) return;
 
-        var reduced = window.matchMedia &&
-            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // Reduced motion (OS setting or the in-app toggle): a signed-in
+        // person gets no intro; the splash is just a plain cover that
+        // goes away the moment sign-in state is known. Someone who is
+        // NOT signed in still gets the full animated splash.
+        var reduced = (window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
+            document.documentElement.getAttribute("data-reduce-motion") === "true";
 
-        var MIN_VISIBLE = reduced ? 500 : 1900;
+        var MIN_VISIBLE = reduced ? 0 : 1900;   // raised to 1900 for the signed-out intro
         var MAX_VISIBLE = 8000;
 
         var shownAt = 0;
@@ -91,14 +101,31 @@
             maybeLeave();
         }
 
-        window.hideSplash = function () {
+        var fontsReady;   // set below
+
+        // signedIn: true / false once Firebase reports; undefined for
+        // the give-up timer at the bottom.
+        window.hideSplash = function (signedIn) {
+
+            if (reduced && signedIn === false && !shownAt) {
+                MIN_VISIBLE = 1900;
+                splash.classList.add("splash--intro");
+                requested = true;
+                fontsReady.then(play, play);
+                return;
+            }
+
             requested = true;
+
+            // Reduced motion, signed in: plain cover, leave right away.
+            if (reduced && !shownAt) shownAt = Date.now();
+
             maybeLeave();
         };
 
         // Wait for the brand fonts so the wordmark never flashes
         // in a fallback face, but don't wait long.
-        var fontsReady = Promise.resolve();
+        fontsReady = Promise.resolve();
         if (document.fonts && document.fonts.load) {
             fontsReady = Promise.race([
                 Promise.all([
@@ -108,7 +135,11 @@
                 new Promise(function (r) { setTimeout(r, 600); })
             ]);
         }
-        fontsReady.then(play, play);
+        // With reduced motion the intro only plays if hideSplash(false)
+        // asks for it (nobody signed in); see above.
+        if (!reduced) {
+            fontsReady.then(play, play);
+        }
 
         setTimeout(function () {
             play();
@@ -203,6 +234,33 @@
                             <span id="themeToggleLabel">Dark mode</span>
                         </span>
                         <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+                    </button>
+
+                    <button
+                        class="theme-toggle reduce-motion-toggle"
+                        id="reduceMotionToggle"
+                        type="button"
+                        role="switch"
+                        aria-checked="false"
+                        title="Turn off animations across the app"
+                    >
+                        <span>
+                            <span class="theme-toggle-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.513 4.856 13.12 2.17a.5.5 0 0 1 .86.46l-1.377 4.317"/><path d="M15.656 10H20a1 1 0 0 1 .78 1.63l-1.72 1.773"/><path d="M16.273 16.273 10.88 21.83a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4a1 1 0 0 1-.78-1.63l4.507-4.643"/><path d="m2 2 20 20"/></svg></span>
+                            <span>Reduce motion</span>
+                        </span>
+                        <span class="motion-switch" aria-hidden="true"></span>
+                    </button>
+
+                    <button
+                        class="theme-toggle"
+                        id="logoutTitleBtn"
+                        type="button"
+                        title="Change the first line of your logout text"
+                    >
+                        <span>
+                            <span class="theme-toggle-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></span>
+                            <span>Logout title</span>
+                        </span>
                     </button>
 
                     <div class="backup-group">
@@ -308,6 +366,31 @@
                     </button>
 
                     <div class="mobile-settings-popover" id="mobileSettingsPopover">
+
+                        <button
+                            class="backup-btn reduce-motion-toggle"
+                            id="mobileReduceMotionToggle"
+                            type="button"
+                            role="switch"
+                            aria-checked="false"
+                            title="Turn off animations across the app"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.513 4.856 13.12 2.17a.5.5 0 0 1 .86.46l-1.377 4.317"/><path d="M15.656 10H20a1 1 0 0 1 .78 1.63l-1.72 1.773"/><path d="M16.273 16.273 10.88 21.83a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4a1 1 0 0 1-.78-1.63l4.507-4.643"/><path d="m2 2 20 20"/></svg></span>
+                            <span>Reduce motion</span>
+                            <span class="motion-switch" aria-hidden="true"></span>
+                        </button>
+
+                        <button
+                            class="backup-btn"
+                            id="mobileLogoutTitleBtn"
+                            type="button"
+                            title="Change the first line of your logout text"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></span>
+                            <span>Logout title</span>
+                        </button>
+
+                        <div class="mobile-settings-divider"></div>
 
                         <button
                             class="backup-btn"
@@ -884,6 +967,14 @@
                             <div class="faq-a"><div><p>Yes — press and hold a card, then drag it to a new spot in the list. Category chips on the Scripts page can be reordered the same way, or renamed by pressing and holding one.</p></div></div>
                         </div>
 
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Can I undo a delete?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Usually, yes — deleting a model or a script, or clearing your sales history, shows a brief "Undo" button on the confirmation toast. Click it before the toast disappears to bring the item straight back.</p></div></div>
+                        </div>
+
                     </div>
 
                 </div>
@@ -935,6 +1026,14 @@
                             <div class="faq-a"><div><p>Drag the model's card onto "Drop to delete" at the bottom of the sidebar. Sales already logged for that model keep its name in your history, so old records stay intact.</p></div></div>
                         </div>
 
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I delete more than one model at once?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Press and hold a card to enter select mode, then tap any other cards you want to include. Drag a selected card onto the trash button that appears, or just tap it, to delete everything you've selected at once.</p></div></div>
+                        </div>
+
                     </div>
 
                 </div>
@@ -951,7 +1050,15 @@
                                 <span>How do I log a sale?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Type the amount into the "Add a sale" box and click "+ Add Sale" (or hit Enter). The maximum for a single sale is $200.</p></div></div>
+                            <div class="faq-a"><div><p>Type the amount into the "Add a sale" box and click "+ Add Sale" (or hit Enter). The maximum for a single sale is $200. You'll get a little cha-ching sound as confirmation.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I remove a sale I added by mistake?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>With that model selected, click the × on the sale's row in Today's sales. It's removed right away, so double-check the amount before confirming.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1136,6 +1243,22 @@
                             <div class="faq-a"><div><p>Once you're signed in, an account button appears at the bottom of the sidebar showing your email — click "Sign out" on it.</p></div></div>
                         </div>
 
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Can I customize the title of my logout text?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings and click "Logout title" to set the first line of your copied logout text — type your own wording and use the emoji button to add flair from the built-in picker. There's a live preview as you type, and a "Reset to default" button if you want to go back to the original.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What does Reduce motion do?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings and switch on "Reduce motion" to turn off the app's animations, like the fade and slide effects when cards, sales and rows appear or are removed. Handy if you find the motion distracting or want the app to feel snappier.</p></div></div>
+                        </div>
+
                     </div>
 
                 </div>
@@ -1272,6 +1395,115 @@
 
         </form>
 
+    </div>
+
+</div>
+
+
+<!-- ================= LOGOUT TITLE MODAL ================= -->
+
+<div
+    id="logoutTitleModal"
+    class="modal hidden"
+>
+
+    <div role="dialog" aria-modal="true" aria-label="Logout title" class="modal-card">
+
+        <div class="section-head">
+
+            <h2>
+                Logout title
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeLogoutTitleModal"
+                type="button"
+                aria-label="Close"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+        </div>
+
+        <p class="sub shift-modal-note">
+            The first line of your logout text. Add your own emojis and style.
+        </p>
+
+        <form id="logoutTitleForm" autocomplete="off">
+
+            <div class="shift-field">
+
+                <span class="shift-field-label">Title</span>
+
+                <div class="logout-title-row">
+
+                    <input
+                        id="logoutTitleInput"
+                        type="text"
+                        aria-label="Logout title"
+                        placeholder="🌸 LOGOUT 🌸"
+                    >
+
+                    <button
+                        type="button"
+                        class="emoji-toggle"
+                        id="logoutEmojiToggle"
+                        aria-expanded="false"
+                        aria-controls="emojiPicker"
+                        aria-label="Add emoji"
+                        title="Add emoji"
+                    >😊</button>
+
+                </div>
+
+            </div>
+
+            <div class="shift-field">
+
+                <span class="shift-field-label">Preview</span>
+
+                <div class="shift-preview" id="logoutTitlePreview"></div>
+
+            </div>
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="resetLogoutTitle"
+                    style="margin-right:auto"
+                >
+                    Reset to default
+                </button>
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelLogoutTitle"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+    <!-- Popover: lives on the overlay (not inside the card) so it can
+         float over the window without resizing or scrolling it. -->
+    <div class="emoji-picker hidden" id="emojiPicker" role="dialog" aria-label="Emoji picker">
+        <div class="emoji-tabs" id="emojiTabs" role="tablist"></div>
+        <div class="emoji-grid" id="emojiGrid"></div>
     </div>
 
 </div>
@@ -1862,17 +2094,11 @@
 </div>
 
 
-<div
-    id="syncStatus"
-    class="sync-status hidden"
-></div>
-
-
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/app.js?v=13"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
