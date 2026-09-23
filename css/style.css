@@ -565,6 +565,39 @@ nav {
     color: var(--sb-subtle);
 }
 
+/* Reduce-motion switch (sits under the light/dark toggle) */
+
+.motion-switch {
+    position: relative;
+    flex: none;
+    width: 28px;
+    height: 16px;
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    transition: background-color 0.15s;
+}
+
+.motion-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.15s;
+}
+
+.reduce-motion-toggle[aria-checked="true"] .motion-switch {
+    background: var(--accent);
+}
+
+.reduce-motion-toggle[aria-checked="true"] .motion-switch::after {
+    transform: translateX(12px);
+}
+
 .backup-group {
     display: flex;
     flex-direction: column;
@@ -968,7 +1001,6 @@ h2 {
     border-radius: 0;
     color: var(--text-primary);
     cursor: pointer;
-    animation: slide-in-left 0.18s ease;
 }
 
 .active-model-name {
@@ -1892,6 +1924,14 @@ label {
    from its own 0% regardless of how the element got into the DOM, so
    it grows into place every time instead of appearing at full size. */
 .target-breakdown-row.selected .target-breakdown-name {
+    transform: scale(1.22);
+}
+
+/* The pop-in itself only plays on the row that was just selected
+   (app.js adds `.selecting` for a moment). Keeping it off plain
+   `.selected` means it doesn't replay on every re-render or when the
+   Sales tab is shown again after visiting another tab. */
+.target-breakdown-row.selected.selecting .target-breakdown-name {
     animation: model-select-pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -2776,6 +2816,107 @@ label {
     color: var(--text-primary);
 }
 
+/* ---------- Logout title: emoji picker ---------- */
+
+.logout-title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.emoji-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    font-size: 20px;
+    line-height: 1;
+    transition: background-color 0.12s, border-color 0.12s;
+}
+
+.emoji-toggle:hover,
+.emoji-toggle[aria-expanded="true"] {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+/* A popover: fixed to the screen and placed by app.js next to the
+   emoji button, so opening it never changes the size of the window. */
+.emoji-picker {
+    position: fixed;
+    z-index: 60;
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.emoji-picker.hidden {
+    display: none;
+}
+
+.emoji-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+}
+
+.emoji-tab {
+    flex: 1 0 auto;
+    min-width: 40px;
+    height: 36px;
+    padding: 0 var(--sp-2);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    font-size: 17px;
+    line-height: 1;
+    opacity: 0.6;
+}
+
+.emoji-tab:hover {
+    background: var(--bg-hover);
+    opacity: 1;
+}
+
+.emoji-tab.active {
+    border-bottom-color: var(--accent);
+    opacity: 1;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+    gap: 2px;
+    max-height: 176px;
+    padding: var(--sp-2);
+    overflow-y: auto;
+}
+
+.emoji-btn {
+    height: 38px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-sm);
+    font-size: 22px;
+    line-height: 1;
+}
+
+.emoji-btn:hover,
+.emoji-btn:focus-visible {
+    background: var(--bg-hover);
+}
+
 
 /* =====================================================
    10. SCRIPTS / MODELS: CHIPS + CONTENT CARDS
@@ -2906,7 +3047,10 @@ label {
 }
 
 .content-card h3 {
-    /* room for the edit button in the corner; clamp to 2 lines */
+    /* Room for the edit button in the top-right corner; clamp to
+       2 lines. The select circle floats over the card's top-left
+       corner instead of taking space here, so the title never
+       shifts. */
     display: -webkit-box;
     margin: 0 0 var(--sp-2);
     padding-right: 32px;
@@ -3027,8 +3171,21 @@ label {
 
 /* Edit/copy don't make sense mid-selection — keep taps on the
    card unambiguous (select/deselect only). */
-.content-grid.select-mode .card-icon-btn {
-    display: none;
+.card-edit-btn {
+    transition: color 0.12s, background-color 0.12s,
+                opacity 0.22s var(--fx-in), visibility 0s;
+}
+
+.card-actions {
+    transition: opacity 0.22s var(--fx-in), visibility 0s;
+}
+
+.content-grid.select-mode .card-edit-btn,
+.content-grid.select-mode .card-actions {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s var(--fx-out), visibility 0s linear 0.16s;
 }
 
 .content-card.selected {
@@ -3039,26 +3196,35 @@ label {
 
 .card-select-circle {
     position: absolute;
-    top: var(--sp-3);
-    left: var(--sp-3);
+    /* Straddles the card's top-left corner so it overlaps the card
+       without covering the title text. */
+    top: -8px;
+    left: -8px;
     z-index: 3;
-    display: none;
+    display: block;
     width: 24px;
     height: 24px;
     background: var(--bg-card);
     border: 2px solid var(--border-strong);
     border-radius: 50%;
     box-shadow: var(--shadow-sm);
-    transition: background-color 0.12s, border-color 0.12s;
+    /* Hidden until select mode is on; fades + pops out again on exit. */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: scale(0.6);
+    transition: background-color 0.12s, border-color 0.12s,
+                opacity 0.16s var(--fx-out), transform 0.16s var(--fx-out),
+                visibility 0s linear 0.16s;
 }
 
 .content-grid.select-mode .card-select-circle {
-    display: block;
-}
-
-/* Room for the circle, same idea as the edit button's corner. */
-.content-grid.select-mode .content-card h3 {
-    padding-left: 32px;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: background-color 0.12s, border-color 0.12s,
+                opacity 0.22s ease-out, transform 0.26s var(--fx-in),
+                visibility 0s;
 }
 
 .content-card.selected .card-select-circle {
@@ -3076,6 +3242,25 @@ label {
     border-left: 2px solid #fff;
     border-bottom: 2px solid #fff;
     transform: rotate(-45deg);
+}
+
+
+/* Anything Undo brings back (a card or a category chip) fades and
+   settles in instead of just popping back into place. Applied by
+   JS right after the re-render that restores it. */
+@keyframes restoreFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.restore-fade-in {
+    animation: restoreFadeIn 0.32s var(--fx-in);
 }
 
 
@@ -3451,58 +3636,6 @@ label {
 }
 
 
-/* ---------- Sync status (dot + label, never colour alone) ---------- */
-
-.sync-status {
-    position: fixed;
-    right: var(--sp-4);
-    bottom: var(--sp-4);
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--bg-raised);
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    box-shadow: var(--shadow-sm);
-    color: var(--text-secondary);
-    font-size: var(--fs-xs);
-    font-weight: 500;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease;
-}
-
-.sync-status.show {
-    opacity: 1;
-}
-
-.sync-status.hidden {
-    display: none;
-}
-
-.sync-status::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--text-muted);
-}
-
-.sync-status.synced::before {
-    background: var(--success);
-}
-
-.sync-status.syncing::before {
-    background: var(--warning);
-}
-
-.sync-status.offline::before {
-    background: var(--danger);
-}
-
-
 /* =====================================================
    15. FAQ
    ===================================================== */
@@ -3853,15 +3986,6 @@ label {
         font-size: 11px;
     }
 
-    .sync-status {
-        bottom: 80px;
-        transition: opacity 0.4s ease, bottom 0.25s ease;
-    }
-
-    body.nav-hidden .sync-status {
-        bottom: var(--sp-4);
-    }
-
     .toast-stack {
         left: var(--sp-4);
         width: auto;
@@ -3934,15 +4058,55 @@ label {
 @media (prefers-reduced-motion: reduce) {
 
     /* !important is deliberate: this must beat every component's
-       own transition/animation, including inline ones. */
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+       own transition/animation, including inline ones.
+
+       Animations and transitions are switched OFF, not shortened to
+       0.01ms. A near-zero duration still starts an animation, and
+       browsers can leave the element painted at its first frame
+       (e.g. opacity: 0) until something forces a repaint, such as
+       hovering it. That is what hid text in the History cards. */
+    *:not(.splash--intro):not(.splash--intro *),
+    *:not(.splash--intro):not(.splash--intro *)::before,
+    *:not(.splash--intro):not(.splash--intro *)::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
     }
 
+    /* No splash intro for a signed-in person: the wordmark is not
+       shown. The bare background-coloured cover stays only until
+       sign-in state is known, so the sign-in page can't flash.
+       When nobody is signed in, index.html adds .splash--intro and
+       the full animated splash plays (it is exempt from the rules
+       above), because that is the sign-in experience. */
+    .splash:not(.splash--intro) .splash-inner {
+        display: none;
+    }
+
+}
+
+
+/* The in-app "Reduce motion" setting (Settings popover) — same idea
+   as the OS-level block above, but user-controlled and applied via
+   <html data-reduce-motion="true">.
+
+   Deliberate exceptions: the animated splash shown when nobody is
+   signed in (.splash--intro), and the model rows inside the Sales
+   tab's "Add a sale" card (.target-breakdown-row and everything in it). Their pop,
+   wiggle and settle animations are what tell you which model you've
+   picked, so they keep playing. */
+
+:root[data-reduce-motion="true"] *:not(.target-breakdown-row):not(.target-breakdown-row *):not(.splash--intro):not(.splash--intro *),
+:root[data-reduce-motion="true"] *:not(.target-breakdown-row):not(.target-breakdown-row *):not(.splash--intro):not(.splash--intro *)::before,
+:root[data-reduce-motion="true"] *:not(.target-breakdown-row):not(.target-breakdown-row *):not(.splash--intro):not(.splash--intro *)::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+}
+
+/* Splash: see the note in the OS-level block above. */
+:root[data-reduce-motion="true"] .splash:not(.splash--intro) .splash-inner {
+    display: none;
 }
 
 
@@ -4393,4 +4557,337 @@ label {
 
 .confirm-card .modal-actions {
     margin-top: var(--sp-6);
+}
+
+
+/* =====================================================
+   SALES: FADE WHEN A MODEL IS SELECTED / UNSELECTED
+   -----------------------------------------------------
+   selectModel() in app.js adds `.model-fading` to #sales, waits for
+   the fade-out to finish, swaps the content, then removes the class
+   so everything fades back in. The model rows are left out on
+   purpose — they keep their own pop animation.
+
+   Base rules = the fade-IN (used when the class is removed).
+   `.model-fading` rules = the fade-OUT (used when it is added).
+   ===================================================== */
+
+#sales .active-model-badge,
+#sales .today-sales-model-name,
+#sales .sales-list,
+#sales #emptySales,
+#sales .trend-summary,
+#sales .trend-bars,
+#sales .trend-extra {
+    transition: opacity 0.24s ease-out, transform 0.24s ease-out;
+}
+
+#sales .stat {
+    transition: opacity 0.24s ease-out, color 0.24s ease-out;
+}
+
+/* Add a sale: the disabled look and the placeholder ease between
+   states instead of switching in one frame. */
+#sales #saleAmount {
+    transition: border-color var(--ease), box-shadow var(--ease), background-color 0.24s ease-out, color 0.24s ease-out;
+}
+
+#sales #saleAmount::placeholder {
+    transition: opacity 0.24s ease-out, color 0.24s ease-out;
+}
+
+#sales #addSaleBtn {
+    transition: background-color 0.24s ease-out, border-color 0.24s ease-out, color 0.24s ease-out, transform 0.1s;
+}
+
+/* Fade out */
+#sales.model-fading .active-model-badge,
+#sales.model-fading .today-sales-model-name,
+#sales.model-fading .sales-list,
+#sales.model-fading #emptySales,
+#sales.model-fading .trend-summary,
+#sales.model-fading .trend-bars,
+#sales.model-fading .trend-extra,
+#sales.model-fading .stat,
+#sales.model-fading #saleAmount::placeholder {
+    opacity: 0;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-in;
+}
+
+#sales.model-fading .active-model-badge {
+    transform: translateX(-6px);
+    pointer-events: none;
+}
+
+/* Clearing the selection also empties the amount input, so fade out
+   whatever was typed instead of letting it vanish. */
+#sales.model-fading.model-clearing #saleAmount {
+    color: transparent;
+    transition-duration: 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #sales .active-model-badge,
+    #sales .today-sales-model-name,
+    #sales .sales-list,
+    #sales #emptySales,
+    #sales .trend-summary,
+    #sales .trend-bars,
+    #sales .trend-extra,
+    #sales .stat,
+    #sales #saleAmount,
+    #sales #saleAmount::placeholder,
+    #sales #addSaleBtn {
+        transition: none;
+    }
+}
+
+
+/* =====================================================
+   MOTION (app-wide)
+   -----------------------------------------------------
+   One set of durations and easings so everything feels related:
+     in  = 0.2–0.26s, decelerating   (things arriving)
+     out = 0.14–0.16s, accelerating  (things leaving, a bit quicker)
+
+   Things that used to switch with `display: none` (modals, popovers,
+   the sign-in page) now stay in the page and fade with
+   opacity + visibility instead — visibility only flips after the
+   fade-out has finished, and hidden things can't be clicked or
+   focused. That is what lets them fade OUT as well as in.
+   ===================================================== */
+
+:root {
+    --fx-out: cubic-bezier(0.4, 0, 1, 1);
+    --fx-in: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+/* ---------- Tabs ---------- */
+
+.page.active {
+    animation: page-in 0.26s var(--fx-in);
+}
+
+.page.leaving {
+    animation: none;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.13s var(--fx-out), transform 0.13s var(--fx-out);
+}
+
+@keyframes page-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+
+/* ---------- Category switches (list swaps content) ---------- */
+
+.fx-swap {
+    transition: opacity 0.24s ease-out, transform 0.24s var(--fx-in);
+}
+
+.fx-swap.fx-out {
+    opacity: 0;
+    transform: translateY(6px);
+    transition-duration: 0.14s;
+    transition-timing-function: var(--fx-out);
+}
+
+
+/* ---------- Modals & confirmations ---------- */
+
+.modal {
+    animation: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease-out, visibility 0s linear 0s;
+}
+
+.modal.hidden {
+    display: grid;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s var(--fx-out), visibility 0s linear 0.16s;
+}
+
+.modal-card {
+    animation: none;
+    transition: transform 0.26s var(--fx-in), opacity 0.2s ease-out;
+}
+
+.modal.hidden .modal-card {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+    transition: transform 0.16s var(--fx-out), opacity 0.16s var(--fx-out);
+}
+
+
+/* ---------- Popovers & menus ---------- */
+
+.settings-popover,
+.mobile-settings-popover,
+.outside-shift-popover,
+.model-picker-list {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(6px) scale(0.97);
+    transition: opacity 0.14s var(--fx-out), transform 0.14s var(--fx-out), visibility 0s linear 0.14s;
+}
+
+/* `.hidden` used to be display:none; keep these laid out so they can fade */
+.outside-shift-popover.hidden { display: block; }
+.model-picker-list.hidden { display: flex; }
+
+.settings-popover { display: flex; transform-origin: bottom left; }
+.mobile-settings-popover { display: flex; transform-origin: top right; }
+.outside-shift-popover { display: block; transform-origin: bottom right; }
+.model-picker-list { display: flex; transform-origin: top right; }
+
+.mobile-settings-popover,
+.model-picker-list {
+    transform: translateY(-6px) scale(0.97);
+}
+
+.settings-group.open .settings-popover,
+.mobile-settings-group.open .mobile-settings-popover,
+.outside-shift-popover:not(.hidden),
+.model-picker-list:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    animation: none;
+    transition: opacity 0.18s ease-out, transform 0.22s var(--fx-in), visibility 0s;
+}
+
+
+/* ---------- Toasts: slide up as one leaves ---------- */
+
+.toast {
+    max-height: 240px;
+    transition: opacity 0.22s ease-out, transform 0.26s var(--fx-in),
+                max-height 0.3s ease, margin-bottom 0.3s ease, padding 0.3s ease;
+}
+
+.toast.leaving {
+    overflow: hidden;
+    margin-bottom: calc(var(--sp-2) * -1);
+    padding-top: 0;
+    padding-bottom: 0;
+    border-color: transparent;
+    transform: translateX(12px) scale(0.98);
+}
+
+
+/* ---------- Sign-in page ---------- */
+
+.auth-page {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease-out, visibility 0s linear 0s;
+}
+
+.auth-page.hidden {
+    display: grid;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease-out, visibility 0s linear 0.3s;
+}
+
+
+/* ---------- Small notices that appear inline ---------- */
+
+.confirm-warning:not(.hidden),
+.shift-copy-note:not(.hidden) {
+    animation: fx-rise 0.22s var(--fx-in);
+}
+
+@keyframes fx-rise {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+
+/* ---------- Sales list rows ---------- */
+
+.sale-row-new {
+    animation: fx-rise 0.3s var(--fx-in);
+}
+
+.sale-row {
+    transition: opacity 0.18s var(--fx-out), transform 0.18s var(--fx-out),
+                max-height 0.22s ease, min-height 0.22s ease, padding 0.22s ease,
+                border-color 0.22s ease;
+}
+
+.sale-row-out {
+    overflow: hidden;
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-color: transparent;
+    opacity: 0;
+    transform: translateX(10px);
+}
+
+.sales-list.is-busy {
+    pointer-events: none;
+}
+
+
+/* ---------- Press feedback ---------- */
+
+.nav-btn,
+.icon-btn {
+    transition: background-color 0.12s, color 0.12s, transform 0.12s var(--fx-in);
+}
+
+.nav-btn:active,
+.icon-btn:active {
+    transform: scale(0.96);
+}
+
+
+/* ---------- Overview: Daily / Monthly switch ---------- */
+
+/* Same fade-out as the model switch; the ID selector is needed to win
+   over the `#sales .trend-*` transitions declared further up. */
+#sales .trend-summary.trend-swap-out,
+#sales .trend-bars.trend-swap-out,
+#sales .trend-extra.trend-swap-out {
+    opacity: 0;
+    transition-duration: 0.14s;
+    transition-timing-function: var(--fx-out);
+}
+
+
+/* ---------- History: date breakdown opens / closes ---------- */
+
+.history-model-breakdown:not(.hidden) {
+    animation: fx-rise 0.22s var(--fx-in);
+}
+
+.history-model-breakdown.fx-closing {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.14s var(--fx-out), transform 0.14s var(--fx-out);
+    pointer-events: none;
 }
