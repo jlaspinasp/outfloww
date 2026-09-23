@@ -5284,7 +5284,7 @@ $$(".nav-btn").forEach(
 // but it still plays by the same rules: no nav item stays "active"
 // while FAQ is open, and leaving FAQ via any .nav-btn already works
 // for free, since that handler hides every .page (FAQ included).
-$$("#faqBtn, #mobileFaqBtn").forEach(
+$$("#faqBtn, #mobileFaqBtn, #footerFaqBtn").forEach(
     button => {
 
         button.addEventListener(
