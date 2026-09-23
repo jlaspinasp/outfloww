@@ -10,6 +10,34 @@ const STORAGE_KEY = "chatterTool_v1";
 // Net percentage
 const NET_RATE = 0.80;
 
+// First line of the "Copy for logout" text. Each person can restyle it
+// in Settings > Logout title; it syncs with their account like the rest
+// of their data. Stored as "" while they're on the default.
+const DEFAULT_LOGOUT_TITLE = "🌸 LOGOUT 🌸";
+const LOGOUT_TITLE_MAX = 60;   // characters as the person sees them
+
+
+// Splits text into what a person sees as single characters, so an emoji
+// (which can be several code units, e.g. flags or skin tones) counts as
+// one and is never cut in half.
+function splitGraphemes(text) {
+
+    if (window.Intl && Intl.Segmenter) {
+        return Array.from(
+            new Intl.Segmenter(undefined, { granularity: "grapheme" })
+                .segment(text),
+            part => part.segment
+        );
+    }
+
+    return Array.from(text);
+}
+
+
+function limitGraphemes(text, max) {
+    return splitGraphemes(text).slice(0, max).join("");
+}
+
 
 // Default data
 const defaultData = {
@@ -25,7 +53,9 @@ const defaultData = {
     // (unused) so saved and synced data round-trips unchanged.
     modelColors: {},
     // Shift used only in the "Copy for logout" text (24h "HH:MM")
-    logoutShift: { start: "16:00", end: "00:00", cover: false }
+    logoutShift: { start: "16:00", end: "00:00", cover: false },
+    // Custom first line of the logout text ("" = use the default)
+    logoutTitle: ""
 };
 
 
@@ -72,6 +102,12 @@ function normalizeData(obj) {
     const TIME_RE = /^\d{1,2}:\d{2}$/;
     const shift = obj.logoutShift || {};
 
+    // Custom first line of the logout text: one line, trimmed, capped.
+    obj.logoutTitle =
+        typeof obj.logoutTitle === "string"
+            ? limitGraphemes(obj.logoutTitle.replace(/[\r\n]+/g, " ").trim(), LOGOUT_TITLE_MAX)
+            : "";
+
     obj.logoutShift = {
         start: TIME_RE.test(shift.start) ? shift.start : "16:00",
         end: TIME_RE.test(shift.end) ? shift.end : "00:00",
@@ -99,11 +135,21 @@ let currentCategory = {
 // null = "All" (combined, original behavior).
 let currentModelFilter = null;
 
+// What the Today's sales list last showed, so a newly added sale can ease
+// in (see renderSales).
+let lastSalesRender = { modelId: null, count: 0 };
+
 // The model whose row is currently playing its "un-select" (revert)
 // animation — see selectModel() and the ".deselecting" CSS below.
 // null when nothing is reverting.
 let deselectingModelId = null;
 let deselectingModelTimer = null;
+
+// Same idea for the pop-in: only the row that was JUST selected plays
+// it. Without this the pop-in replayed on every re-render and every
+// time the Sales tab was shown again.
+let selectingModelId = null;
+let selectingModelTimer = null;
 
 // Which day's row is currently expanded in the history modal. When a
 // model is selected this is a row key (a day can have more than one
@@ -221,6 +267,72 @@ function initTheme() {
 }
 
 
+/* =====================================================
+   REDUCE MOTION (Settings)
+   Sets <html data-reduce-motion="true">, which style.css uses to
+   strip animations app-wide (except the Sales tab's model rows).
+   Stored per device, like the theme.
+   ===================================================== */
+
+const REDUCE_MOTION_KEY = "chatterTool_reduceMotion";
+
+
+function isReduceMotionSetting() {
+
+    try {
+        return localStorage.getItem(REDUCE_MOTION_KEY) === "true";
+    } catch (err) {
+        return false;
+    }
+
+}
+
+
+function applyReduceMotionSetting(on) {
+
+    if (on) {
+        document.documentElement.setAttribute("data-reduce-motion", "true");
+    } else {
+        document.documentElement.removeAttribute("data-reduce-motion");
+    }
+
+    ["#reduceMotionToggle", "#mobileReduceMotionToggle"].forEach(
+        function (selector) {
+
+            const btn = $(selector);
+
+            if (btn) {
+                btn.setAttribute("aria-checked", String(on));
+            }
+
+        }
+    );
+
+}
+
+
+function initReduceMotion() {
+
+    applyReduceMotionSetting(isReduceMotionSetting());
+
+}
+
+
+function toggleReduceMotion() {
+
+    const next = !isReduceMotionSetting();
+
+    try {
+        localStorage.setItem(REDUCE_MOTION_KEY, String(next));
+    } catch (err) {
+        // Storage blocked: still apply it for this session.
+    }
+
+    applyReduceMotionSetting(next);
+
+}
+
+
 const SIDEBAR_KEY = "chatterTool_sidebarCollapsed";
 
 
@@ -277,7 +389,9 @@ function toggleTheme() {
 
     // Re-render so the model-name accent color (dark in light mode,
     // bright in dark mode) updates immediately for the new theme.
-    renderSales();
+    preserveScroll(function () {
+        renderSales();
+    });
 
 }
 
@@ -390,6 +504,65 @@ function getScroller() {
 }
 
 
+// Runs `fn`, then re-applies whatever scroll position the page
+// scroller (getScroller()) had right before `fn` ran. Needed
+// because hiding the modal (display:none on an ancestor of the
+// focused field) or rebuilding a list's innerHTML makes some
+// browsers blur focus back to <body> and jump the scroller to the
+// top. We snapshot/restore across two animation frames so it wins
+// even if the browser's own "scroll to top" happens a frame late.
+function preserveScroll(fn) {
+
+    const scroller = getScroller();
+    const scrollPos = scroller.scrollTop;
+
+    fn();
+
+    const restore = function () {
+        scroller.scrollTop = scrollPos;
+    };
+
+    restore();
+    requestAnimationFrame(function () {
+        restore();
+        requestAnimationFrame(restore);
+    });
+
+}
+
+
+// Plays the .restore-fade-in animation on elements that Undo just
+// put back in the DOM, so they fade/settle in instead of just
+// appearing. Call this right after the re-render that restores
+// them, passing the actual elements (not selectors) — falsy/missing
+// ones (already scrolled out of a filtered list, etc.) are skipped.
+function flashRestoreFadeIn(elements) {
+
+    (elements || []).forEach(function (el) {
+
+        if (!el) {
+            return;
+        }
+
+        // In case something is still mid-animation from a moment
+        // ago (rapid repeated undo), restart it cleanly.
+        el.classList.remove("restore-fade-in");
+        void el.offsetWidth;
+        el.classList.add("restore-fade-in");
+
+        el.addEventListener(
+            "animationend",
+            function handler() {
+                el.classList.remove("restore-fade-in");
+                el.removeEventListener("animationend", handler);
+            }
+        );
+
+    });
+
+}
+
+
 function saveData() {
     localStorage.setItem(
         STORAGE_KEY,
@@ -413,33 +586,28 @@ let pushPending = false;
 let pushInFlight = null;
 
 
-let syncFadeTimer = null;
+// Sync happens silently in the background; nothing is shown while it
+// works. The last state is remembered so signing out can warn when the
+// latest changes haven't reached the cloud yet, and a failure shows one
+// quiet toast.
+let syncState = "synced";
 
 function setSyncStatus(state) {
 
-    const el = $("#syncStatus");
+    const wasOffline = syncState === "offline";
 
-    if (!el) {
-        return;
+    syncState = state;
+
+    // One toast per failure streak: repeated failures stay quiet until
+    // a sync succeeds again, so a bad connection doesn't spam the person.
+    if (state === "offline" && !wasOffline && cloudDocRef) {
+
+        toast(
+            "Couldn't sync to the cloud. Your changes are saved on this device.",
+            "error",
+            { duration: 4500 }
+        );
     }
-
-    clearTimeout(syncFadeTimer);
-
-    el.classList.remove("synced", "syncing", "offline");
-    el.classList.add(state);
-    el.classList.add("show");
-
-    el.textContent =
-        state === "synced" ? "Synced" :
-        state === "syncing" ? "Syncing…" :
-        "Offline";
-
-    if (state === "synced") {
-        syncFadeTimer = setTimeout(() => {
-            el.classList.remove("show");
-        }, 1500);
-    }
-
 }
 
 
@@ -662,7 +830,7 @@ function startCloudSync(uid) {
                 JSON.stringify(data)
             );
 
-            renderAll();
+            preserveScroll(renderAll);
 
             isApplyingRemoteData = false;
             lastPushedJSON = remoteJSON;
@@ -706,7 +874,7 @@ function resetLocalData() {
         JSON.stringify(data)
     );
 
-    renderAll();
+    preserveScroll(renderAll);
 
 }
 
@@ -716,7 +884,6 @@ function initAuthGate() {
     const authGate = $("#authGate");
     const authError = $("#authError");
     const googleSignInBtn = $("#googleSignInBtn");
-    const syncStatus = $("#syncStatus");
     const signOutBtn = $("#signOutBtn");
     const accountEmail = $("#accountEmail");
     const mobileSignOutBtn = $("#mobileSignOutBtn");
@@ -758,11 +925,9 @@ function initAuthGate() {
 
         // Warn if the last sync hadn't finished (or we're offline):
         // those changes only exist on this device.
-        const state = syncStatus.classList;
-
         signOutWarning.classList.toggle(
             "hidden",
-            !(state.contains("syncing") || state.contains("offline"))
+            !(syncState === "syncing" || syncState === "offline")
         );
 
         signOutModal.classList.remove("hidden");
@@ -825,7 +990,7 @@ function initAuthGate() {
     auth.onAuthStateChanged(function (user) {
 
         // Sign-in state is known: let the splash screen lift.
-        if (window.hideSplash) window.hideSplash();
+        if (window.hideSplash) window.hideSplash(!!user);
 
         if (user) {
 
@@ -845,7 +1010,6 @@ function initAuthGate() {
             }
 
             authGate.classList.add("hidden");
-            syncStatus.classList.remove("hidden");
 
             signOutBtn.classList.remove("hidden");
             accountEmail.textContent = user.email || "Signed in";
@@ -862,7 +1026,6 @@ function initAuthGate() {
             localStorage.removeItem(LAST_UID_KEY);
 
             authGate.classList.remove("hidden");
-            syncStatus.classList.add("hidden");
             signOutBtn.classList.add("hidden");
             mobileSignOutBtn.classList.add("hidden");
 
@@ -1254,6 +1417,15 @@ function renderTrends(range) {
             })()
             : "";
 
+    // Rows that aren't "::open" come from a saved shift, which is
+    // what History lists for today.
+    const todayHasSavedSales =
+        combined.some(
+            item =>
+                item.date === today &&
+                !item.rowKey.endsWith("::open")
+        );
+
     const barsHtml = rows.map(r => {
 
         const barClass =
@@ -1283,13 +1455,15 @@ function renderTrends(range) {
                 ? ` · ${r.targetPercent >= 100 ? "Target hit" : `${r.targetPercent}% of target`}`
                 : "");
 
-        // Past days with sales drill into the history modal on
-        // click; today and empty days have nothing to open.
+        // Days with sales drill into the history modal on click.
+        // Today only counts once part of it has been saved (a saved
+        // shift shows up in History right away); until then today's
+        // sales are still "live" and there's no row to open.
         const clickable =
             currentTrendRange === "day" &&
             r.date &&
-            r.date !== today &&
-            r.count > 0;
+            r.count > 0 &&
+            (r.date !== today || todayHasSavedSales);
 
         return `
             <div
@@ -1397,11 +1571,58 @@ $("#trendBars").addEventListener(
     }
 );
 
+// Daily / Monthly: the summary, bars and extra block fade out, swap
+// while invisible, then fade back in (`.trend-swap-out` in style.css).
+const TREND_SWAP_OUT_MS = 140;
+let trendSwapTimer = null;
+let trendSwapPending = false;
+
+function fadeTrendRange(range) {
+
+    if (reduceMotion()) {
+        preserveScroll(function () {
+            renderTrends(range);
+        });
+        return;
+    }
+
+    const els = ["#trendSummary", "#trendBars", "#trendExtra"]
+        .map(selector => $(selector))
+        .filter(Boolean);
+
+    // Clicking Daily/Monthly quickly just restarts the wait, so the
+    // content swaps once, to the range you ended on.
+    clearTimeout(trendSwapTimer);
+    trendSwapPending = true;
+
+    els.forEach(el => el.classList.add("trend-swap-out"));
+
+    trendSwapTimer = setTimeout(function () {
+
+        trendSwapPending = false;
+
+        preserveScroll(function () {
+            renderTrends(range);
+        });
+
+        void document.body.offsetWidth;   // commit the swap at opacity 0
+
+        els.forEach(el => el.classList.remove("trend-swap-out"));
+
+    }, TREND_SWAP_OUT_MS);
+}
+
 $$(".trend-toggle-btn").forEach(btn => {
     btn.addEventListener("click", () => {
+
+        // Already on this range: nothing to switch.
+        if (!trendSwapPending && btn.dataset.range === currentTrendRange) {
+            return;
+        }
+
         $$(".trend-toggle-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        renderTrends(btn.dataset.range);
+        fadeTrendRange(btn.dataset.range);
     });
 });
 
@@ -1714,8 +1935,10 @@ function setModelColor(modelId, hexColor) {
 
     saveData();
 
-    renderModelPickerList();
-    renderSales(); // also refreshes the breakdown, badge, and indicator
+    preserveScroll(function () {
+        renderModelPickerList();
+        renderSales(); // also refreshes the breakdown, badge, and indicator
+    });
 
     // Live-update the swatch preview if its modal is open for this model.
     if (modelId === currentModelFilter) {
@@ -1828,10 +2051,19 @@ document.addEventListener(
 // the longest animation-duration used by ".deselecting" in style.css.
 const DESELECT_ANIM_MS = 350;
 
+// Same for ".selecting" (the pop-in) — matches model-select-pop-in.
+const SELECT_ANIM_MS = 400;
+
 function selectModel(modelId) {
 
     const nextId = modelId || null;
     const previousId = currentModelFilter;
+
+    // Picking the model that's already selected (e.g. from the target
+    // picker) changes nothing, so don't run the fade / pop animations.
+    if (nextId === previousId) {
+        return;
+    }
 
     // Losing selection (deselected outright, or swapped for a
     // different model): give that row a one-shot revert animation
@@ -1843,16 +2075,196 @@ function selectModel(modelId) {
         clearTimeout(deselectingModelTimer);
         deselectingModelTimer = setTimeout(
             function () {
+
                 deselectingModelId = null;
+
+                // The Sales page is display:none on other tabs, and
+                // CSS animations restart when an element is shown
+                // again — so a leftover class would replay the revert
+                // when you come back. Remove it once it has played.
+                document
+                    .querySelectorAll(".target-breakdown-row.deselecting")
+                    .forEach(el => el.classList.remove("deselecting"));
+
             },
             DESELECT_ANIM_MS
         );
 
     }
 
+    // Gaining selection: only this row plays the pop-in.
+    if (nextId !== null) {
+
+        selectingModelId = nextId;
+
+        clearTimeout(selectingModelTimer);
+        selectingModelTimer = setTimeout(
+            function () {
+
+                selectingModelId = null;
+
+                document
+                    .querySelectorAll(".target-breakdown-row.selecting")
+                    .forEach(el => el.classList.remove("selecting"));
+
+            },
+            SELECT_ANIM_MS
+        );
+
+    } else {
+
+        selectingModelId = null;
+        clearTimeout(selectingModelTimer);
+
+    }
+
     currentModelFilter = nextId;
 
-    renderSales();
+    // The model rows react instantly (their own pop animation), so
+    // update them right away rather than waiting for the fade below.
+    preserveScroll(renderTargetBreakdown);
+
+    // Everything else that depends on the selected model (top bar,
+    // Overview, the Add a sale input, Today's sales) fades out, swaps
+    // its content while invisible, then fades back in.
+    fadeModelRegions(function () {
+        renderSales({ skipBreakdown: true });
+    });
+}
+
+
+// How long the fade-out lasts before the content is swapped. Slightly
+// longer than the fade-out `transition-duration` on `#sales.model-fading`
+// in style.css, so the regions are fully invisible when they change.
+const MODEL_FADE_OUT_MS = 170;
+let modelFadeTimer = null;
+
+// Whether the person has asked their OS/browser for less motion.
+function reduceMotion() {
+    return isReduceMotionSetting() || !!(
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+}
+
+
+// Fades `el` out, runs `updateFn` (which swaps its content) while it's
+// invisible, then fades it back in. Rapid calls just restart the wait,
+// so only the last update runs. Used for category switches; the CSS is
+// `.fx-swap` / `.fx-out` in style.css.
+const FX_SWAP_OUT_MS = 140;
+
+function fadeSwap(el, updateFn) {
+
+    if (!el || reduceMotion()) {
+        updateFn();
+        return;
+    }
+
+    clearTimeout(el._fxTimer);
+
+    // The transition needs to exist before the first fade-out starts.
+    el.classList.add("fx-swap");
+    void el.offsetWidth;
+    el.classList.add("fx-out");
+
+    el._fxTimer = setTimeout(function () {
+
+        updateFn();
+
+        void el.offsetWidth;   // commit the swapped content at opacity 0
+
+        el.classList.remove("fx-out");
+
+    }, FX_SWAP_OUT_MS);
+}
+
+
+// Tab switching: the current page fades out, then the next one is
+// shown (and fades in via the `.page.active` animation in style.css).
+const PAGE_FADE_OUT_MS = 130;
+let pageSwitchTimer = null;
+
+function showPage(targetId) {
+
+    const outgoing = $(".page.active");
+    const incoming = $("#" + targetId);
+
+    if (!incoming) {
+        return;
+    }
+
+    // Remember where the user was on the tab they're leaving, so
+    // coming back restores it instead of dumping them at the top.
+    if (outgoing) {
+        pageScrollPositions[outgoing.id] = getScroller().scrollTop;
+    }
+
+    clearTimeout(pageSwitchTimer);
+
+    // Clicked the tab you're already on (or came straight back to it
+    // mid-fade): just make sure it's fully visible.
+    if (outgoing === incoming) {
+        outgoing.classList.remove("leaving");
+        return;
+    }
+
+    function finish() {
+
+        $$(".page").forEach(
+            page => page.classList.remove("active", "leaving")
+        );
+
+        incoming.classList.add("active");
+
+        // Layout for the newly-shown page isn't settled until the
+        // next frame, so wait for it before restoring scroll.
+        requestAnimationFrame(function () {
+            getScroller().scrollTop =
+                pageScrollPositions[targetId] || 0;
+        });
+    }
+
+    if (!outgoing || reduceMotion()) {
+        finish();
+        return;
+    }
+
+    outgoing.classList.add("leaving");
+
+    pageSwitchTimer = setTimeout(finish, PAGE_FADE_OUT_MS);
+}
+
+
+function fadeModelRegions(renderFn) {
+
+    const page = $("#sales");
+
+    if (!page || reduceMotion()) {
+        preserveScroll(renderFn);
+        return;
+    }
+
+    // Clicking quickly through several models just restarts the wait,
+    // so the content only swaps once, to the model you ended on.
+    clearTimeout(modelFadeTimer);
+
+    // Lets the CSS also fade out any half-typed sale amount when the
+    // selection is being cleared (that's when the input empties).
+    page.classList.toggle("model-clearing", currentModelFilter === null);
+    page.classList.add("model-fading");
+
+    modelFadeTimer = setTimeout(function () {
+
+        preserveScroll(renderFn);
+
+        // Commit the swapped-in content at opacity 0 first, so removing
+        // the class below has a starting point to fade in from.
+        void page.offsetWidth;
+
+        page.classList.remove("model-fading");
+
+    }, MODEL_FADE_OUT_MS);
 }
 
 
@@ -1893,7 +2305,7 @@ $("#openModelPicker").addEventListener(
     "click",
     function () {
 
-        renderModelPickerList();
+        preserveScroll(renderModelPickerList);
 
         $("#modelPickerList").classList.toggle(
             "hidden"
@@ -2111,7 +2523,12 @@ function fitTodaySalesName() {
 window.addEventListener("resize", fitTodaySalesName);
 
 
-function renderSales() {
+// options.skipBreakdown: the model rows were already re-rendered by the
+// caller (selectModel does this so they respond instantly), so don't
+// rebuild them again — that would replay their pop animation.
+function renderSales(options) {
+
+    const skipBreakdown = !!(options && options.skipBreakdown === true);
 
     const activeModel =
         currentModelFilter === null
@@ -2268,7 +2685,9 @@ function renderSales() {
 
 
     // Target progress (based on net earnings, per current context)
-    renderTargetProgress(net);
+    if (!skipBreakdown) {
+        renderTargetProgress(net);
+    }
 
 
     // Individual sales — only shown when a model is selected
@@ -2305,7 +2724,7 @@ function renderSales() {
 
                             <button
                                 class="delete"
-                                onclick="deleteSale(${index})"
+                                onclick="deleteSale(${index}, this)"
                                 title="Delete sale"
                                 aria-label="Delete sale"
                             >
@@ -2318,6 +2737,26 @@ function renderSales() {
                 `;
             }
         ).join("");
+
+
+    // A sale added to the model that's already showing eases in
+    // (the list is rebuilt on every render, so we compare counts).
+    if (
+        lastSalesRender.modelId === currentModelFilter &&
+        listed.length === lastSalesRender.count + 1
+    ) {
+
+        const rows = $("#salesList").children;
+
+        if (rows.length) {
+            rows[rows.length - 1].classList.add("sale-row-new");
+        }
+    }
+
+    lastSalesRender = {
+        modelId: currentModelFilter,
+        count: listed.length
+    };
 
 
     const emptySales = $("#emptySales");
@@ -2456,7 +2895,7 @@ function renderTargetBreakdown() {
             const ink = getRowInk(rowColor);
 
             return `
-                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}" data-model="${model.id}" draggable="true" role="button" tabindex="0" aria-pressed="${model.id === currentModelFilter}" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}${model.id === selectingModelId ? " selecting" : ""}" data-model="${model.id}" draggable="true" role="button" tabindex="0" aria-pressed="${model.id === currentModelFilter}" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
 
                     <div class="target-breakdown-head">
                         <span class="target-breakdown-name">
@@ -2640,7 +3079,7 @@ $("#targetBreakdown").addEventListener(
             row.dataset.model
         );
 
-        renderTargetBreakdown();
+        preserveScroll(renderTargetBreakdown);
     }
 );
 
@@ -2772,7 +3211,7 @@ $("#targetForm").addEventListener(
 
         saveData();
 
-        renderSales();
+        preserveScroll(renderSales);
 
         closeTargetModal();
 
@@ -3011,7 +3450,7 @@ $("#saleForm").addEventListener(
 
         pushSaleAdded(dateKey, sale);
 
-        renderSales();
+        preserveScroll(renderSales);
 
         playKaching();
 
@@ -3027,10 +3466,19 @@ $("#saleForm").addEventListener(
    ===================================================== */
 
 
-function deleteSale(index) {
+function deleteSale(index, btn) {
 
     const dateKey =
         getDateKey();
+
+    const row =
+        btn && btn.closest
+            ? btn.closest(".sale-row")
+            : null;
+
+    if (row && row.classList.contains("sale-row-out")) {
+        return;
+    }
 
 
     const [removedSale] =
@@ -3049,7 +3497,29 @@ function deleteSale(index) {
         toast(`${money(removedSale.amount)} sale removed`, "delete");
     }
 
-    renderSales();
+    if (row && !reduceMotion()) {
+
+        // The data is already updated; let the row fade out and
+        // collapse, then rebuild the list. The list ignores clicks
+        // meanwhile, since the other rows' indexes are stale until then.
+        const list = $("#salesList");
+
+        list.classList.add("is-busy");
+
+        row.style.maxHeight = row.offsetHeight + "px";
+        void row.offsetHeight;
+        row.classList.add("sale-row-out");
+        row.style.maxHeight = "0px";
+
+        setTimeout(function () {
+            list.classList.remove("is-busy");
+            preserveScroll(renderSales);
+        }, 220);
+
+        return;
+    }
+
+    preserveScroll(renderSales);
 }
 
 
@@ -3568,7 +4038,7 @@ function buildLogoutText(dateKey, shift, scope) {
             : "";
 
     return (
-        `🌸 LOGOUT 🌸\n\n` +
+        `${getLogoutTitle()}\n\n` +
         `${modelName} -\n\n` +
         `Shift Time: ${getShiftTimeText(shiftForText)}\n` +
         `Date: ${formatDate(dateKey)}\n` +
@@ -3688,9 +4158,7 @@ function expandHistoryRow(dateKey) {
         return;
     }
 
-    document
-        .querySelectorAll(".history-model-breakdown")
-        .forEach(el => el.classList.add("hidden"));
+    hideAllHistoryBreakdowns();
 
     if (currentModelFilter !== null) {
 
@@ -3708,7 +4176,7 @@ function expandHistoryRow(dateKey) {
 
     }
 
-    breakdown.classList.remove("hidden");
+    showHistoryBreakdown(breakdown);
 
     expandedHistoryDate = dateKey;
     updateCopyLogoutButton();
@@ -3719,6 +4187,48 @@ function expandHistoryRow(dateKey) {
     if (row) {
         row.scrollIntoView({ block: "nearest" });
     }
+}
+
+
+// History: the date breakdown fades in when a date is opened and
+// fades out when it closes (or another date is opened), instead of
+// popping in/out. `.fx-closing` is the fade-out; `.hidden` is only
+// applied once it has finished.
+const HISTORY_BREAKDOWN_OUT_MS = 140;
+
+function showHistoryBreakdown(el) {
+
+    clearTimeout(el._hideTimer);
+    el.classList.remove("fx-closing");
+    el.classList.remove("hidden");
+}
+
+function hideHistoryBreakdown(el) {
+
+    if (el.classList.contains("hidden")) {
+        return;
+    }
+
+    clearTimeout(el._hideTimer);
+
+    if (reduceMotion()) {
+        el.classList.add("hidden");
+        el.classList.remove("fx-closing");
+        return;
+    }
+
+    el.classList.add("fx-closing");
+
+    el._hideTimer = setTimeout(function () {
+        el.classList.add("hidden");
+        el.classList.remove("fx-closing");
+    }, HISTORY_BREAKDOWN_OUT_MS);
+}
+
+function hideAllHistoryBreakdowns() {
+    document
+        .querySelectorAll(".history-model-breakdown")
+        .forEach(hideHistoryBreakdown);
 }
 
 
@@ -3737,9 +4247,7 @@ function expandAllHistoryRowsForDate(calendarDate) {
         return;
     }
 
-    document
-        .querySelectorAll(".history-model-breakdown")
-        .forEach(el => el.classList.add("hidden"));
+    hideAllHistoryBreakdowns();
 
     rows.forEach(row => {
 
@@ -3768,7 +4276,7 @@ function expandAllHistoryRowsForDate(calendarDate) {
 
         }
 
-        breakdown.classList.remove("hidden");
+        showHistoryBreakdown(breakdown);
 
     });
 
@@ -3797,7 +4305,7 @@ $("#historyList").addEventListener(
 
         if (loadMoreBtn) {
             historyVisibleCount += HISTORY_PAGE_SIZE;
-            renderHistory();
+            preserveScroll(renderHistory);
             return;
         }
 
@@ -3817,12 +4325,12 @@ $("#historyList").addEventListener(
             return;
         }
 
+        // A breakdown that is mid fade-out counts as closed.
         const isHidden =
-            breakdown.classList.contains("hidden");
+            breakdown.classList.contains("hidden") ||
+            breakdown.classList.contains("fx-closing");
 
-        document
-            .querySelectorAll(".history-model-breakdown")
-            .forEach(el => el.classList.add("hidden"));
+        hideAllHistoryBreakdowns();
 
         if (isHidden) {
 
@@ -3842,13 +4350,359 @@ $("#historyList").addEventListener(
 
             }
 
-            breakdown.classList.remove("hidden");
+            showHistoryBreakdown(breakdown);
         }
 
         expandedHistoryDate = isHidden ? dateKey : null;
         updateCopyLogoutButton();
     }
 );
+
+
+/* =====================================================
+   LOGOUT TITLE (Settings)
+   Lets each person restyle the first line of the logout text.
+   ===================================================== */
+
+function getLogoutTitle() {
+    return (data.logoutTitle || "").trim() || DEFAULT_LOGOUT_TITLE;
+}
+
+
+function cleanLogoutTitle(raw) {
+    return limitGraphemes(
+        String(raw || "").replace(/[\r\n]+/g, " ").trim(),
+        LOGOUT_TITLE_MAX
+    );
+}
+
+
+function renderLogoutTitlePreview() {
+
+    const title = cleanLogoutTitle($("#logoutTitleInput").value) ||
+        DEFAULT_LOGOUT_TITLE;
+
+    $("#logoutTitlePreview").textContent = title;
+}
+
+
+// Emojis offered in the picker, grouped in tabs. Space-separated so
+// multi-part emojis stay whole.
+const EMOJI_GROUPS = [
+    {
+        icon: "🌸",
+        label: "Flowers & nature",
+        emojis: "🌸 🌺 🌹 🌷 🌼 🌻 💐 🪷 🌿 🍀 🌈 ☀️ 🌙 ⭐ 🌟 ✨ 💫 ⚡ 🔥 ❄️ 🌊 🦋 🐝 🐰 🐱 🐻 🦄 🍒 🍓 🍑 🍋 🍉 🍭"
+    },
+    {
+        icon: "💕",
+        label: "Hearts",
+        emojis: "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💖 💗 💓 💞 💕 💘 💝 💟 ❣️ 💋 🫶 🥰 😍 😘"
+    },
+    {
+        icon: "😊",
+        label: "Faces",
+        emojis: "😊 😄 😁 😆 😂 🤣 😉 😎 🥳 🤩 😇 🙂 😌 😏 😈 🥺 😴 🤗 🤭 🫡 😜 😋 🤑 😤 😭 🥹 🙃 😳 🤔 😮‍💨"
+    },
+    {
+        icon: "🎀",
+        label: "Fun",
+        emojis: "🎀 🎉 🎊 🎁 🎈 👑 💎 💍 💄 👗 👠 🕶️ 🎧 🎵 🎶 🎤 🎮 🎬 📸 🍾 🥂 🍸 ☕ 🍰 🧁 🍫"
+    },
+    {
+        icon: "💸",
+        label: "Money & work",
+        emojis: "💸 💰 💵 💳 🤑 📈 🏆 🥇 🎯 ✅ ☑️ 📌 📝 💼 ⏰ ⌛ 🕛 🕓 🔔 📣 🚀 💯 🆒 🔝"
+    },
+    {
+        icon: "✅",
+        label: "Symbols",
+        emojis: "✨ ⭐ 💫 ⚡ 🔥 💥 ❗ ❓ ➕ ➖ ✔️ ❌ ⚠️ ♾️ 🔞 🔒 🔓 ➡️ ⬇️ ▪️ ◾ 🔸 🔹 🔻 🔺 ⚜️ ☯️ ♡ ✿ ❀ ❁ ★ ☆ ♪"
+    }
+];
+
+let emojiGroupIndex = 0;
+
+// When a tap outside last closed the popover, so that same tap doesn't
+// also close the whole window behind it.
+let emojiClosedAt = 0;
+
+
+function renderEmojiGrid() {
+
+    const group = EMOJI_GROUPS[emojiGroupIndex];
+
+    $$("#emojiTabs .emoji-tab").forEach((tab, i) =>
+        tab.classList.toggle("active", i === emojiGroupIndex)
+    );
+
+    $("#emojiGrid").innerHTML =
+        group.emojis.split(" ").map(
+            emoji =>
+                `<button type="button" class="emoji-btn" data-emoji="${emoji}" aria-label="${emoji}">${emoji}</button>`
+        ).join("");
+
+    $("#emojiGrid").scrollTop = 0;
+}
+
+
+function buildEmojiPicker() {
+
+    $("#emojiTabs").innerHTML =
+        EMOJI_GROUPS.map(
+            (group, i) =>
+                `<button type="button" class="emoji-tab" role="tab" data-group="${i}" title="${group.label}" aria-label="${group.label}">${group.icon}</button>`
+        ).join("");
+
+    renderEmojiGrid();
+}
+
+
+// Puts the popover just under the emoji button (right edges lined up),
+// or above it when there isn't room below.
+function positionEmojiPicker() {
+
+    const picker = $("#emojiPicker");
+    const toggle = $("#logoutEmojiToggle").getBoundingClientRect();
+
+    const margin = 8;
+    const gap = 6;
+
+    const width = picker.offsetWidth;
+    const height = picker.offsetHeight;
+
+    let left = toggle.right - width;
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+
+    let top = toggle.bottom + gap;
+
+    if (top + height > window.innerHeight - margin) {
+        top = toggle.top - gap - height;
+    }
+
+    top = Math.max(margin, top);
+
+    picker.style.left = left + "px";
+    picker.style.top = top + "px";
+}
+
+
+function setEmojiPickerOpen(open) {
+
+    $("#emojiPicker").classList.toggle("hidden", !open);
+    $("#logoutEmojiToggle").setAttribute("aria-expanded", String(open));
+
+    if (open) {
+        positionEmojiPicker();
+    }
+}
+
+
+function isEmojiPickerOpen() {
+    return !$("#emojiPicker").classList.contains("hidden");
+}
+
+
+// The text box's cursor is remembered separately, because some browsers
+// reset it when the box loses focus (e.g. after tapping the picker).
+let logoutTitleCaret = { start: 0, end: 0 };
+
+function rememberLogoutTitleCaret() {
+
+    const input = $("#logoutTitleInput");
+
+    logoutTitleCaret = {
+        start: input.selectionStart ?? input.value.length,
+        end: input.selectionEnd ?? input.value.length
+    };
+}
+
+["input", "keyup", "click", "blur"].forEach(type =>
+    $("#logoutTitleInput").addEventListener(type, rememberLogoutTitleCaret)
+);
+
+
+// Drops an emoji in at the cursor (or over the selection), unless that
+// would push the title past its length limit.
+function insertLogoutEmoji(emoji) {
+
+    const input = $("#logoutTitleInput");
+
+    const { start, end } = logoutTitleCaret;
+
+    const next =
+        input.value.slice(0, start) + emoji + input.value.slice(end);
+
+    if (splitGraphemes(next).length > LOGOUT_TITLE_MAX) {
+        return;
+    }
+
+    input.value = next;
+
+    const caret = start + emoji.length;
+
+    logoutTitleCaret = { start: caret, end: caret };
+
+    input.setSelectionRange(caret, caret);
+
+    renderLogoutTitlePreview();
+}
+
+
+buildEmojiPicker();
+
+$("#logoutEmojiToggle").addEventListener("click", function () {
+    setEmojiPickerOpen(!isEmojiPickerOpen());
+});
+
+// Tapping anywhere else in the window closes the popover.
+document.addEventListener("pointerdown", function (event) {
+
+    if (
+        isEmojiPickerOpen() &&
+        !event.target.closest("#emojiPicker") &&
+        !event.target.closest("#logoutEmojiToggle")
+    ) {
+        setEmojiPickerOpen(false);
+        emojiClosedAt = Date.now();
+    }
+
+});
+
+window.addEventListener("resize", function () {
+
+    if (isEmojiPickerOpen()) {
+        positionEmojiPicker();
+    }
+
+});
+
+$("#logoutTitleModal .modal-card").addEventListener("scroll", function () {
+
+    if (isEmojiPickerOpen()) {
+        positionEmojiPicker();
+    }
+
+});
+
+// Keep the cursor in the text box while tapping the picker, so an emoji
+// lands where the person was typing (and the phone keyboard stays put).
+$("#emojiPicker").addEventListener("mousedown", function (event) {
+    event.preventDefault();
+});
+
+$("#emojiTabs").addEventListener("click", function (event) {
+
+    const tab = event.target.closest(".emoji-tab");
+
+    if (!tab) {
+        return;
+    }
+
+    emojiGroupIndex = Number(tab.dataset.group);
+    renderEmojiGrid();
+});
+
+$("#emojiGrid").addEventListener("click", function (event) {
+
+    const btn = event.target.closest(".emoji-btn");
+
+    if (btn) {
+        insertLogoutEmoji(btn.dataset.emoji);
+    }
+});
+
+
+function openLogoutTitleModal() {
+
+    // Close whichever settings popover the click came from.
+    $$(".settings-group.open, .mobile-settings-group.open")
+        .forEach(group => group.classList.remove("open"));
+
+    $("#logoutTitleInput").value = data.logoutTitle || "";
+
+    setEmojiPickerOpen(false);
+
+    logoutTitleCaret = {
+        start: $("#logoutTitleInput").value.length,
+        end: $("#logoutTitleInput").value.length
+    };
+
+    renderLogoutTitlePreview();
+
+    $("#logoutTitleModal").classList.remove("hidden");
+
+    $("#logoutTitleInput").focus();
+}
+
+
+function closeLogoutTitleModal() {
+    setEmojiPickerOpen(false);
+    $("#logoutTitleModal").classList.add("hidden");
+}
+
+
+$("#logoutTitleBtn").addEventListener("click", openLogoutTitleModal);
+$("#mobileLogoutTitleBtn").addEventListener("click", openLogoutTitleModal);
+
+$("#closeLogoutTitleModal").addEventListener("click", closeLogoutTitleModal);
+$("#cancelLogoutTitle").addEventListener("click", closeLogoutTitleModal);
+
+$("#logoutTitleModal").addEventListener("click", function (event) {
+
+    if (
+        event.target.id === "logoutTitleModal" &&
+        Date.now() - emojiClosedAt > 400
+    ) {
+        closeLogoutTitleModal();
+    }
+
+});
+
+document.addEventListener("keydown", function (event) {
+
+    if (
+        event.key === "Escape" &&
+        !$("#logoutTitleModal").classList.contains("hidden")
+    ) {
+
+        // First Escape closes the emoji popover, the next the window.
+        if (isEmojiPickerOpen()) {
+            setEmojiPickerOpen(false);
+        } else {
+            closeLogoutTitleModal();
+        }
+
+    }
+
+});
+
+$("#logoutTitleInput").addEventListener("input", renderLogoutTitlePreview);
+
+$("#resetLogoutTitle").addEventListener("click", function () {
+
+    $("#logoutTitleInput").value = "";
+
+    renderLogoutTitlePreview();
+
+    $("#logoutTitleInput").focus();
+});
+
+$("#logoutTitleForm").addEventListener("submit", function (event) {
+
+    event.preventDefault();
+
+    const title = cleanLogoutTitle($("#logoutTitleInput").value);
+
+    // Blank, or typed out the same as the default: stay on the default.
+    data.logoutTitle = title === DEFAULT_LOGOUT_TITLE ? "" : title;
+
+    saveData();
+
+    closeLogoutTitleModal();
+
+    toast("Logout title saved", "success");
+});
 
 
 /* =====================================================
@@ -3928,7 +4782,7 @@ function openShiftModal() {
 
     shiftDraftCover = data.logoutShift.cover;
 
-    renderShiftModal();
+    preserveScroll(renderShiftModal);
 
     $("#shiftModal").classList.remove("hidden");
 
@@ -3990,7 +4844,7 @@ $("#shiftTypeToggle").addEventListener(
 
         shiftDraftCover = btn.dataset.cover === "true";
 
-        renderShiftModal();
+        preserveScroll(renderShiftModal);
     }
 );
 
@@ -4086,7 +4940,7 @@ function saveShiftToHistory(pending, times) {
 
     saveData();
 
-    renderSales();
+    preserveScroll(renderSales);
 }
 
 
@@ -4198,7 +5052,7 @@ $("#shiftForm").addEventListener(
 
         saveData();
 
-        renderSales();
+        preserveScroll(renderSales);
 
         closeShiftModal();
 
@@ -4229,7 +5083,7 @@ function openHistoryModal() {
     // a render on the way in — otherwise the list stays whatever it
     // was rendered as before the guard was added, or empty on first
     // load.
-    renderHistory();
+    preserveScroll(renderHistory);
 }
 
 
@@ -4358,7 +5212,7 @@ $("#clearHistory").addEventListener(
 
         saveData();
 
-        renderSales();
+        preserveScroll(renderSales);
 
         closeHistoryModal();
 
@@ -4376,7 +5230,7 @@ $("#clearHistory").addEventListener(
 
                     saveData();
 
-                    renderSales();
+                    preserveScroll(renderSales);
 
                     toast("History restored", "success");
                 }
@@ -4398,18 +5252,6 @@ $$(".nav-btn").forEach(
             "click",
             function () {
 
-                // Remember where the user was on the tab they're
-                // leaving, so coming back restores it instead of
-                // dumping them back at the top.
-                const mainEl = $(".main");
-                const outgoingPage = $(".page.active");
-
-                if (mainEl && outgoingPage) {
-                    pageScrollPositions[outgoingPage.id] =
-                        getScroller().scrollTop;
-                }
-
-
                 $$(".nav-btn")
                     .forEach(
                         btn =>
@@ -4418,44 +5260,11 @@ $$(".nav-btn").forEach(
                             )
                     );
 
-
                 this.classList.add(
                     "active"
                 );
 
-
-                $$(".page")
-                    .forEach(
-                        page =>
-                            page.classList.remove(
-                                "active"
-                            )
-                    );
-
-
-                const targetPageId = this.dataset.page;
-
-                $(
-                    "#" +
-                    targetPageId
-                ).classList.add(
-                    "active"
-                );
-
-
-                if (mainEl) {
-
-                    const restoreScroll = () => {
-                        getScroller().scrollTop =
-                            pageScrollPositions[targetPageId] || 0;
-                    };
-
-                    // Layout for the newly-shown page isn't settled
-                    // until the next frame, so wait for it before
-                    // restoring scroll position.
-                    requestAnimationFrame(restoreScroll);
-
-                }
+                showPage(this.dataset.page);
 
             }
         );
@@ -4482,23 +5291,11 @@ $$("#faqBtn, #mobileFaqBtn").forEach(
             "click",
             function () {
 
-                const mainEl = $(".main");
-                const outgoingPage = $(".page.active");
-
-                if (mainEl && outgoingPage) {
-                    pageScrollPositions[outgoingPage.id] =
-                        getScroller().scrollTop;
-                }
-
                 $$(".nav-btn").forEach(
                     btn => btn.classList.remove("active")
                 );
 
-                $$(".page").forEach(
-                    page => page.classList.remove("active")
-                );
-
-                $("#faq").classList.add("active");
+                showPage("faq");
 
                 // Close the settings popover(s) if they happened to be open.
                 const settingsGroup =
@@ -4513,13 +5310,6 @@ $$("#faqBtn, #mobileFaqBtn").forEach(
                 if (mobileSettingsGroup) {
                     mobileSettingsGroup.classList.remove("open");
                 }
-
-                requestAnimationFrame(
-                    () => {
-                        getScroller().scrollTop =
-                            pageScrollPositions.faq || 0;
-                    }
-                );
 
             }
         );
@@ -4779,7 +5569,9 @@ function addCategory(type) {
 
     saveData();
 
-    renderChips(type);
+    preserveScroll(function () {
+        renderChips(type);
+    });
 
     toast(`"${trimmed}" category added`, "success");
 }
@@ -4866,9 +5658,10 @@ function renameCategory(type, oldName) {
 
     saveData();
 
-    renderChips(type);
-
-    renderContent(type);
+    preserveScroll(function () {
+        renderChips(type);
+        renderContent(type);
+    });
 
     toast(`Renamed to "${trimmed}"`, "success");
 }
@@ -4905,9 +5698,10 @@ async function removeCategory(type, category) {
 
     saveData();
 
-    renderChips(type);
-
-    renderContent(type);
+    preserveScroll(function () {
+        renderChips(type);
+        renderContent(type);
+    });
 
     toast(`"${category}" category removed`, "delete", {
         actionLabel: "Undo",
@@ -4929,9 +5723,18 @@ async function removeCategory(type, category) {
 
             saveData();
 
-            renderChips(type);
+            preserveScroll(function () {
 
-            renderContent(type);
+                renderChips(type);
+
+                renderContent(type);
+
+            });
+
+            flashRestoreFadeIn([
+                Array.from($("#" + type + "Chips").children)
+                    .find(chip => chip.dataset.category === category)
+            ]);
 
             toast(`"${category}" category restored`, "success");
         }
@@ -5123,10 +5926,17 @@ function enterSelectMode(type, id) {
         navigator.vibrate(15);
     }
 
-    renderContent(type);
+    // Flip the classes on the cards that are already on screen
+    // instead of rebuilding the grid. Rebuilding it (renderContent)
+    // threw the page back to the top AND meant the select circles /
+    // hidden buttons just snapped in with nothing to transition
+    // from. See the `.select-mode` rules in style.css.
+    updateSelectionUI(type);
 }
 
 
+// Doesn't re-render the cards. If the caller changed the data too
+// (e.g. bulkDeleteItems), it calls renderContent() itself.
 function exitSelectMode(type) {
 
     if (!selectMode[type]) {
@@ -5136,7 +5946,7 @@ function exitSelectMode(type) {
     selectMode[type] = false;
     selectedIds[type] = new Set();
 
-    renderContent(type);
+    updateSelectionUI(type);
 }
 
 
@@ -5155,12 +5965,25 @@ function updateSelectionUI(type) {
         $("#" + type + "List");
 
     if (container) {
+
+        const inSelectMode = selectMode[type];
+
+        // Toggling this class is what fades the select circles in/out
+        // and the edit/copy buttons out/in (style.css).
+        container.classList.toggle("select-mode", inSelectMode);
+
         container
             .querySelectorAll(".content-card")
             .forEach(el => {
                 el.classList.toggle(
                     "selected",
                     selectedIds[type].has(el.dataset.id)
+                );
+
+                // Same value renderContent() writes into the markup.
+                el.setAttribute(
+                    "draggable",
+                    inSelectMode ? "false" : "true"
                 );
             });
     }
@@ -5324,15 +6147,23 @@ async function bulkDeleteItems(type, idSet) {
 
     saveData();
 
-    exitSelectMode(type);
+    preserveScroll(function () {
 
-    if (CATEGORIZED_TYPES.includes(type)) {
-        renderChips(type);
-    }
+        exitSelectMode(type);
 
-    if (type === "models") {
-        renderSales();
-    }
+        if (CATEGORIZED_TYPES.includes(type)) {
+            renderChips(type);
+        }
+
+        // exitSelectMode() no longer re-renders, and the deleted
+        // cards still need to leave the grid.
+        renderContent(type);
+
+        if (type === "models") {
+            renderSales();
+        }
+
+    });
 
     toast(
         removedEntries.length === 1
@@ -5375,15 +6206,29 @@ async function bulkDeleteItems(type, idSet) {
 
                 saveData();
 
-                if (CATEGORIZED_TYPES.includes(type)) {
-                    renderChips(type);
-                }
+                // Keep the page where it is instead of jumping to
+                // the top when the cards come back.
+                preserveScroll(function () {
 
-                renderContent(type);
+                    if (CATEGORIZED_TYPES.includes(type)) {
+                        renderChips(type);
+                    }
 
-                if (type === "models") {
-                    renderSales();
-                }
+                    renderContent(type);
+
+                    if (type === "models") {
+                        renderSales();
+                    }
+
+                });
+
+                flashRestoreFadeIn(
+                    removedEntries.map(
+                        ({ item }) =>
+                            $("#" + type + "List")
+                                .querySelector(`[data-id="${item.id}"]`)
+                    )
+                );
 
             }
         }
@@ -5606,7 +6451,9 @@ function endSelectDrag() {
                             // it (and only it) to the trash.
                             if (!selectedIds[selectDragState.type].has(selectDragState.id)) {
                                 selectedIds[selectDragState.type].add(selectDragState.id);
-                                renderContent(selectDragState.type);
+                                preserveScroll(function () {
+                                    renderContent(selectDragState.type);
+                                });
                             }
 
                             startSelectDrag(
@@ -5830,7 +6677,9 @@ $$(".search").forEach(
                         );
 
 
-                renderContent(type);
+                preserveScroll(function () {
+                    renderContent(type);
+                });
             }
         );
 
@@ -5858,7 +6707,9 @@ $$(".search").forEach(
 
         if (clear && input.value) {
             input.value = "";
-            renderContent("scripts");
+            preserveScroll(function () {
+                renderContent("scripts");
+            });
         }
 
         box.classList.remove("open");
@@ -6035,7 +6886,15 @@ $$(".chips").forEach(
                 const outgoingCategory =
                     currentCategory[type];
 
-                if (outgoingCategory) {
+                const grid = $("#" + type + "List");
+
+                // Clicking through chips quickly: the category we're
+                // "leaving" was never shown, so there's no scroll
+                // position to remember for it.
+                const midFade =
+                    !!grid && grid.classList.contains("fx-out");
+
+                if (outgoingCategory && !midFade) {
 
                     categoryScrollPositions[type] =
                         categoryScrollPositions[type] || {};
@@ -6070,25 +6929,29 @@ $$(".chips").forEach(
                     incomingCategory;
 
 
-                renderContent(type);
+                // The old category fades out, the new one fades in.
+                fadeSwap(grid, function () {
 
+                    renderContent(type);
 
-                // Layout for the freshly-rendered list isn't settled
-                // until the next frame, so wait for it before
-                // restoring scroll position.
-                requestAnimationFrame(
-                    () => {
+                    // Layout for the freshly-rendered list isn't
+                    // settled until the next frame, so wait for it
+                    // before restoring scroll position.
+                    requestAnimationFrame(
+                        () => {
 
-                        const saved =
-                            (categoryScrollPositions[type] || {})[
-                                incomingCategory
-                            ];
+                            const saved =
+                                (categoryScrollPositions[type] || {})[
+                                    incomingCategory
+                                ];
 
-                        getScroller().scrollTop =
-                            saved || 0;
+                            getScroller().scrollTop =
+                                saved || 0;
 
-                    }
-                );
+                        }
+                    );
+
+                });
 
             }
         );
@@ -6322,12 +7185,16 @@ function reorderItem(type, draggedId, targetId) {
 
     saveData();
 
-    renderContent(type);
+    preserveScroll(function () {
 
-    // Model order drives the "Add a sale" list order too.
-    if (type === "models") {
-        renderSales();
-    }
+        renderContent(type);
+
+        // Model order drives the "Add a sale" list order too.
+        if (type === "models") {
+            renderSales();
+        }
+
+    });
 }
 
 
@@ -6496,7 +7363,9 @@ function reorderCategory(type, draggedCategory, targetCategory) {
 
     saveData();
 
-    renderChips(type);
+    preserveScroll(function () {
+        renderChips(type);
+    });
 }
 
 
@@ -7133,6 +8002,18 @@ $$(".add-content").forEach(
 
 function closeModal() {
 
+    // If focus is still inside the modal (e.g. the title field you
+    // just typed in) and we hide the modal out from under it, the
+    // browser blurs focus back to <body> on its own and some
+    // browsers snap the page scroll to the top when that happens.
+    // Blurring first, before the modal is hidden, avoids that.
+    if (
+        document.activeElement &&
+        $("#modal").contains(document.activeElement)
+    ) {
+        document.activeElement.blur();
+    }
+
     $("#modal").classList.add(
         "hidden"
     );
@@ -7285,7 +8166,9 @@ $("#contentForm").addEventListener(
             currentCategory[modalType] =
                 "All";
 
-            renderChips(modalType);
+            preserveScroll(function () {
+                renderChips(modalType);
+            });
 
         }
 
@@ -7296,24 +8179,28 @@ $("#contentForm").addEventListener(
 
         saveData();
 
-        closeModal();
+        preserveScroll(function () {
 
-        if (
-            CATEGORIZED_TYPES.includes(savedType)
-        ) {
-            renderChips(savedType);
-        }
+            closeModal();
 
-        renderContent(
-            savedType
-        );
+            if (
+                CATEGORIZED_TYPES.includes(savedType)
+            ) {
+                renderChips(savedType);
+            }
 
-        // Adding/editing a model needs to show up immediately in the
-        // Sales tab too — the "Add a sale" model list, the today's-sale
-        // header, and the model picker all read from data.models.
-        if (savedType === "models") {
-            renderSales();
-        }
+            renderContent(
+                savedType
+            );
+
+            // Adding/editing a model needs to show up immediately in the
+            // Sales tab too — the "Add a sale" model list, the today's-sale
+            // header, and the model picker all read from data.models.
+            if (savedType === "models") {
+                renderSales();
+            }
+
+        });
 
         const noun = savedType === "models" ? "Model" : "Script";
 
@@ -7421,17 +8308,21 @@ async function deleteItem(
 
     saveData();
 
-    if (
-        CATEGORIZED_TYPES.includes(type)
-    ) {
-        renderChips(type);
-    }
+    preserveScroll(function () {
 
-    renderContent(type);
+        if (
+            CATEGORIZED_TYPES.includes(type)
+        ) {
+            renderChips(type);
+        }
 
-    if (type === "models") {
-        renderSales();
-    }
+        renderContent(type);
+
+        if (type === "models") {
+            renderSales();
+        }
+
+    });
 
     toast(
         deletedTitle ? `"${deletedTitle}" deleted` : "Deleted",
@@ -7461,15 +8352,26 @@ async function deleteItem(
 
                 saveData();
 
-                if (CATEGORIZED_TYPES.includes(type)) {
-                    renderChips(type);
-                }
+                // Keep the page where it is instead of jumping to
+                // the top when the card comes back.
+                preserveScroll(function () {
 
-                renderContent(type);
+                    if (CATEGORIZED_TYPES.includes(type)) {
+                        renderChips(type);
+                    }
 
-                if (type === "models") {
-                    renderSales();
-                }
+                    renderContent(type);
+
+                    if (type === "models") {
+                        renderSales();
+                    }
+
+                });
+
+                flashRestoreFadeIn([
+                    $("#" + type + "List")
+                        .querySelector(`[data-id="${id}"]`)
+                ]);
 
                 toast(
                     deletedTitle ? `"${deletedTitle}" restored` : "Item restored",
@@ -7556,8 +8458,17 @@ function toast(message, type = "notice", options = {}) {
     let dismissTimer;
 
     function removeToast() {
+
+        // Fade out, then collapse so the toasts below glide up
+        // instead of jumping when this one is removed.
         el.classList.remove("show");
-        setTimeout(() => el.remove(), 300);
+
+        el.style.maxHeight = el.offsetHeight + "px";
+        void el.offsetHeight;
+        el.classList.add("leaving");
+        el.style.maxHeight = "0px";
+
+        setTimeout(() => el.remove(), 420);
     }
 
     function scheduleDismiss() {
@@ -7822,6 +8733,18 @@ $("#mobileThemeToggle").addEventListener(
 );
 
 
+$("#reduceMotionToggle").addEventListener(
+    "click",
+    toggleReduceMotion
+);
+
+
+$("#mobileReduceMotionToggle").addEventListener(
+    "click",
+    toggleReduceMotion
+);
+
+
 $("#sidebarCollapseBtn").addEventListener(
     "click",
     toggleSidebarCollapse
@@ -7956,12 +8879,16 @@ function importData(file) {
 
         updateHistory();
 
-        renderSales();
+        preserveScroll(function () {
 
-        renderChips("scripts");
+            renderSales();
 
-        renderContent("models");
-        renderContent("scripts");
+            renderChips("scripts");
+
+            renderContent("models");
+            renderContent("scripts");
+
+        });
 
         toast("Import complete!", "success");
     };
@@ -8407,6 +9334,8 @@ document.addEventListener(
 
 initTheme();
 
+initReduceMotion();
+
 initSidebarCollapse();
 
 renderAll();
@@ -8426,7 +9355,7 @@ setInterval(function () {
 
     if (key !== lastKnownDateKey) {
         lastKnownDateKey = key;
-        renderAll();
+        preserveScroll(renderAll);
     }
 
 }, 60000);
