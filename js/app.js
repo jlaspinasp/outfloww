@@ -40,8 +40,19 @@ function normalizeData(obj) {
     obj.scripts = obj.scripts || [];
     obj.target = obj.target || 0;
 
-    obj.customCategories = obj.customCategories || {};
-    obj.customCategories.scripts = obj.customCategories.scripts || [];
+    // Guard against a corrupted/hand-edited backup where
+    // customCategories isn't a plain object (e.g. a string or array) —
+    // reset it instead of silently leaving it broken.
+    obj.customCategories =
+        (obj.customCategories &&
+            typeof obj.customCategories === "object" &&
+            !Array.isArray(obj.customCategories))
+            ? obj.customCategories
+            : {};
+    obj.customCategories.scripts =
+        Array.isArray(obj.customCategories.scripts)
+            ? obj.customCategories.scripts
+            : [];
 
     // Per-model daily targets, e.g. { "<modelId>": 300 }
     obj.modelTargets = obj.modelTargets || {};
@@ -88,6 +99,12 @@ let currentCategory = {
 // null = "All" (combined, original behavior).
 let currentModelFilter = null;
 
+// The model whose row is currently playing its "un-select" (revert)
+// animation — see selectModel() and the ".deselecting" CSS below.
+// null when nothing is reverting.
+let deselectingModelId = null;
+let deselectingModelTimer = null;
+
 // Which day's row is currently expanded in the history modal. When a
 // model is selected this is a row key (a day can have more than one
 // row — one per saved shift), not just a date. Drives the fixed
@@ -100,6 +117,20 @@ let expandedHistoryDate = null;
 // row key back into the real date, its saved shift, and exactly the
 // sale times that belong to that one row.
 let historyRowMeta = {};
+
+// How many history rows to render at once. renderHistory() slices to
+// this count and shows a "Load more" row when there's more history
+// than that, instead of dumping months of rows into the DOM in one
+// go. Reset to the initial page whenever the modal is (re)opened.
+const HISTORY_PAGE_SIZE = 30;
+let historyVisibleCount = HISTORY_PAGE_SIZE;
+
+// Multi-select for the Models/Scripts content grids — long-press a
+// card to turn this on (iOS Photos style), tap more cards to add to
+// the selection, then drag a selected card onto the toolbar's trash
+// button (or just tap it) to delete everything selected at once.
+let selectMode = { models: false, scripts: false };
+let selectedIds = { models: new Set(), scripts: new Set() };
 
 // Remembers each tab's scroll position so switching tabs and
 // coming back doesn't dump you at the top.
@@ -129,7 +160,10 @@ const ICONS = {
     clock: svgIcon(`<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`),
     heart: svgIcon(`<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>`),
     edit: svgIcon(`<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>`),
-    copy: svgIcon(`<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`)
+    copy: svgIcon(`<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`),
+    trash: svgIcon(`<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>`),
+    alertTriangle: svgIcon(`<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>`),
+    info: svgIcon(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/>`)
 };
 
 
@@ -269,6 +303,78 @@ function $(selector) {
 
 function $$(selector) {
     return document.querySelectorAll(selector);
+}
+
+
+/* Promise-based replacement for window.confirm(), using the app's
+   own modal styling (#confirmModal) instead of the native dialog.
+   Resolves true on Confirm, false on Cancel, backdrop click, or
+   Escape. options: { title, message, confirmLabel, icon }. icon is
+   "trash" or "warning" (default "warning") — which badge shows next
+   to the title. */
+function confirmDialog(options) {
+
+    return new Promise(resolve => {
+
+        const modal = $("#confirmModal");
+        const iconEl = $("#confirmModalIcon");
+        const titleEl = $("#confirmModalTitle");
+        const descEl = $("#confirmModalDesc");
+        const cancelBtn = $("#confirmModalCancel");
+        const confirmBtn = $("#confirmModalConfirm");
+
+        if (iconEl) {
+            iconEl.innerHTML =
+                options.icon === "trash"
+                    ? ICONS.trash
+                    : ICONS.alertTriangle;
+        }
+
+        titleEl.textContent = options.title || "Are you sure?";
+        descEl.textContent = options.message || "";
+        confirmBtn.textContent = options.confirmLabel || "Confirm";
+
+        modal.classList.remove("hidden");
+        cancelBtn.focus();
+
+        function settle(result) {
+
+            modal.classList.add("hidden");
+
+            modal.removeEventListener("click", onBackdrop);
+            document.removeEventListener("keydown", onKeydown);
+            cancelBtn.removeEventListener("click", onCancel);
+            confirmBtn.removeEventListener("click", onConfirm);
+
+            resolve(result);
+        }
+
+        function onCancel() {
+            settle(false);
+        }
+
+        function onConfirm() {
+            settle(true);
+        }
+
+        function onBackdrop(event) {
+            if (event.target === modal) {
+                settle(false);
+            }
+        }
+
+        function onKeydown(event) {
+            if (event.key === "Escape") {
+                settle(false);
+            }
+        }
+
+        cancelBtn.addEventListener("click", onCancel);
+        confirmBtn.addEventListener("click", onConfirm);
+        modal.addEventListener("click", onBackdrop);
+        document.addEventListener("keydown", onKeydown);
+
+    });
 }
 
 
@@ -787,23 +893,45 @@ function getDateKey() {
 
 function money(amount) {
 
-    return "$" +
-        Number(amount).toLocaleString(
+    const num = Number(amount);
+
+    // Invalid/missing amounts (corrupted data, a stray undefined)
+    // show as $0.00 instead of the confusing "$NaN".
+    if (!Number.isFinite(num)) {
+        return "$0.00";
+    }
+
+    const formatted =
+        Math.abs(num).toLocaleString(
             undefined,
             {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }
         );
+
+    // Sign goes in front of the "$" ("-$12.30"), not after it
+    // ("$-12.30" — what plain string concatenation used to produce).
+    return (num < 0 ? "-$" : "$") + formatted;
 }
 
 
 function moneyShort(amount) {
 
+    const num = Number(amount);
+
+    if (!Number.isFinite(num)) {
+        return "$0";
+    }
+
     // Whole-dollar, no-cents version for tight spaces like chart
     // bar labels, where "$120" reads faster than "$120.00".
-    return "$" +
-        Math.round(Number(amount)).toLocaleString();
+    const rounded = Math.round(Math.abs(num));
+
+    // A small negative that rounds to 0 reads as "$0", not "-$0".
+    const sign = num < 0 && rounded !== 0 ? "-$" : "$";
+
+    return sign + rounded.toLocaleString();
 }
 
 
@@ -949,8 +1077,12 @@ function autoCloseStaleShifts() {
 function getTotal(sales) {
 
     return sales.reduce(
-        (total, sale) =>
-            total + Number(sale.amount),
+        (total, sale) => {
+            // A single corrupted/non-numeric sale.amount shouldn't
+            // turn the whole total into NaN — skip it instead.
+            const amount = Number(sale.amount);
+            return total + (Number.isFinite(amount) ? amount : 0);
+        },
         0
     );
 }
@@ -1367,10 +1499,18 @@ function getAvatarColor(id) {
 
 function hexToRgb(hex) {
 
-    hex = hex.replace("#", "");
+    hex = String(hex).replace("#", "");
 
     if (hex.length === 3) {
         hex = hex.split("").map(c => c + c).join("");
+    }
+
+    // A malformed value (wrong length, non-hex characters — e.g. from
+    // a corrupted color) used to silently parse to black via NaN
+    // bitwise coercion. Fall back to the same neutral gray
+    // parseColorToRgb() already uses for unrecognized colors.
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+        return { r: 200, g: 200, b: 200 };
     }
 
     const num = parseInt(hex, 16);
@@ -1684,9 +1824,33 @@ document.addEventListener(
 );
 
 
+// How long the ".deselecting" revert animation runs for — must match
+// the longest animation-duration used by ".deselecting" in style.css.
+const DESELECT_ANIM_MS = 350;
+
 function selectModel(modelId) {
 
-    currentModelFilter = modelId || null;
+    const nextId = modelId || null;
+    const previousId = currentModelFilter;
+
+    // Losing selection (deselected outright, or swapped for a
+    // different model): give that row a one-shot revert animation
+    // instead of just snapping back to rest on the next render.
+    if (previousId !== null && previousId !== nextId) {
+
+        deselectingModelId = previousId;
+
+        clearTimeout(deselectingModelTimer);
+        deselectingModelTimer = setTimeout(
+            function () {
+                deselectingModelId = null;
+            },
+            DESELECT_ANIM_MS
+        );
+
+    }
+
+    currentModelFilter = nextId;
 
     renderSales();
 }
@@ -2292,7 +2456,7 @@ function renderTargetBreakdown() {
             const ink = getRowInk(rowColor);
 
             return `
-                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}" data-model="${model.id}" draggable="true" role="button" tabindex="0" aria-pressed="${model.id === currentModelFilter}" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}" data-model="${model.id}" draggable="true" role="button" tabindex="0" aria-pressed="${model.id === currentModelFilter}" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
 
                     <div class="target-breakdown-head">
                         <span class="target-breakdown-name">
@@ -2319,6 +2483,17 @@ function renderTargetBreakdown() {
                             ? `${money(net)} net / ${money(target)}`
                             : "Set a target in this model's tab."}
                     </div>
+
+                    <button
+                        type="button"
+                        class="target-breakdown-info-btn"
+                        draggable="false"
+                        title="View ${escapeHTML(model.title)}'s info"
+                        aria-label="View ${escapeHTML(model.title)}'s info"
+                        onclick="event.stopPropagation(); openViewModal('models', '${model.id}')"
+                    >
+                        ${ICONS.info}
+                    </button>
 
                 </div>
             `;
@@ -2585,6 +2760,7 @@ $("#targetForm").addEventListener(
 
 
         if (!value || value <= 0) {
+            toast("Enter an amount above $0", "error");
             return;
         }
 
@@ -2870,7 +3046,7 @@ function deleteSale(index) {
 
     if (removedSale) {
         pushSaleRemoved(dateKey, removedSale);
-        toast(`${money(removedSale.amount)} sale removed`, "success");
+        toast(`${money(removedSale.amount)} sale removed`, "delete");
     }
 
     renderSales();
@@ -2956,6 +3132,17 @@ function updateHistory() {
 
 function renderHistory() {
 
+    // Nobody can see this list right now, and it gets re-rendered on
+    // essentially every data change (renderSales() calls this, and
+    // renderSales() runs from 15+ places). Rebuilding the full row
+    // set — including the model-specific branch, which recomputes
+    // computeModelDailyRows() from scratch — while the modal is
+    // hidden is pure waste. Skip it; openHistoryModal() renders once
+    // on the way in, so the list is current by the time it's shown.
+    if ($("#historyModal").classList.contains("hidden")) {
+        return;
+    }
+
     // Rebuilding the list means whatever was expanded no longer
     // has a matching breakdown element, so the fixed logout button
     // shouldn't keep pointing at a stale date.
@@ -2989,13 +3176,17 @@ function renderHistory() {
 
         }
 
-        const modelHistory =
+        const modelHistoryFull =
             computeModelDailyRows(currentModelFilter, true)
                 .sort((a, b) => b.date.localeCompare(a.date));
 
+        const modelHistory =
+            modelHistoryFull.slice(0, historyVisibleCount);
+
         // Rebuilt every render so a row key always maps back to the
         // right date + saved shift + exact sale times, even across a
-        // day with more than one shift.
+        // day with more than one shift. Only the visible slice needs
+        // an entry — rows past the page size aren't in the DOM yet.
         historyRowMeta = {};
 
         modelHistory.forEach(item => {
@@ -3036,7 +3227,12 @@ function renderHistory() {
 
                     <div class="history-model-breakdown hidden" data-breakdown="${item.rowKey}"></div>
                 `
-            ).join("");
+            ).join("") +
+            (
+                modelHistoryFull.length > modelHistory.length
+                    ? `<button type="button" class="history-load-more">Load more (${modelHistoryFull.length - modelHistory.length} left)</button>`
+                    : ""
+            );
 
         $("#historyList").innerHTML = modelHistoryRowsHtml;
 
@@ -3044,7 +3240,7 @@ function renderHistory() {
             "This model's previous days will appear here.";
 
         $("#emptyHistory").style.display =
-            modelHistory.length ? "none" : "block";
+            modelHistoryFull.length ? "none" : "block";
 
         return;
     }
@@ -3057,10 +3253,13 @@ function renderHistory() {
     // The history list always shows the same thing regardless of
     // whether a model is selected on the page — just the dates.
     // Click a date to see each model's net and target status for it.
-    const history =
+    const historyFull =
         data.history
             .filter(item => item.date !== today || hasClosedShift(item.date))
             .sort((a, b) => b.date.localeCompare(a.date));
+
+    const history =
+        historyFull.slice(0, historyVisibleCount);
 
     const historyRowsHtml =
         history.map(
@@ -3073,7 +3272,12 @@ function renderHistory() {
 
                 <div class="history-model-breakdown hidden" data-breakdown="${item.date}"></div>
             `
-        ).join("");
+        ).join("") +
+        (
+            historyFull.length > history.length
+                ? `<button type="button" class="history-load-more">Load more (${historyFull.length - history.length} left)</button>`
+                : ""
+        );
 
     $("#historyList").innerHTML = historyRowsHtml;
 
@@ -3081,7 +3285,7 @@ function renderHistory() {
         "Your previous days will appear here.";
 
     $("#emptyHistory").style.display =
-        history.length ? "none" : "block";
+        historyFull.length ? "none" : "block";
 }
 
 
@@ -3252,7 +3456,8 @@ function renderModelDayDetail(rowKey, container) {
 
     const gross =
         sales.reduce(
-            (total, sale) => total + sale.amount,
+            (total, sale) =>
+                total + (Number.isFinite(sale.amount) ? sale.amount : 0),
             0
         );
 
@@ -3328,7 +3533,8 @@ function buildLogoutText(dateKey, shift, scope) {
 
     const gross =
         sales.reduce(
-            (total, sale) => total + sale.amount,
+            (total, sale) =>
+                total + (Number.isFinite(sale.amount) ? sale.amount : 0),
             0
         );
 
@@ -3566,11 +3772,16 @@ function expandAllHistoryRowsForDate(calendarDate) {
 
     });
 
-    // More than one shift can now be open at once, so there's no
-    // single row left for the fixed "Copy for logout" button to point
-    // at — hide it until the person narrows it down by clicking one
-    // row directly, which collapses the rest back down.
-    expandedHistoryDate = null;
+    // A day with more than one shift is genuinely ambiguous — the
+    // fixed button can't point at a single row, so it stays hidden
+    // until the person narrows it down by clicking one row directly.
+    // A day with exactly one shift has no such ambiguity, so show
+    // the button for it immediately instead of always hiding it.
+    expandedHistoryDate =
+        rows.length === 1
+            ? rows[0].dataset.date
+            : null;
+
     updateCopyLogoutButton();
 
     rows[0].scrollIntoView({ block: "nearest" });
@@ -3580,6 +3791,15 @@ function expandAllHistoryRowsForDate(calendarDate) {
 $("#historyList").addEventListener(
     "click",
     event => {
+
+        const loadMoreBtn =
+            event.target.closest(".history-load-more");
+
+        if (loadMoreBtn) {
+            historyVisibleCount += HISTORY_PAGE_SIZE;
+            renderHistory();
+            return;
+        }
 
         const row =
             event.target.closest(".history-row");
@@ -3809,7 +4029,11 @@ function openShiftSaveConfirm() {
         shift: draft
     };
 
-    const gross = live.reduce((total, sale) => total + sale.amount, 0);
+    const gross = live.reduce(
+        (total, sale) =>
+            total + (Number.isFinite(sale.amount) ? sale.amount : 0),
+        0
+    );
 
     $("#shiftSaveModel").textContent = model.title;
 
@@ -3990,9 +4214,22 @@ $("#shiftForm").addEventListener(
 
 function openHistoryModal() {
 
+    // Back to the first page every time the modal is opened fresh —
+    // otherwise a page size left over from a previous visit (or
+    // bumped way up by repeated "Load more" clicks) would carry over
+    // silently.
+    historyVisibleCount = HISTORY_PAGE_SIZE;
+
     $("#historyModal").classList.remove(
         "hidden"
     );
+
+    // renderHistory() now bails out while the modal is hidden (see
+    // its own comment), so this is the one place that has to force
+    // a render on the way in — otherwise the list stays whatever it
+    // was rendered as before the guard was added, or empty on first
+    // load.
+    renderHistory();
 }
 
 
@@ -4061,23 +4298,29 @@ $("#copyLogoutBtn").addEventListener(
 
 $("#clearHistory").addEventListener(
     "click",
-    function () {
+    async function () {
 
         const activeModel =
             currentModelFilter === null
                 ? null
                 : getModelById(currentModelFilter);
 
-        if (
-            !confirm(
-                activeModel
-                    ? `Clear ${activeModel.title}'s saved history? (Today's sales are kept.)`
-                    : "Clear saved history?"
-            )
-        ) {
+        const confirmed = await confirmDialog({
+            title: "Clear saved history?",
+            message: activeModel
+                ? `Clear ${activeModel.title}'s saved history? (Today's sales are kept.)`
+                : "Clear saved history?",
+            confirmLabel: "Clear history"
+        });
+
+        if (!confirmed) {
             return;
         }
 
+        // Snapshots for Undo — cheap since history/sales are plain
+        // JSON-able data, and this only runs on a user click.
+        const historySnapshot = JSON.parse(JSON.stringify(data.history));
+        const salesSnapshot = JSON.parse(JSON.stringify(data.sales));
 
         if (currentModelFilter === null) {
 
@@ -4123,7 +4366,21 @@ $("#clearHistory").addEventListener(
             activeModel
                 ? `${activeModel.title}'s history cleared`
                 : "History cleared",
-            "success"
+            "delete",
+            {
+                actionLabel: "Undo",
+                onAction: function () {
+
+                    data.history = historySnapshot;
+                    data.sales = salesSnapshot;
+
+                    saveData();
+
+                    renderSales();
+
+                    toast("History restored", "success");
+                }
+            }
         );
     }
 );
@@ -4523,6 +4780,8 @@ function addCategory(type) {
     saveData();
 
     renderChips(type);
+
+    toast(`"${trimmed}" category added`, "success");
 }
 
 
@@ -4610,19 +4869,27 @@ function renameCategory(type, oldName) {
     renderChips(type);
 
     renderContent(type);
+
+    toast(`Renamed to "${trimmed}"`, "success");
 }
 
 
-function removeCategory(type, category) {
+async function removeCategory(type, category) {
 
-    if (
-        !confirm(
-            `Remove the "${category}" category? Items already using it will keep it, but you won't be able to filter by it here anymore.`
-        )
-    ) {
+    const confirmed = await confirmDialog({
+        title: "Remove category?",
+        message: `Remove the "${category}" category? Items already using it will keep it, but you won't be able to filter by it here anymore.`,
+        confirmLabel: "Remove"
+    });
+
+    if (!confirmed) {
         return;
     }
 
+    const originalIndex =
+        data.customCategories[type].indexOf(category);
+
+    const previousSelection = currentCategory[type];
 
     data.customCategories[type] =
         data.customCategories[type].filter(
@@ -4642,7 +4909,33 @@ function removeCategory(type, category) {
 
     renderContent(type);
 
-    toast(`"${category}" category removed`, "success");
+    toast(`"${category}" category removed`, "delete", {
+        actionLabel: "Undo",
+        onAction: function () {
+
+            const restoreAt =
+                Math.min(
+                    originalIndex,
+                    data.customCategories[type].length
+                );
+
+            data.customCategories[type].splice(
+                restoreAt < 0 ? data.customCategories[type].length : restoreAt,
+                0,
+                category
+            );
+
+            currentCategory[type] = previousSelection;
+
+            saveData();
+
+            renderChips(type);
+
+            renderContent(type);
+
+            toast(`"${category}" category restored`, "success");
+        }
+    });
 }
 
 
@@ -4710,18 +5003,28 @@ function renderContent(type) {
     const container =
         $("#" + type + "List");
 
+    const inSelectMode =
+        selectMode[type];
+
+    container.classList.toggle(
+        "select-mode",
+        inSelectMode
+    );
+
 
     container.innerHTML =
         filtered.map(
             item => `
 
                 <article
-                    class="card content-card"
-                    draggable="true"
+                    class="card content-card${selectedIds[type].has(item.id) ? " selected" : ""}"
+                    draggable="${inSelectMode ? "false" : "true"}"
                     tabindex="0"
                     data-id="${item.id}"
-                    onclick="openViewModal('${type}', '${item.id}')"
+                    onclick="handleCardClick('${type}', '${item.id}', event)"
                 >
+
+                    <div class="card-select-circle" aria-hidden="true"></div>
 
                     <button
                         class="card-icon-btn card-edit-btn"
@@ -4787,8 +5090,694 @@ function renderContent(type) {
                 ? "none"
                 : "block";
 
+    updateSelectToolbar();
 
 }
+
+
+/* =====================================================
+   MULTI-SELECT — long-press a card to select, like iOS
+   Photos, then drag the selection onto the trash button
+   (or tap it) to delete everything at once.
+   ===================================================== */
+
+
+function handleCardClick(type, id, event) {
+
+    if (selectMode[type]) {
+        event.stopPropagation();
+        toggleCardSelection(type, id);
+        return;
+    }
+
+    openViewModal(type, id);
+}
+
+
+function enterSelectMode(type, id) {
+
+    selectMode[type] = true;
+    selectedIds[type] = new Set([id]);
+
+    if (navigator.vibrate) {
+        navigator.vibrate(15);
+    }
+
+    renderContent(type);
+}
+
+
+function exitSelectMode(type) {
+
+    if (!selectMode[type]) {
+        return;
+    }
+
+    selectMode[type] = false;
+    selectedIds[type] = new Set();
+
+    renderContent(type);
+}
+
+
+// Toggling selection used to call renderContent(), which rebuilds
+// every card's HTML from scratch via container.innerHTML = ...
+// Replacing the DOM node you just tapped (mid-tap, mid-scroll) is
+// what was throwing the page back to the top — some browsers reset
+// scroll / yank focus back to <body> when the focused element is
+// removed from the DOM under a touch handler. Toggling the
+// "selected" class on the existing nodes (no destroy/rebuild) keeps
+// the same elements in place, so there's nothing for the browser to
+// lose your scroll position over.
+function updateSelectionUI(type) {
+
+    const container =
+        $("#" + type + "List");
+
+    if (container) {
+        container
+            .querySelectorAll(".content-card")
+            .forEach(el => {
+                el.classList.toggle(
+                    "selected",
+                    selectedIds[type].has(el.dataset.id)
+                );
+            });
+    }
+
+    updateSelectToolbar();
+}
+
+
+function toggleCardSelection(type, id) {
+
+    const set = selectedIds[type];
+
+    if (set.has(id)) {
+        set.delete(id);
+    } else {
+        set.add(id);
+    }
+
+    // Deselecting the last card drops you back out of select mode,
+    // same as iOS Photos.
+    if (set.size === 0) {
+        exitSelectMode(type);
+        return;
+    }
+
+    updateSelectionUI(type);
+}
+
+
+// Selects every card currently on screen — i.e. respecting whatever
+// search/category filter renderContent() already applied, not
+// every item of that type.
+function selectAllVisible(type) {
+
+    const container =
+        $("#" + type + "List");
+
+    if (!container) {
+        return;
+    }
+
+    const ids =
+        Array.from(
+            container.querySelectorAll(".content-card")
+        ).map(el => el.dataset.id);
+
+    selectedIds[type] = new Set(ids);
+
+    updateSelectionUI(type);
+}
+
+
+function updateSelectToolbar() {
+
+    const toolbar = $("#selectToolbar");
+
+    if (!toolbar) {
+        return;
+    }
+
+    const type =
+        selectMode.models
+            ? "models"
+            : selectMode.scripts
+                ? "scripts"
+                : null;
+
+    if (!type) {
+        toolbar.classList.add("hidden");
+        toolbar.dataset.type = "";
+        return;
+    }
+
+    toolbar.dataset.type = type;
+    toolbar.classList.remove("hidden");
+
+    const count = selectedIds[type].size;
+
+    $("#selectToolbarCount").textContent =
+        count === 1 ? "1 selected" : `${count} selected`;
+}
+
+
+async function bulkDeleteItems(type, idSet) {
+
+    const ids = Array.from(idSet);
+
+    if (!ids.length) {
+        return;
+    }
+
+    // Snapshot in original order (each item plus where it sat in
+    // data[type]) so Undo can splice everything back where it was,
+    // the same idea as the single-item delete below.
+    const removedEntries =
+        data[type]
+            .map((item, index) => ({ item, index }))
+            .filter(entry => ids.includes(entry.item.id));
+
+    const confirmed = await confirmDialog({
+        icon: "trash",
+        title:
+            removedEntries.length === 1
+                ? `Delete "${removedEntries[0].item.title}"?`
+                : `Delete ${removedEntries.length} items?`,
+        message: "You'll be able to undo this right after.",
+        confirmLabel: "Delete"
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    // Snapshots for Undo — same fields deleteItem() keeps, just one
+    // per removed model.
+    const previousModelTargets = {};
+    const hadDeletedModelsEntry = {};
+    const previousModelFilter = currentModelFilter;
+    let filterWasCleared = false;
+
+    if (type === "models") {
+
+        removedEntries.forEach(({ item }) => {
+
+            previousModelTargets[item.id] =
+                data.modelTargets[item.id] || 0;
+
+            hadDeletedModelsEntry[item.id] =
+                Object.prototype.hasOwnProperty.call(
+                    data.deletedModels,
+                    item.id
+                );
+
+            data.deletedModels[item.id] = {
+                title: item.title,
+                target: previousModelTargets[item.id]
+            };
+
+        });
+
+    }
+
+
+    data[type] =
+        data[type].filter(
+            item => !ids.includes(item.id)
+        );
+
+
+    if (type === "models") {
+
+        ids.forEach(id => delete data.modelTargets[id]);
+
+        if (ids.includes(currentModelFilter)) {
+            currentModelFilter = null;
+            filterWasCleared = true;
+        }
+
+    }
+
+
+    saveData();
+
+    exitSelectMode(type);
+
+    if (CATEGORIZED_TYPES.includes(type)) {
+        renderChips(type);
+    }
+
+    if (type === "models") {
+        renderSales();
+    }
+
+    toast(
+        removedEntries.length === 1
+            ? `"${removedEntries[0].item.title}" deleted`
+            : `${removedEntries.length} items deleted`,
+        "delete",
+        {
+            actionLabel: "Undo",
+            onAction: function () {
+
+                // Ascending original index so each splice lands the
+                // item back where it was relative to what's already
+                // been reinserted.
+                removedEntries
+                    .slice()
+                    .sort((a, b) => a.index - b.index)
+                    .forEach(({ item, index }) => {
+
+                        const restoreAt =
+                            Math.min(index, data[type].length);
+
+                        data[type].splice(restoreAt, 0, item);
+
+                        if (type === "models") {
+
+                            data.modelTargets[item.id] =
+                                previousModelTargets[item.id];
+
+                            if (!hadDeletedModelsEntry[item.id]) {
+                                delete data.deletedModels[item.id];
+                            }
+
+                        }
+
+                    });
+
+                if (type === "models" && filterWasCleared) {
+                    currentModelFilter = previousModelFilter;
+                }
+
+                saveData();
+
+                if (CATEGORIZED_TYPES.includes(type)) {
+                    renderChips(type);
+                }
+
+                renderContent(type);
+
+                if (type === "models") {
+                    renderSales();
+                }
+
+            }
+        }
+    );
+}
+
+
+/* ---------- Gesture handling: long-press to enter select mode,
+   tap to toggle, drag a selected card onto the trash ---------- */
+
+
+const CONTENT_HOLD_MS = 500;
+const CONTENT_HOLD_MOVE_TOLERANCE = 10;
+const SELECT_DRAG_MOVE_THRESHOLD = 8;
+
+let contentHoldState = null;
+let selectDragState = null;
+
+// Set for a moment after a long-press fires, so releasing the card
+// doesn't also register as the click that opens it (same trick as
+// suppressChipClick for category rename).
+let suppressContentClick = false;
+
+
+function cancelContentHold() {
+
+    if (!contentHoldState) {
+        return;
+    }
+
+    clearTimeout(contentHoldState.timer);
+    contentHoldState.card.classList.remove("holding");
+    contentHoldState = null;
+}
+
+
+function moveSelectDragGhost(x, y) {
+
+    const ghost = $("#selectDragGhost");
+
+    if (ghost) {
+        ghost.style.transform =
+            `translate(${x}px, ${y}px) translate(-50%, -140%)`;
+    }
+}
+
+
+function isPointOverTrash(x, y) {
+
+    const trashBtn = $("#selectTrashBtn");
+
+    if (!trashBtn || trashBtn.offsetParent === null) {
+        return false;
+    }
+
+    const rect = trashBtn.getBoundingClientRect();
+
+    return (
+        x >= rect.left && x <= rect.right &&
+        y >= rect.top && y <= rect.bottom
+    );
+}
+
+
+function startSelectDrag(type, x, y) {
+
+    const ghost = $("#selectDragGhost");
+    const countEl = $("#selectDragGhostCount");
+
+    if (countEl) {
+        countEl.textContent = selectedIds[type].size;
+    }
+
+    if (ghost) {
+        ghost.classList.remove("hidden");
+    }
+
+    moveSelectDragGhost(x, y);
+}
+
+
+function endSelectDrag() {
+
+    const ghost = $("#selectDragGhost");
+
+    if (ghost) {
+        ghost.classList.add("hidden");
+    }
+
+    const trashBtn = $("#selectTrashBtn");
+
+    if (trashBtn) {
+        trashBtn.classList.remove("drag-over");
+    }
+}
+
+
+["models", "scripts"].forEach(
+    type => {
+
+        const container = $("#" + type + "List");
+
+        if (!container) {
+            return;
+        }
+
+
+        container.addEventListener(
+            "pointerdown",
+            function (event) {
+
+                // Left button / touch / pen only.
+                if (
+                    event.pointerType === "mouse" &&
+                    event.button !== 0
+                ) {
+                    return;
+                }
+
+                const card =
+                    event.target.closest(".content-card");
+
+                if (!card || event.target.closest(".card-icon-btn")) {
+                    return;
+                }
+
+                cancelContentHold();
+                suppressContentClick = false;
+
+                const id = card.dataset.id;
+
+                if (selectMode[type]) {
+
+                    // Already selecting — this pointer might just be
+                    // a tap (handled by the click listener below) or
+                    // it might turn into a drag toward the trash.
+                    selectDragState = {
+                        type: type,
+                        id: id,
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startY: event.clientY,
+                        moved: false
+                    };
+
+                    return;
+                }
+
+                // Not selecting yet — this could become a long-press
+                // that turns it on.
+                contentHoldState = {
+                    card: card,
+                    type: type,
+                    id: id,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    timer: setTimeout(
+                        function () {
+
+                            if (!contentHoldState) {
+                                return;
+                            }
+
+                            contentHoldState = null;
+                            card.classList.remove("holding");
+
+                            suppressContentClick = true;
+
+                            setTimeout(
+                                function () {
+                                    suppressContentClick = false;
+                                },
+                                400
+                            );
+
+                            enterSelectMode(type, id);
+
+                        },
+                        CONTENT_HOLD_MS
+                    )
+                };
+
+                card.classList.add("holding");
+            }
+        );
+
+
+        container.addEventListener(
+            "pointermove",
+            function (event) {
+
+                if (contentHoldState) {
+
+                    const movedFar =
+                        Math.abs(event.clientX - contentHoldState.startX) >
+                            CONTENT_HOLD_MOVE_TOLERANCE ||
+                        Math.abs(event.clientY - contentHoldState.startY) >
+                            CONTENT_HOLD_MOVE_TOLERANCE;
+
+                    if (movedFar) {
+                        cancelContentHold();
+                    }
+                }
+
+                if (
+                    selectDragState &&
+                    selectDragState.pointerId === event.pointerId
+                ) {
+
+                    if (!selectDragState.moved) {
+
+                        const dx = event.clientX - selectDragState.startX;
+                        const dy = event.clientY - selectDragState.startY;
+
+                        if (Math.hypot(dx, dy) > SELECT_DRAG_MOVE_THRESHOLD) {
+
+                            selectDragState.moved = true;
+
+                            // Dragging an unselected card still sweeps
+                            // it (and only it) to the trash.
+                            if (!selectedIds[selectDragState.type].has(selectDragState.id)) {
+                                selectedIds[selectDragState.type].add(selectDragState.id);
+                                renderContent(selectDragState.type);
+                            }
+
+                            startSelectDrag(
+                                selectDragState.type,
+                                event.clientX,
+                                event.clientY
+                            );
+                        }
+                    }
+
+                    if (selectDragState.moved) {
+
+                        event.preventDefault();
+
+                        moveSelectDragGhost(event.clientX, event.clientY);
+
+                        const trashBtn = $("#selectTrashBtn");
+
+                        if (trashBtn) {
+                            trashBtn.classList.toggle(
+                                "drag-over",
+                                isPointOverTrash(event.clientX, event.clientY)
+                            );
+                        }
+                    }
+                }
+            },
+            { passive: false }
+        );
+
+
+        function releasePointer(event) {
+
+            cancelContentHold();
+
+            if (
+                !selectDragState ||
+                selectDragState.pointerId !== event.pointerId
+            ) {
+                return;
+            }
+
+            const wasDragging = selectDragState.moved;
+            const type = selectDragState.type;
+
+            endSelectDrag();
+            selectDragState = null;
+
+            if (wasDragging && event.type === "pointerup") {
+
+                if (isPointOverTrash(event.clientX, event.clientY)) {
+                    bulkDeleteItems(type, selectedIds[type]);
+                }
+
+                // A drag shouldn't also register as a select/deselect
+                // tap on whatever the pointer happened to end over.
+                suppressContentClick = true;
+
+                setTimeout(
+                    function () {
+                        suppressContentClick = false;
+                    },
+                    400
+                );
+            }
+        }
+
+        ["pointerup", "pointercancel", "pointerleave"].forEach(
+            evtName =>
+                container.addEventListener(evtName, releasePointer)
+        );
+
+        container.addEventListener("dragstart", cancelContentHold);
+
+
+        // Capture phase, so this swallows the click that follows a
+        // long-press or a drag before openViewModal/toggle would fire.
+        container.addEventListener(
+            "click",
+            function (event) {
+
+                if (!suppressContentClick) {
+                    return;
+                }
+
+                suppressContentClick = false;
+
+                event.preventDefault();
+                event.stopPropagation();
+            },
+            true
+        );
+
+    }
+);
+
+
+window.addEventListener("scroll", cancelContentHold, true);
+
+
+$("#selectCancelBtn").addEventListener(
+    "click",
+    function () {
+
+        const type = $("#selectToolbar").dataset.type;
+
+        if (type) {
+            exitSelectMode(type);
+        }
+    }
+);
+
+
+$("#selectAllBtn").addEventListener(
+    "click",
+    function () {
+
+        const type = $("#selectToolbar").dataset.type;
+
+        if (type) {
+            selectAllVisible(type);
+        }
+    }
+);
+
+
+$("#selectTrashBtn").addEventListener(
+    "click",
+    function () {
+
+        const type = $("#selectToolbar").dataset.type;
+
+        if (type) {
+            bulkDeleteItems(type, selectedIds[type]);
+        }
+    }
+);
+
+
+// Leaving the Models/Scripts tab (or any tab) drops any select mode
+// left running on either grid, so it doesn't linger invisibly.
+$$(".nav-btn").forEach(
+    button => {
+        button.addEventListener(
+            "click",
+            function () {
+                exitSelectMode("models");
+                exitSelectMode("scripts");
+            }
+        );
+    }
+);
+
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key !== "Escape") {
+            return;
+        }
+
+        if (selectMode.models) {
+            exitSelectMode("models");
+        }
+
+        if (selectMode.scripts) {
+            exitSelectMode("scripts");
+        }
+    }
+);
 
 
 /* =====================================================
@@ -4847,6 +5836,156 @@ $$(".search").forEach(
 
     }
 );
+
+
+/* Scripts search: the icon toggles an inline field open/closed.
+   Closing with text still in it clears the field (and re-renders
+   the unfiltered list); clicking outside only closes it if it's
+   already empty, so an active search doesn't vanish on a stray
+   click. */
+
+(function () {
+
+    const box = $("#scriptsSearchBox");
+    const toggle = $("#scriptsSearchToggle");
+    const input = $("#scriptsSearchInput");
+
+    if (!box || !toggle || !input) {
+        return;
+    }
+
+    function closeScriptsSearch(clear) {
+
+        if (clear && input.value) {
+            input.value = "";
+            renderContent("scripts");
+        }
+
+        box.classList.remove("open");
+    }
+
+    toggle.addEventListener("click", function () {
+
+        if (box.classList.contains("open")) {
+            closeScriptsSearch(true);
+            return;
+        }
+
+        box.classList.add("open");
+        input.focus();
+    });
+
+    input.addEventListener("keydown", function (event) {
+
+        if (event.key === "Escape") {
+            closeScriptsSearch(true);
+            toggle.blur();
+        }
+    });
+
+    document.addEventListener("click", function (event) {
+
+        if (event.target.closest("#scriptsSearchBox")) {
+            return;
+        }
+
+        if (!input.value) {
+            closeScriptsSearch(false);
+        }
+    });
+
+}());
+
+
+/* FAQ search: same open/close toggle behavior as the Scripts search,
+   but instead of re-rendering a data list it just shows/hides the
+   existing question-and-answer items (matching against both the
+   question and the answer text), and hides a whole group heading
+   if nothing in it matches. */
+
+(function () {
+
+    const box = $("#faqSearchBox");
+    const toggle = $("#faqSearchToggle");
+    const input = $("#faqSearchInput");
+
+    if (!box || !toggle || !input) {
+        return;
+    }
+
+    const items = $$("#faq .faq-item");
+    const groups = $$("#faq .faq-group");
+
+    function filterFaq(query) {
+
+        const q = query.trim().toLowerCase();
+
+        items.forEach(item => {
+
+            const text = item.textContent.toLowerCase();
+            const matches = !q || text.includes(q);
+
+            item.style.display = matches ? "" : "none";
+        });
+
+        groups.forEach(group => {
+
+            const hasVisible =
+                Array.from(
+                    group.querySelectorAll(".faq-item")
+                ).some(
+                    item => item.style.display !== "none"
+                );
+
+            group.style.display = hasVisible ? "" : "none";
+        });
+    }
+
+    function closeFaqSearch(clear) {
+
+        if (clear && input.value) {
+            input.value = "";
+            filterFaq("");
+        }
+
+        box.classList.remove("open");
+    }
+
+    toggle.addEventListener("click", function () {
+
+        if (box.classList.contains("open")) {
+            closeFaqSearch(true);
+            return;
+        }
+
+        box.classList.add("open");
+        input.focus();
+    });
+
+    input.addEventListener("input", function () {
+        filterFaq(input.value);
+    });
+
+    input.addEventListener("keydown", function (event) {
+
+        if (event.key === "Escape") {
+            closeFaqSearch(true);
+            toggle.blur();
+        }
+    });
+
+    document.addEventListener("click", function (event) {
+
+        if (event.target.closest("#faqSearchBox")) {
+            return;
+        }
+
+        if (!input.value) {
+            closeFaqSearch(false);
+        }
+    });
+
+}());
 
 
 /* =====================================================
@@ -5940,7 +7079,7 @@ function openModal(
                                         : ""
                                 }
                             >
-                                ${category}
+                                ${escapeHTML(category)}
                             </option>
 
                         `
@@ -6208,40 +7347,55 @@ function editItem(
    ===================================================== */
 
 
-function deleteItem(
+async function deleteItem(
     type,
     id
 ) {
 
-    const deletedTitle =
-        data[type].find(item => item.id === id)?.title;
+    const itemIndex =
+        data[type].findIndex(item => item.id === id);
 
-    if (
-        !confirm(
-            deletedTitle
-                ? `Delete "${deletedTitle}"?`
-                : "Delete this item?"
-        )
-    ) {
+    if (itemIndex === -1) {
         return;
     }
 
+    const deletedItem = data[type][itemIndex];
+    const deletedTitle = deletedItem.title;
+
+    const confirmed = await confirmDialog({
+        icon: "trash",
+        title: deletedTitle
+            ? `Delete "${deletedTitle}"?`
+            : "Delete this item?",
+        message: "You'll be able to undo this right after.",
+        confirmLabel: "Delete"
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    // Snapshots for Undo.
+    let previousModelTarget;
+    let hadDeletedModelsEntry = false;
+    const previousModelFilter = currentModelFilter;
+    let filterWasCleared = false;
 
     if (type === "models") {
 
-        const deletedModel =
-            data.models.find(item => item.id === id);
+        previousModelTarget = data.modelTargets[id] || 0;
 
-        if (deletedModel) {
-            // Keep the model's title AND the target it had at the
-            // moment of deletion, so past days can still show what
-            // percent of target it hit instead of losing that info
-            // once modelTargets[id] is deleted below.
-            data.deletedModels[id] = {
-                title: deletedModel.title,
-                target: data.modelTargets[id] || 0
-            };
-        }
+        hadDeletedModelsEntry =
+            Object.prototype.hasOwnProperty.call(data.deletedModels, id);
+
+        // Keep the model's title AND the target it had at the
+        // moment of deletion, so past days can still show what
+        // percent of target it hit instead of losing that info
+        // once modelTargets[id] is deleted below.
+        data.deletedModels[id] = {
+            title: deletedItem.title,
+            target: previousModelTarget
+        };
 
     }
 
@@ -6259,6 +7413,7 @@ function deleteItem(
 
         if (currentModelFilter === id) {
             currentModelFilter = null;
+            filterWasCleared = true;
         }
 
     }
@@ -6280,7 +7435,48 @@ function deleteItem(
 
     toast(
         deletedTitle ? `"${deletedTitle}" deleted` : "Deleted",
-        "success"
+        "delete",
+        {
+            actionLabel: "Undo",
+            onAction: function () {
+
+                const restoreAt =
+                    Math.min(itemIndex, data[type].length);
+
+                data[type].splice(restoreAt, 0, deletedItem);
+
+                if (type === "models") {
+
+                    data.modelTargets[id] = previousModelTarget;
+
+                    if (!hadDeletedModelsEntry) {
+                        delete data.deletedModels[id];
+                    }
+
+                    if (filterWasCleared) {
+                        currentModelFilter = previousModelFilter;
+                    }
+
+                }
+
+                saveData();
+
+                if (CATEGORIZED_TYPES.includes(type)) {
+                    renderChips(type);
+                }
+
+                renderContent(type);
+
+                if (type === "models") {
+                    renderSales();
+                }
+
+                toast(
+                    deletedTitle ? `"${deletedTitle}" restored` : "Item restored",
+                    "success"
+                );
+            }
+        }
     );
 }
 
@@ -6304,17 +7500,23 @@ function playKaching() {
    TOAST FEEDBACK
    ===================================================== */
 
-// type: "success" | "notice" (default — a heads-up or something
-// to fix) | "error" (an action failed). Each gets its own tinted
-// icon chip; the card itself stays neutral, matching how status
-// badges are done elsewhere in the app.
+// type: "success" (added/saved/copied — check) | "delete" (removed
+// something — trash, same red family as the sidebar trash zone) |
+// "notice" (default — a heads-up or something to fix) | "error" (an
+// action failed). All four share the same ring (a circle, r=10) with
+// a small centered glyph inside, so every toast icon reads at the
+// same size and weight — only the glyph and color change by type.
 const TOAST_ICONS = {
-    success: '<path d="M20 6 9 17l-5-5"/>',
+    success: '<circle cx="12" cy="12" r="10"/><path d="m8.5 12.5 2.5 2.5 4.5-6"/>',
+    delete: '<circle cx="12" cy="12" r="10"/><g transform="translate(12 12) scale(0.6) translate(-12 -12)"><path d="M4 7h16"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M18 7l-.8 12.1a2 2 0 0 1-2 1.9H8.8a2 2 0 0 1-2-1.9L6 7"/></g>',
     notice: '<path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/>',
     error: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'
 };
 
-function toast(message, type = "notice") {
+// options: { actionLabel, onAction, duration }. Passing actionLabel +
+// onAction adds a small button (e.g. "Undo") to the toast; hovering
+// it pauses the auto-dismiss so there's time to click it.
+function toast(message, type = "notice", options = {}) {
 
     const stack = $("#toastStack");
     if (!stack) return;
@@ -6322,7 +7524,10 @@ function toast(message, type = "notice") {
     const iconPath = TOAST_ICONS[type] || TOAST_ICONS.notice;
 
     const el = document.createElement("div");
-    el.className = `toast ${type}`;
+    // Namespaced ("toast-<type>") so the type modifier can never collide
+    // with an unrelated same-named class elsewhere (e.g. the .delete
+    // icon-button class used for remove buttons throughout the app).
+    el.className = `toast toast-${type}`;
     el.setAttribute("role", type === "error" ? "alert" : "status");
 
     el.innerHTML =
@@ -6331,14 +7536,47 @@ function toast(message, type = "notice") {
 
     el.querySelector(".toast-msg").textContent = message;
 
+    let actionBtn = null;
+
+    if (options.actionLabel && options.onAction) {
+
+        actionBtn = document.createElement("button");
+        actionBtn.type = "button";
+        actionBtn.className = "toast-action";
+        actionBtn.textContent = options.actionLabel;
+        el.appendChild(actionBtn);
+    }
+
     stack.appendChild(el);
 
     requestAnimationFrame(() => el.classList.add("show"));
 
-    setTimeout(() => {
+    const duration = options.duration || (actionBtn ? 5000 : 2200);
+
+    let dismissTimer;
+
+    function removeToast() {
         el.classList.remove("show");
         setTimeout(() => el.remove(), 300);
-    }, 2200);
+    }
+
+    function scheduleDismiss() {
+        dismissTimer = setTimeout(removeToast, duration);
+    }
+
+    if (actionBtn) {
+
+        actionBtn.addEventListener("click", function () {
+            clearTimeout(dismissTimer);
+            options.onAction();
+            removeToast();
+        });
+
+        el.addEventListener("mouseenter", () => clearTimeout(dismissTimer));
+        el.addEventListener("mouseleave", scheduleDismiss);
+    }
+
+    scheduleDismiss();
 }
 
 
@@ -6640,7 +7878,9 @@ function isValidImportedData(candidate) {
     }
 
     const hasCoreShape =
+        candidate.sales !== null &&
         typeof candidate.sales === "object" &&
+        !Array.isArray(candidate.sales) &&
         Array.isArray(candidate.models) &&
         Array.isArray(candidate.scripts);
 
@@ -6652,7 +7892,7 @@ function importData(file) {
 
     const reader = new FileReader();
 
-    reader.onload = function (event) {
+    reader.onload = async function (event) {
 
         let parsed;
 
@@ -6687,9 +7927,11 @@ function importData(file) {
             return;
         }
 
-        const confirmed = confirm(
-            "Importing will replace ALL current data (sales, history, models, scripts) on this device with the contents of the backup file. This can't be undone. Continue?"
-        );
+        const confirmed = await confirmDialog({
+            title: "Replace all data?",
+            message: "Importing will replace ALL current data (sales, history, models, scripts) on this device with the contents of the backup file. This can't be undone. Continue?",
+            confirmLabel: "Import & replace"
+        });
 
         if (!confirmed) {
             return;
