@@ -716,6 +716,1823 @@
                 <div class="top">
 
                     <div>
+                        <div class="scripts-title-row">
+                            <h1>Scripts</h1>
+
+                            <div class="scripts-search" id="scriptsSearchBox">
+                                <button
+                                    type="button"
+                                    class="scripts-search-toggle"
+                                    id="scriptsSearchToggle"
+                                    title="Search scripts"
+                                    aria-label="Search scripts"
+                                >
+                                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+                                </button>
+
+                                <input
+                                    type="text"
+                                    class="search scripts-search-input"
+                                    id="scriptsSearchInput"
+                                    data-target="scriptsList"
+                                    placeholder="Search scripts…"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                >
+                            </div>
+                        </div>
+
+                        <p class="sub">
+                            Your reusable conversation scripts.
+                        </p>
+                    </div>
+
+                    <div class="top-actions">
+
+                        <button
+                            class="btn primary top-btn add-content"
+                            data-type="scripts"
+                        >
+                            New Script
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- Floating category bar: sticks just under the top bar and
+                 wraps onto extra rows when there are many categories. -->
+            <div class="floating-chips" id="scriptsFloatBar">
+
+                <div
+                    class="chips"
+                    data-filter="scripts"
+                    id="scriptsChips"
+                ></div>
+
+            </div>
+
+
+            <div
+                id="scriptsList"
+                class="content-grid"
+            ></div>
+
+            <div
+                id="scriptsEmpty"
+                class="empty"
+            >
+                No scripts yet. Add your first one.
+            </div>
+
+        </section>
+
+
+
+        <!-- ================= FAQ ================= -->
+
+        <section id="faq" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+
+                    <div>
+                        <div class="scripts-title-row">
+                            <h1>FAQ</h1>
+
+                            <div class="scripts-search" id="faqSearchBox">
+                                <button
+                                    type="button"
+                                    class="scripts-search-toggle"
+                                    id="faqSearchToggle"
+                                    title="Search FAQ"
+                                    aria-label="Search FAQ"
+                                >
+                                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+                                </button>
+
+                                <input
+                                    type="text"
+                                    class="scripts-search-input"
+                                    id="faqSearchInput"
+                                    placeholder="Search FAQ…"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                >
+                            </div>
+                        </div>
+
+                        <p class="sub">
+                            How Outfloww works, and answers to common questions.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Floating quick-nav: sticks just under the top bar,
+                 same pattern as the Scripts category bar. -->
+            <div class="floating-chips" id="faqFloatBar">
+
+                <div class="chips" id="faqChips">
+                    <button type="button" class="chip active" data-faq-jump="faq-general">General</button>
+                    <button type="button" class="chip" data-faq-jump="faq-models">Models</button>
+                    <button type="button" class="chip" data-faq-jump="faq-sales">Sales</button>
+                    <button type="button" class="chip" data-faq-jump="faq-scripts">Scripts</button>
+                    <button type="button" class="chip" data-faq-jump="faq-settings">Settings &amp; Sync</button>
+                </div>
+
+            </div>
+
+
+            <div class="faq-content">
+
+                <div class="faq-group" id="faq-general">
+
+                    <h2 class="faq-group-title">General</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What is Outfloww?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Outfloww is your personal chatter tool. It keeps your models, your daily sales, and your reusable scripts in one place so you can track earnings and work faster during a shift.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I switch between light and dark mode?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings in the sidebar and click "Dark mode" / "Light mode" to flip it. Your choice is remembered the next time you open the app.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Can I reorder my models or scripts?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Yes — press and hold a card, then drag it to a new spot in the list. Category chips on the Scripts page can be reordered the same way, or renamed by pressing and holding one.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-models">
+
+                    <h2 class="faq-group-title">Models</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I add a model?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Go to Models and click "New Model". Give it a title and add any notes or preferences you want on hand — it'll then show up as an option whenever you log a sale.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I pick which model I'm logging sales for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>On the Sales page, open the model picker — the small target icon next to "Add a sale" — and select a model. The stats strip, target progress and today's sales list all switch to that model.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I set a model's daily target?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open the model picker and select a model to set its daily target, based on net earnings. Once set, a progress bar fills as sales come in, and you can give the model its own color from the same screen.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What's the list of bars below my target progress?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>That's the Target Breakdown — it shows every model's progress toward its own daily target at a glance. Tap a row to switch to that model. Hit 100% and it lights up 🎉, then glows hotter (🟠 → 🔥 → 🔥🔥 → 🔥🔥🔥) the further past target you go.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I delete a model?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Drag the model's card onto "Drop to delete" at the bottom of the sidebar. Sales already logged for that model keep its name in your history, so old records stay intact.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-sales">
+
+                    <h2 class="faq-group-title">Sales</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I log a sale?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Type the amount into the "Add a sale" box and click "+ Add Sale" (or hit Enter). The maximum for a single sale is $200.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What's the difference between Gross and Net?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Gross is the full total of everything sold. Net is your 80% cut of that, worked out automatically — it's what your daily targets and progress bars are based on.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What does the PPVs count mean?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>It's simply how many sales (pay-per-view unlocks) you've added for the day and model currently selected.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What are the Tips and Outside Shift tags for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the small person icon next to the amount field before adding a sale to tag it with a buyer's username, either as a Tip or as an Outside Shift sale. Tagged sales are broken out separately in Sales History and in the "Copy for logout" summary.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I see past days?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the history icon at the top right of the Overview card to open Sales History — every previous day is listed there, broken down by model. If you worked more than one shift in a day, each saved shift gets its own row with its own time and total instead of being lumped together.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What does "Copy for logout" do?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>It copies a ready-to-paste handoff summary of the day, including any Tips and Outside Shift sales you tagged. When your shift ends, use the Shift Report button on the Sales page: it copies the summary and, after you confirm, saves those sales to Sales History with the shift time and clears them from Today's sales. In Sales History, Copy for logout just copies the summary for whichever shift you have expanded.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What is the Shift Report button for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Set your shift's start and end time, and whether it's a regular shift or a cover shift, from the "Shift Report" button, then copy today's logout text from the same window. Your shift only affects the wording in the logout text — it doesn't change any totals.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What happens if I forget to close my shift?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Nothing is lost. Once a day is no longer today, any sales that were never saved through Shift Report move into Sales History on their own, tagged with whatever shift time was set in Shift Report at that point.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What's the difference between the Daily and Monthly overview?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>The toggle above the Overview chart switches its bars between a day-by-day view of the current week and a month-by-month view, so you can spot trends at either scale.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Can I clear my saved sales history?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Yes — open Sales History and click "Clear history". With a model selected it only clears that model's past sales; with none selected it clears everything. Either way, today's sales are always kept, and you'll be asked to confirm first since this can't be undone.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-scripts">
+
+                    <h2 class="faq-group-title">Scripts</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I add a script?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Go to Scripts and click "New Script". Give it a title, choose or create a category for it, and paste in the text you want saved.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What are the category chips for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>They filter your scripts by category — click one to show only that category's scripts. Drag chips to reorder them.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I rename a category?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Press and hold a category chip to rename it.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I use a saved script?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the copy icon on its card to copy it straight into your chat. Open the card first if you want to read the full text before copying.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I search my scripts?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the magnifying glass next to the "Scripts" heading and start typing — the list filters as you type, matching both titles and script text. This searches within whichever category chip is currently selected.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I edit or delete a script?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the pencil icon on its card to edit it. To delete one, drag its card onto "Drop to delete" at the bottom of the sidebar, the same way you'd delete a model.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I delete more than one script at once?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Press and hold a card to enter select mode, then tap any other cards you want to include. Drag a selected card onto the trash button that appears, or just tap it, to delete everything you've selected at once.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="faq-group" id="faq-settings">
+
+                    <h2 class="faq-group-title">Settings &amp; Sync</h2>
+
+                    <div class="faq-list">
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I back up my data?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings and click "Export data" to download a file with everything — models, sales, history and scripts — so you always have a copy of your own.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I restore a backup?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open Settings and click "Import data", then choose a file you previously exported. This replaces what's currently in the app with the backup, so use it carefully.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I sync my data across devices?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Sign in with Google when prompted. Your data is then kept in sync automatically — sign in with the same account on another device and everything picks up right where you left off.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I sign out?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Once you're signed in, an account button appears at the bottom of the sidebar showing your email — click "Sign out" on it.</p></div></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+    </main>
+
+
+    <!-- ================= MULTI-SELECT TOOLBAR =================
+         Appears once a long-press on a Model/Script card turns on
+         select mode (see app.js). Doubles as the drop target: drag
+         selected cards onto the trash button, or just tap it. -->
+    <div class="select-toolbar hidden" id="selectToolbar">
+
+        <button type="button" class="select-toolbar-btn" id="selectCancelBtn">
+            Cancel
+        </button>
+
+        <div class="select-toolbar-count" id="selectToolbarCount">
+            0 selected
+        </div>
+
+        <button type="button" class="select-toolbar-btn" id="selectAllBtn">
+            Select All
+        </button>
+
+        <button
+            type="button"
+            class="select-toolbar-trash"
+            id="selectTrashBtn"
+            title="Delete selected"
+            aria-label="Delete selected"
+        >
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        </button>
+
+    </div>
+
+    <div class="select-drag-ghost hidden" id="selectDragGhost" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        <span id="selectDragGhostCount">1</span>
+    </div>
+
+</div>
+
+
+
+<!-- ================= TARGET MODAL ================= -->
+
+<div
+    id="targetModal"
+    class="modal hidden"
+>
+
+    <div role="dialog" aria-modal="true" aria-label="Set daily target" class="modal-card">
+
+        <div class="section-head">
+
+            <div class="target-modal-title-group">
+
+                <h2>
+                    Set Daily Target
+                </h2>
+
+                <button
+                    class="icon-btn color-picker-trigger"
+                    id="targetModalColorBtn"
+                    type="button"
+                    title="Change this model's color"
+                    aria-label="Change this model's color"
+                >
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L19 8l-3-3 2.5-2.5Z" fill="currentColor"/>
+                        <path d="M16 5 5 16v3h3L19 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 22l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+
+            </div>
+
+            <button
+                class="icon-btn"
+                id="closeTargetModal"
+                type="button"
+            
+                aria-label="Close"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+        </div>
+
+
+        <form id="targetForm">
+
+            <label>
+
+                Target amount ($, based on net earnings)
+
+                <input
+                    id="targetAmount"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="e.g. 500"
+                >
+
+            </label>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelTargetModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= LOGOUT SHIFT MODAL ================= -->
+
+<div
+    id="shiftModal"
+    class="modal hidden"
+>
+
+    <div role="dialog" aria-modal="true" aria-label="Shift Report" class="modal-card">
+
+        <div class="section-head">
+
+            <h2>
+                Shift Report
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeShiftModal"
+                type="button"
+            
+                aria-label="Close"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+        </div>
+
+        <p class="sub shift-modal-note">
+            Set your shift, then copy today's logout text.
+        </p>
+
+
+        <form id="shiftForm">
+
+            <div class="shift-time-row">
+
+                <label>
+                    Start
+                    <input
+                        id="shiftStart"
+                        type="time"
+                        required
+                    >
+                </label>
+
+                <label>
+                    End
+                    <input
+                        id="shiftEnd"
+                        type="time"
+                        required
+                    >
+                </label>
+
+            </div>
+
+
+            <div class="shift-field">
+
+                <span class="shift-field-label">Shift type</span>
+
+                <div class="shift-toggle" id="shiftTypeToggle">
+                    <button
+                        type="button"
+                        class="shift-toggle-btn"
+                        data-cover="false"
+                    >
+                        Regular
+                    </button>
+                    <button
+                        type="button"
+                        class="shift-toggle-btn"
+                        data-cover="true"
+                    >
+                        Cover
+                    </button>
+                </div>
+
+            </div>
+
+
+            <div class="shift-preview" id="shiftPreview"></div>
+
+
+            <!-- Copies today's logout text using the shift shown above. -->
+            <button
+                type="button"
+                class="btn shift-copy-btn"
+                id="copyShiftLogoutBtn"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy for logout
+            </button>
+
+            <p class="sub shift-copy-note hidden" id="shiftCopyNote">
+                Select a model on the Sales page to copy.
+            </p>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelShiftModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SAVE SHIFT CONFIRM ================= -->
+<!-- Sits right after the Shift Report window so it opens on top of it. -->
+
+<div
+    id="shiftSaveModal"
+    class="modal hidden"
+>
+
+    <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="shiftSaveTitle"
+        aria-describedby="shiftSaveDesc"
+        class="modal-card confirm-card"
+    >
+
+        <div class="section-head">
+            <h2 id="shiftSaveTitle">Save this shift?</h2>
+        </div>
+
+        <p class="sub" id="shiftSaveDesc">
+            This copies the logout text and marks all of
+            <strong id="shiftSaveModel"></strong>'s sales from this shift
+            as done. They'll be cleared from Today's sales and saved to
+            Sales History.
+        </p>
+
+        <div class="shift-preview shift-save-summary" id="shiftSaveSummary"></div>
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="btn"
+                id="cancelShiftSave"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                class="btn primary"
+                id="confirmShiftSave"
+            >
+                Copy &amp; save
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= HISTORY MODAL ================= -->
+
+<div
+    id="historyModal"
+    class="modal hidden"
+>
+
+    <div role="dialog" aria-modal="true" aria-label="Sales history" class="modal-card">
+
+        <div class="section-head">
+
+            <h2>
+                Sales History
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeHistoryModal"
+                type="button"
+            
+                aria-label="Close"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+        </div>
+
+        <div
+            id="historyModelName"
+            class="history-model-name hidden"
+        ></div>
+
+        <div
+            id="historyList"
+            class="history-list"
+        ></div>
+
+        <div
+            id="emptyHistory"
+            class="empty"
+        >
+            Your previous days will appear here.
+        </div>
+
+        <div class="modal-actions">
+
+            <button
+                class="btn copy-logout-btn hidden"
+                id="copyLogoutBtn"
+                type="button"
+            >
+                
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy for logout
+            
+            </button>
+
+            <button
+                class="btn danger"
+                id="clearHistory"
+                type="button"
+            >
+                Clear history
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= MODAL ================= -->
+
+<div
+    id="modal"
+    class="modal hidden"
+>
+
+    <div role="dialog" aria-modal="true" aria-label="Add or edit item" class="modal-card">
+
+        <div class="section-head">
+
+            <h2 id="modalTitle">
+                Add Item
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeModal"
+                type="button"
+            
+                aria-label="Close"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+        </div>
+
+
+        <form id="contentForm">
+
+            <label>
+
+                <span id="contentTitleLabel">Title</span>
+
+                <input
+                    id="contentTitle"
+                    required
+                    placeholder="e.g. New Subscriber Greeting"
+                >
+
+            </label>
+
+
+            <label id="categoryField">
+
+                Category
+
+                <select id="contentCategory"></select>
+
+            </label>
+
+
+            <label>
+
+                <span id="contentTextLabel">Text</span>
+
+                <textarea
+                    id="contentText"
+                    rows="7"
+                    required
+                    placeholder="Write your message here..."
+                ></textarea>
+
+            </label>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn"
+                    id="cancelModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn primary"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ================= VIEW MODAL ================= -->
+
+<div
+    id="viewModal"
+    class="modal hidden"
+>
+
+    <div role="dialog" aria-modal="true" aria-label="Details" class="modal-card wide">
+
+        <div class="section-head">
+
+            <h2 id="viewModalTitle">
+                Title
+            </h2>
+
+            <button
+                class="icon-btn"
+                id="closeViewModal"
+                type="button"
+            
+                aria-label="Close"
+            >
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+        </div>
+
+        <div
+            id="viewModalMeta"
+            class="view-modal-meta"
+        ></div>
+
+        <div class="view-modal-text-wrap">
+
+            <div
+                id="viewModalText"
+                class="view-modal-text"
+            ></div>
+
+            <div
+                id="viewModalFade"
+                class="view-modal-fade"
+            >
+                <span>Scroll for more ↓</span>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SIGN OUT CONFIRM ================= -->
+
+<div
+    id="signOutModal"
+    class="modal hidden"
+>
+
+    <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="signOutTitle"
+        aria-describedby="signOutDesc"
+        class="modal-card confirm-card"
+    >
+
+        <div class="section-head">
+            <h2 id="signOutTitle">Sign out?</h2>
+        </div>
+
+        <p class="sub" id="signOutDesc">
+            This clears the data stored on this device. Sign in again to load it back from your account.
+        </p>
+
+        <p
+            id="signOutWarning"
+            class="confirm-warning hidden"
+            role="status"
+        >
+            Some recent changes haven't finished syncing and will be lost.
+        </p>
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="btn"
+                id="cancelSignOut"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                class="btn primary"
+                id="confirmSignOut"
+            >
+                Sign out
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= GENERIC CONFIRM ================= -->
+<!-- Reused by every destructive action that used to call the
+     browser's window.confirm() (clear history, remove category,
+     delete item, import backup), so they all share the app's own
+     modal styling instead of the native dialog. -->
+
+<div
+    id="confirmModal"
+    class="modal hidden"
+>
+
+    <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirmModalTitle"
+        aria-describedby="confirmModalDesc"
+        class="modal-card confirm-card"
+    >
+
+        <div class="section-head confirm-head">
+            <span class="confirm-icon" id="confirmModalIcon" aria-hidden="true"></span>
+            <h2 id="confirmModalTitle"></h2>
+        </div>
+
+        <p class="sub" id="confirmModalDesc"></p>
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="btn"
+                id="confirmModalCancel"
+            >
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                class="btn danger"
+                id="confirmModalConfirm"
+            >
+                Confirm
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= SIGN IN PAGE ================= -->
+
+<div
+    id="authGate"
+    class="auth-page hidden"
+    role="region"
+    aria-label="Sign in to Outfloww"
+>
+
+    <aside class="auth-brand">
+
+        <div class="auth-lockup" aria-hidden="true">
+            <div class="auth-word"><span>OUT</span>FLOWW</div>
+            <div class="auth-rule"></div>
+            <p class="auth-tag">By Castor 演ス</p>
+        </div>
+
+        <ul class="auth-features">
+
+            <li>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <div>
+                    <span class="auth-feature-title">Models</span>
+                    <span class="auth-feature-text">Info, preferences and notes for each model.</span>
+                </div>
+            </li>
+
+            <li>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                <div>
+                    <span class="auth-feature-title">Sales</span>
+                    <span class="auth-feature-text">Log sales and track daily targets.</span>
+                </div>
+            </li>
+
+            <li>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
+                <div>
+                    <span class="auth-feature-title">Scripts</span>
+                    <span class="auth-feature-text">Your reusable conversation scripts.</span>
+                </div>
+            </li>
+
+        </ul>
+
+    </aside>
+
+
+    <div class="auth-main">
+
+        <div class="auth-card">
+
+            <h1>Sign in</h1>
+
+            <p class="sub">
+                Use your Google account to sync your models, sales and scripts across devices.
+            </p>
+
+            <p id="authError" class="auth-error hidden" role="alert"></p>
+
+            <button
+                type="button"
+                class="btn primary auth-btn"
+                id="googleSignInBtn"
+            >
+                <span class="auth-btn-g" aria-hidden="true">
+                    <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                </span>
+                Sign in with Google
+            </button>
+
+            <p class="auth-note">
+                Signing in on another device with the same account picks up right where you left off.
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div
+    id="syncStatus"
+    class="sync-status hidden"
+></div>
+
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-init.js"></script>
+<script src="js/app.js?v=12"></script>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+</body>
+</html>        var reduced = window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        var MIN_VISIBLE = reduced ? 500 : 1900;
+        var MAX_VISIBLE = 8000;
+
+        var shownAt = 0;
+        var requested = false;
+        var scheduled = false;
+
+        function leave() {
+            splash.classList.add("is-leaving");
+            splash.setAttribute("aria-hidden", "true");
+            setTimeout(function () {
+                if (splash.parentNode) splash.parentNode.removeChild(splash);
+            }, 1000);
+        }
+
+        function maybeLeave() {
+            if (!requested || !shownAt || scheduled) return;
+            scheduled = true;
+            setTimeout(leave, Math.max(0, MIN_VISIBLE - (Date.now() - shownAt)));
+        }
+
+        function play() {
+            if (shownAt) return;
+            shownAt = Date.now();
+            splash.classList.add("splash--play");
+            maybeLeave();
+        }
+
+        window.hideSplash = function () {
+            requested = true;
+            maybeLeave();
+        };
+
+        // Wait for the brand fonts so the wordmark never flashes
+        // in a fallback face, but don't wait long.
+        var fontsReady = Promise.resolve();
+        if (document.fonts && document.fonts.load) {
+            fontsReady = Promise.race([
+                Promise.all([
+                    document.fonts.load('700 1em "IBM Plex Sans"'),
+                    document.fonts.load('italic 600 1em "Playfair Display"')
+                ]),
+                new Promise(function (r) { setTimeout(r, 600); })
+            ]);
+        }
+        fontsReady.then(play, play);
+
+        setTimeout(function () {
+            play();
+            window.hideSplash();
+        }, MAX_VISIBLE);
+
+    })();
+</script>
+
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+
+        <button
+            class="sidebar-collapse-btn"
+            id="sidebarCollapseBtn"
+            type="button"
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+        >
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+
+        <div class="logo">
+             <span>OUT</span>FLOWW
+        </div>
+
+        <nav>
+            <button class="nav-btn" data-page="models" title="Models">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Models</span>
+            </button>
+
+            <button class="nav-btn active" data-page="sales" title="Sales">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                <span>Sales</span>
+            </button>
+
+            <button class="nav-btn" data-page="scripts" title="Scripts">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
+                <span>Scripts</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <button
+                class="sidebar-trash"
+                id="sidebarTrash"
+                type="button"
+                title="Drop here to delete"
+            >
+                <span class="sidebar-trash-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></span>
+                <span>Drop to delete</span>
+            </button>
+
+            <button
+                class="backup-btn"
+                id="faqBtn"
+                type="button"
+                data-page="faq"
+                title="FAQ"
+            >
+                <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
+                <span>FAQ</span>
+            </button>
+
+            <div class="settings-group">
+
+                <button
+                    class="settings-btn"
+                    id="settingsBtn"
+                    type="button"
+                    title="Settings"
+                >
+                    <span class="settings-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                    <span>Settings</span>
+                </button>
+
+                <div class="settings-popover" id="settingsPopover">
+
+                    <button
+                        class="theme-toggle"
+                        id="themeToggle"
+                        type="button"
+                        title="Toggle light/dark mode"
+                    >
+                        <span>
+                            <span class="theme-toggle-icon" id="themeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+                            <span id="themeToggleLabel">Dark mode</span>
+                        </span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+                    </button>
+
+                    <div class="backup-group">
+
+                        <button
+                            class="backup-btn"
+                            id="exportDataBtn"
+                            type="button"
+                            title="Export all data to a file"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span>
+                            <span>Export data</span>
+                        </button>
+
+                        <button
+                            class="backup-btn"
+                            id="importDataBtn"
+                            type="button"
+                            title="Import data from a backup file"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span>
+                            <span>Import data</span>
+                        </button>
+
+                        <input
+                            type="file"
+                            id="importFileInput"
+                            accept=".json,application/json"
+                            hidden
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <button
+                class="backup-btn account-btn hidden"
+                id="signOutBtn"
+                type="button"
+                title="Sign out"
+            >
+                <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
+                <span id="accountEmail">Signed in</span>
+                <span class="account-btn-signout">Sign out</span>
+            </button>
+
+
+            <div class="sidebar-note">
+                Personal Chatter Tool
+                <span>By Castor 演ス</span>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- MOBILE HEADER -->
+        <header class="mobile-header">
+            <div class="logo">
+                 <span>OUT</span>FLOWW
+            </div>
+
+            <div class="mobile-header-actions">
+
+                <button
+                    class="mobile-theme-toggle"
+                    id="mobileFaqBtn"
+                    type="button"
+                    data-page="faq"
+                    title="FAQ"
+                    aria-label="FAQ"
+                >
+                    <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
+                </button>
+
+                <button
+                    class="mobile-theme-toggle"
+                    id="mobileThemeToggle"
+                    type="button"
+                    title="Toggle light/dark mode"
+                    aria-label="Toggle light/dark mode"
+                >
+                    <span id="mobileThemeToggleIcon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+                </button>
+
+                <div class="mobile-settings-group" id="mobileSettingsGroup">
+
+                    <button
+                        class="mobile-theme-toggle"
+                        id="mobileSettingsBtn"
+                        type="button"
+                        title="Settings"
+                        aria-label="Settings"
+                    >
+                        <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                    </button>
+
+                    <div class="mobile-settings-popover" id="mobileSettingsPopover">
+
+                        <button
+                            class="backup-btn"
+                            id="mobileExportDataBtn"
+                            type="button"
+                            title="Export all data to a file"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span>
+                            <span>Export data</span>
+                        </button>
+
+                        <button
+                            class="backup-btn"
+                            id="mobileImportDataBtn"
+                            type="button"
+                            title="Import data from a backup file"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span>
+                            <span>Import data</span>
+                        </button>
+
+                        <input
+                            type="file"
+                            id="mobileImportFileInput"
+                            accept=".json,application/json"
+                            hidden
+                        >
+
+                        <div class="mobile-settings-divider"></div>
+
+                        <button
+                            class="backup-btn account-btn hidden"
+                            id="mobileSignOutBtn"
+                            type="button"
+                            title="Sign out"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
+                            <span id="mobileAccountEmail">Signed in</span>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </header>
+
+
+        <!-- ================= MODELS ================= -->
+
+        <section id="models" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+
+                    <div>
+                        <h1>Models</h1>
+
+                        <p class="sub">
+                            Info, preferences and notes for each model.
+                        </p>
+                    </div>
+
+                    <div class="top-actions">
+
+                        <button
+                            class="btn primary top-btn add-content"
+                            data-type="models"
+                        >
+                            New Model
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="modelsList"
+                class="content-grid"
+            ></div>
+
+            <div
+                id="modelsEmpty"
+                class="empty"
+            >
+                No models yet. Add your first one.
+            </div>
+
+        </section>
+
+
+
+        <!-- ================= SALES ================= -->
+
+        <section id="sales" class="page active">
+
+            <div class="page-topbar">
+
+                <div class="top">
+
+                    <div>
+                        <div class="sales-title-row">
+                            <h1>Sales</h1>
+                            <button
+                                type="button"
+                                id="activeModelBadge"
+                                class="active-model-badge hidden"
+                            ></button>
+                        </div>
+                        <p class="sub" id="todayLabel"></p>
+                    </div>
+
+                    <div class="top-actions">
+
+                        <!-- Totals strip (always shown; dashes until a model is selected) -->
+                        <div class="stat-strip" id="salesStats" title="Select a model to see its totals">
+                            <span class="stat-item">
+                                <span class="stat-k">Gross</span>
+                                <span class="stat" id="gross"></span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-k">Net</span>
+                                <span class="stat net" id="net" title="Net earnings (80%)"></span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-k">PPVs</span>
+                                <span class="stat" id="saleCount" title="PPVs unlocked"></span>
+                            </span>
+                        </div>
+
+                        <button class="btn primary top-btn" id="shiftSettingsBtn" type="button">
+                            Shift Report
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- TRENDS -->
+
+            <div class="card trends-card section">
+
+                <div class="section-head">
+                    <h2>Overview</h2>
+
+                    <div class="trend-toggle">
+                        <button
+                            class="icon-btn"
+                            id="openHistoryModal"
+                            type="button"
+                            title="View full history"
+                            aria-label="View full history"
+                        >
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>
+                        </button>
+                        <div class="segmented" role="group" aria-label="Chart range">
+                            <button class="trend-toggle-btn active" data-range="day">Daily</button>
+                            <button class="trend-toggle-btn" data-range="month">Monthly</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="trend-summary" id="trendSummary"></div>
+
+                <div class="trend-bars" id="trendBars"></div>
+
+                <div class="trend-extra" id="trendExtra"></div>
+
+            </div>
+
+
+            <!-- ADD SALE + DAILY TARGET + TODAY'S SALES -->
+
+            <div class="sales-layout section">
+
+                <div class="sales-layout-left">
+
+                    <div class="card target-card">
+
+                        <div class="section-head">
+                            <h2>Add a sale</h2>
+
+                            <div class="target-head-actions">
+
+                                <div class="model-picker">
+
+                                    <button
+                                        class="icon-btn"
+                                        id="openModelPicker"
+                                        type="button"
+                                        title="Set a model's target"
+                                        aria-label="Set a model's target"
+                                    >
+                                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                                    </button>
+
+                                    <div
+                                        id="modelPickerList"
+                                        class="model-picker-list hidden"
+                                    ></div>
+
+                                </div>
+
+                            </div>
+                        </div>
+
+
+                        <div class="sale-box">
+
+                            <input
+                                id="saleAmount"
+                                form="saleForm"
+                                type="number"
+                                min="0.01"
+                                max="200"
+                                step="0.01"
+                                required
+                            >
+
+                            <button
+                                class="btn primary"
+                                id="addSaleBtn"
+                                type="submit"
+                                form="saleForm"
+                            >
+                                + Add Sale
+                            </button>
+
+                            <div class="outside-shift-picker">
+
+                                <button
+                                    class="outside-shift-btn"
+                                    id="addUsernameToggle"
+                                    type="button"
+                                    title="Tag the next sale with a username"
+                                    aria-label="Add username"
+                                    aria-pressed="false"
+                                >
+                                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </button>
+
+                                <div
+                                    id="addUsernamePopover"
+                                    class="outside-shift-popover hidden"
+                                >
+
+                                    <div
+                                        class="username-type-row"
+                                        role="group"
+                                        aria-label="Username type"
+                                    >
+
+                                        <button
+                                            type="button"
+                                            class="username-type-btn active"
+                                            data-username-type="tip"
+                                            aria-pressed="true"
+                                        >
+                                            Tips
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="username-type-btn"
+                                            data-username-type="outside"
+                                            aria-pressed="false"
+                                        >
+                                            Outside Shift
+                                        </button>
+
+                                    </div>
+
+                                    <form
+                                        id="addUsernameForm"
+                                        autocomplete="off"
+                                    >
+
+                                        <input
+                                            type="text"
+                                            id="saleTagField"
+                                            name="sale-tag"
+                                            placeholder="e.g. @u1234567"
+                                            maxlength="40"
+                                            autocomplete="off"
+                                            autocorrect="off"
+                                            autocapitalize="off"
+                                            spellcheck="false"
+                                            data-lpignore="true"
+                                            data-1p-ignore="true"
+                                            data-form-type="other"
+                                        >
+
+                                        <button
+                                            class="btn primary"
+                                            type="submit"
+                                        >
+                                            Set
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <!-- Owns the amount input and Add Sale button via their form="saleForm"
+                             attribute, so the username popover's own form isn't nested inside it. -->
+                        <form id="saleForm"></form>
+
+
+                        <div
+                            id="targetProgress"
+                            class="target-progress"
+                        >
+
+                            <div class="progress-track">
+                                <div
+                                    id="progressFill"
+                                    class="progress-fill"
+                                ></div>
+                            </div>
+
+                            <div
+                                id="progressLabel"
+                                class="progress-label"
+                            ></div>
+
+                        </div>
+
+                        <div
+                            id="targetBreakdownWrap"
+                            class="target-breakdown-wrap"
+                        >
+
+                            <div
+                                id="targetBreakdown"
+                                class="target-breakdown"
+                            ></div>
+
+                            <div
+                                id="targetBreakdownEmpty"
+                                class="empty"
+                            >
+                                Add models and set their daily targets to see progress here.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- TODAY'S SALES -->
+
+                <div class="card sales-layout-right" id="todaySalesCard">
+
+                    <div class="section-head">
+                        <h2>Today's sales</h2>
+                        <span
+                            id="todaySalesModelName"
+                            class="today-sales-model-name hidden"
+                        ></span>
+                    </div>
+
+                    <div class="sales-list-wrap">
+
+                        <div
+                            id="salesList"
+                            class="sales-list"
+                        ></div>
+
+                        <div
+                            id="emptySales"
+                            class="empty"
+                        >
+                            No sales added today.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+
+        <!-- ================= SCRIPTS ================= -->
+
+        <section id="scripts" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+
+                    <div>
                         <h1>Scripts</h1>
 
                         <p class="sub">
