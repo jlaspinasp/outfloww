@@ -789,10 +789,25 @@ nav {
     --gutter: var(--sp-8);
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
     padding-bottom: 48px;
     overflow-y: auto;
     overscroll-behavior: contain;
     container-type: inline-size;
+}
+
+/* .main is a column so the footer can sit at the bottom of the
+   window when the active page is short (empty Models / Scripts).
+   Children keep their natural height instead of being squeezed. */
+.main > * {
+    flex-shrink: 0;
+}
+
+/* Gap between the active page and the footer (the footer's own
+   margin-top is "auto" so it can absorb leftover space). */
+.main > .page {
+    margin-bottom: var(--sp-8);
 }
 
 @supports (width: 1cqw) {
@@ -4890,4 +4905,65 @@ label {
     transform: translateY(-4px);
     transition: opacity 0.14s var(--fx-out), transform 0.14s var(--fx-out);
     pointer-events: none;
+}
+
+
+/* =====================================================
+   16. SITE FOOTER
+   ===================================================== */
+
+/* Sits as its own flow-root sibling after the .page sections, inside
+   .main's scroll container — so it scrolls in below whichever page is
+   active, the same way it would on a normal page. Shares .page's
+   gutter so its edges line up with page content at every width. */
+.site-footer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: var(--sp-2);
+    column-gap: var(--sp-5);
+    margin-top: auto;
+    padding: var(--sp-5) var(--gutter);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+}
+
+.site-footer-logo {
+    display: block;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    opacity: 0.85;
+}
+
+.site-footer-copy {
+    color: var(--text-muted);
+}
+
+.site-footer-links {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    flex-wrap: wrap;
+}
+
+.site-footer-links button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.site-footer-links button:hover {
+    color: var(--text-secondary);
+    text-decoration: underline;
+}
+
+.site-footer-credit {
+    margin-left: auto;
+    color: var(--text-disabled);
 }
