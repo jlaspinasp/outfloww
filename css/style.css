@@ -661,7 +661,7 @@ nav {
     opacity: 0;
     pointer-events: none;
     background: transparent;
-    border: 1px dashed transparent;
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
     color: var(--sb-muted);
     font-size: var(--fs-sm);
@@ -736,7 +736,6 @@ nav {
 .app.sidebar-collapsed .nav-btn span,
 .app.sidebar-collapsed .settings-btn span:not(.settings-btn-icon),
 .app.sidebar-collapsed .account-btn span:not(.backup-btn-icon),
-.app.sidebar-collapsed #faqBtn span:not(.backup-btn-icon),
 .app.sidebar-collapsed .sidebar-trash span:not(.sidebar-trash-icon),
 .app.sidebar-collapsed .sidebar-note {
     display: none;
@@ -770,7 +769,6 @@ nav {
 
 .app.sidebar-collapsed .settings-btn,
 .app.sidebar-collapsed .account-btn,
-.app.sidebar-collapsed #faqBtn,
 .app.sidebar-collapsed .sidebar-trash.armed {
     justify-content: center;
     width: 40px;
@@ -791,7 +789,7 @@ nav {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    padding-bottom: 48px;
+    padding-bottom: var(--sp-5);
     overflow-y: auto;
     overscroll-behavior: contain;
     container-type: inline-size;
@@ -1415,8 +1413,6 @@ label {
 .empty {
     display: none;
     padding: var(--sp-8) var(--sp-5);
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-lg);
     color: var(--text-muted);
     font-size: var(--fs-base);
     text-align: center;
@@ -2331,8 +2327,14 @@ label {
 /* ---------- Today's sales ---------- */
 
 .sales-layout-right {
+    /* Fixed height: it no longer grows when the Add a sale card gets
+       taller (more models). Extra sales scroll inside the list. Change
+       this one value to make the card taller or shorter. */
+    --today-sales-height: 440px;
     display: flex;
     flex-direction: column;
+    align-self: start;
+    height: var(--today-sales-height);
     min-height: 440px;
     max-height: 720px;
     min-width: 0;
@@ -3750,6 +3752,193 @@ label {
     grid-template-rows: 1fr;
 }
 
+/* =====================================================
+   ABOUT
+   Same building blocks as the FAQ: italic-serif headings,
+   a .card-style surface, tokens only (so light/dark just work).
+   ===================================================== */
+
+.about-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    max-width: 760px;
+    padding: var(--sp-6) 0 var(--sp-10);
+}
+
+/* The one loud element: the origin story, set large in the
+   display face, everything else stays quiet around it. */
+.about-lead {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-style: italic;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--text-primary);
+    text-wrap: pretty;
+}
+
+.about-heading {
+    margin-bottom: var(--sp-3);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--accent-text);
+}
+
+.about-features {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: background-color var(--ease), border-color var(--ease);
+}
+
+.about-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-5);
+}
+
+.about-feature + .about-feature {
+    border-top: 1px solid var(--border-subtle);
+}
+
+.about-feature-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    transition: background-color var(--ease), border-color var(--ease);
+}
+
+.about-feature-text {
+    min-width: 0;
+}
+
+.about-feature-text h3 {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+.about-feature-text p {
+    margin-top: 2px;
+    font-size: var(--fs-base);
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.about-note {
+    margin-top: var(--sp-3);
+    font-family: var(--font-display);
+    font-size: var(--fs-md);
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+.about-body {
+    max-width: 66ch;
+    font-size: var(--fs-md);
+    line-height: 1.7;
+    color: var(--text-secondary);
+    text-wrap: pretty;
+}
+
+.about-contact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+}
+
+.about-contact-text h3 {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.about-contact-text p {
+    margin-top: 2px;
+    font-size: var(--fs-base);
+    color: var(--text-secondary);
+}
+
+.about-contact .btn {
+    text-decoration: none;
+}
+
+.about-signoff {
+    margin-top: calc(var(--sp-4) * -1);
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+/* Terms + Privacy reuse the About building blocks; these two
+   are the only extras (date line and bullet lists). */
+.legal-updated {
+    margin-bottom: calc(var(--sp-4) * -1);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.legal-list {
+    max-width: 66ch;
+    margin: 0;
+    padding-left: var(--sp-5);
+    font-size: var(--fs-md);
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+.legal-list li + li {
+    margin-top: var(--sp-2);
+}
+
+@media (max-width: 700px) {
+
+    .about-content {
+        gap: var(--sp-8);
+        padding-top: var(--sp-4);
+    }
+
+    .about-lead {
+        font-size: 21px;
+    }
+
+    .about-feature {
+        gap: var(--sp-3);
+        padding: var(--sp-4);
+    }
+
+    .about-contact {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .about-contact .btn {
+        width: 100%;
+    }
+
+}
+
+
 
 /* =====================================================
    12. RESPONSIVE
@@ -3764,6 +3953,8 @@ label {
     }
 
     .sales-layout-right {
+        align-self: auto;
+        height: auto;
         min-height: 0;
         max-height: none;
     }
@@ -3797,7 +3988,7 @@ label {
 
     .main {
         --gutter: var(--sp-4);
-        padding-bottom: 96px;
+        padding-bottom: calc(64px + var(--sp-3) + env(safe-area-inset-bottom, 0px));
         overflow: visible;
     }
 
@@ -4527,22 +4718,71 @@ label {
     width: min(400px, 100%);
 }
 
+/* The new centered look below is for the generic delete/confirm
+   pop-up only. Sign out and Save shift share .confirm-card, so they
+   keep their original layout. */
+#confirmModal .confirm-card {
+    width: min(320px, 100%);
+    padding: var(--sp-5);
+    padding-top: var(--sp-6);
+    text-align: center;
+}
+
+/* Centered layout: big icon on top with a few sparkles around it,
+   then title, message, and two full-width buttons. */
 .confirm-head {
-    justify-content: flex-start;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
     gap: var(--sp-3);
 }
 
 .confirm-icon {
+    position: relative;
     display: flex;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    background: var(--danger-bg);
-    color: var(--danger);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+}
+
+.confirm-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+/* Sparkles: a "+" at the top right, a dot at the bottom left. */
+.confirm-icon::before,
+.confirm-icon::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+}
+
+.confirm-icon::before {
+    top: -2px;
+    right: -14px;
+    width: 12px;
+    height: 12px;
+    background:
+        linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat,
+        linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat;
+    opacity: 0.8;
+}
+
+.confirm-icon::after {
+    bottom: 6px;
+    left: -12px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.6;
+    box-shadow: -8px -22px 0 -1px currentColor;
 }
 
 .confirm-head h2 {
@@ -4553,6 +4793,10 @@ label {
 .confirm-card .sub {
     line-height: 1.55;
     color: var(--text-muted);
+}
+
+#confirmModal .confirm-card .sub {
+    text-align: center;
 }
 
 .confirm-warning {
@@ -4570,8 +4814,45 @@ label {
     display: none;
 }
 
+/* Cancel (neutral) + Confirm (accent) fill the full width. */
 .confirm-card .modal-actions {
     margin-top: var(--sp-6);
+}
+
+#confirmModal .confirm-card .modal-actions {
+    margin-top: var(--sp-5);
+    justify-content: stretch;
+    gap: var(--sp-3);
+}
+
+#confirmModal .confirm-card .modal-actions .btn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 40px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+}
+
+
+
+
+
+
+/* Sign out, Shift Report, Save shift: Cancel + main button fill the
+   full width at equal size (same as the delete pop-up). */
+#signOutModal .modal-actions,
+#shiftModal .modal-actions,
+#shiftSaveModal .modal-actions {
+    justify-content: stretch;
+    gap: var(--sp-3);
+}
+
+#signOutModal .modal-actions .btn,
+#shiftModal .modal-actions .btn,
+#shiftSaveModal .modal-actions .btn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 40px;
 }
 
 
@@ -4917,16 +5198,25 @@ label {
    active, the same way it would on a normal page. Shares .page's
    gutter so its edges line up with page content at every width. */
 .site-footer {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    flex-wrap: wrap;
     row-gap: var(--sp-2);
     column-gap: var(--sp-5);
     margin-top: auto;
-    padding: var(--sp-5) var(--gutter);
+    /* Tighter top/bottom padding so the extra opt-out line doesn't
+       make the footer taller than it originally was. */
+    padding: 11px var(--gutter);
     border-top: 1px solid var(--border-subtle);
     font-size: var(--fs-xs);
     color: var(--text-muted);
+}
+
+.site-footer-brand {
+    display: flex;
+    align-items: center;
+    column-gap: var(--sp-5);
+    justify-self: start;
 }
 
 .site-footer-logo {
@@ -4941,14 +5231,36 @@ label {
     color: var(--text-muted);
 }
 
+/* Links centered; the opt-out line sits directly beneath them. */
+.site-footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    row-gap: 2px;
+    text-align: center;
+}
+
 .site-footer-links {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--sp-4);
     flex-wrap: wrap;
 }
 
-.site-footer-links button {
+/* Clickable-looking text: pointer + underline on hover. */
+.site-footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.site-footer a:hover {
+    color: var(--text-secondary);
+    text-decoration: underline;
+}
+
+.site-footer button {
     background: none;
     border: none;
     padding: 0;
@@ -4958,12 +5270,1000 @@ label {
     cursor: pointer;
 }
 
-.site-footer-links button:hover {
+.site-footer button:hover {
     color: var(--text-secondary);
     text-decoration: underline;
 }
 
 .site-footer-credit {
-    margin-left: auto;
+    justify-self: end;
     color: var(--text-disabled);
+}
+
+/* Narrow screens: back to the original wrapping row. */
+@media (max-width: 700px) {
+
+    .site-footer {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        row-gap: var(--sp-2);
+        column-gap: var(--sp-5);
+    }
+
+    .site-footer-credit {
+        margin-left: auto;
+    }
+
+    /* Links + opt-out get their own centered row under the
+       logo/credit row. */
+    .site-footer-center {
+        order: 3;
+        flex-basis: 100%;
+    }
+
+}
+
+
+/* =====================================================
+   ADD CATEGORY CARD
+   -----------------------------------------------------
+   #categoryModal, opened by categoryDialog() in app.js. Built from
+   the same tokens as the rest of the app (accent-soft badge, display
+   font title, raised card), so it follows the light/dark themes.
+   ===================================================== */
+
+/* .category-card is the shared premium card: Add category, New Script,
+   New Model and Shift Report all use it. */
+.modal-card.category-card {
+    position: relative;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#categoryModal .category-card {
+    width: min(420px, 100%);
+}
+
+#shiftModal .category-card {
+    width: min(440px, 100%);
+}
+
+/* Fine accent hairline along the top edge. */
+.category-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.cat-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-6) var(--sp-6) var(--sp-4);
+    background: linear-gradient(180deg, var(--accent-soft), transparent 90%);
+}
+
+.cat-badge {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-lg);
+    color: var(--accent-text);
+}
+
+.cat-badge svg {
+    width: 22px;
+    height: 22px;
+}
+
+.cat-titles {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 2px;
+    min-width: 0;
+}
+
+.cat-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.category-card .cat-titles h2 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--text-primary);
+}
+
+.cat-body {
+    padding: 0 var(--sp-6) var(--sp-5);
+}
+
+.cat-sub {
+    margin: 0 0 var(--sp-5);
+    font-size: var(--fs-base);
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+.cat-field {
+    margin-bottom: var(--sp-5);
+}
+
+.cat-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.cat-label-row label {
+    display: block;
+    margin: 0;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.cat-count {
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-disabled);
+    transition: color var(--ease);
+}
+
+.cat-count.near {
+    color: var(--warning);
+}
+
+#categoryName {
+    height: 44px;
+    font-size: var(--fs-md);
+}
+
+#categoryName[aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+#categoryName[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px var(--danger-bg);
+}
+
+#categoryName.shake {
+    animation: cat-shake 0.32s ease;
+}
+
+.cat-hint {
+    min-height: 18px;
+    margin: 8px 0 0;
+    font-size: var(--fs-xs);
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.cat-hint.error {
+    color: var(--danger);
+}
+
+/* Preview: the chip as it will look on the Scripts chip bar. */
+.cat-preview {
+    margin-bottom: var(--sp-4);
+}
+
+.cat-preview-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+}
+
+.cat-preview-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px var(--sp-3);
+    background: var(--input-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.cat-preview-bar .chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    pointer-events: none;
+}
+
+.cat-preview-chip {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cat-preview-chip.is-empty {
+    opacity: 0.5;
+    font-weight: 500;
+}
+
+.cat-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-6);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.cat-foot .modal-actions {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+.cat-foot .modal-actions .btn {
+    flex: 1 1 0;
+    min-height: 38px;
+    font-weight: 600;
+}
+
+/* Fade-out (the fade-in comes from .modal / .modal-card). */
+.modal.fx-closing {
+    animation: cat-modal-out 0.14s ease forwards;
+    pointer-events: none;
+}
+
+.modal.fx-closing .modal-card {
+    animation: cat-card-out 0.14s ease forwards;
+}
+
+@keyframes cat-modal-out {
+    to { opacity: 0; }
+}
+
+@keyframes cat-card-out {
+    to { opacity: 0; transform: translateY(6px) scale(0.985); }
+}
+
+@keyframes cat-shake {
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+}
+
+@media (max-width: 700px), (hover: none) {
+
+    .cat-foot {
+        justify-content: stretch;
+    }
+
+    .cat-foot .modal-actions {
+        flex: 1 1 auto;
+    }
+
+    .cat-foot .modal-actions .btn {
+        flex: 1 1 0;
+    }
+
+}
+
+@media (max-width: 700px) {
+
+    .cat-head {
+        padding: var(--sp-5) var(--sp-5) var(--sp-3);
+    }
+
+    .cat-body {
+        padding: 0 var(--sp-5) var(--sp-4);
+    }
+
+    .cat-foot {
+        padding: var(--sp-4) var(--sp-5);
+    }
+
+}
+
+
+
+/* =====================================================
+   SHARED CARD: New Script, New Model, Shift Report
+   ===================================================== */
+
+.category-card .cat-body label,
+.category-card .cat-body .shift-field-label {
+    font-weight: 600;
+}
+
+.category-card .cat-body input:not([type="checkbox"]):not([type="radio"]),
+.category-card .cat-body select {
+    height: 44px;
+    font-size: var(--fs-md);
+}
+
+.category-card .cat-body textarea {
+    min-height: 150px;
+}
+
+.category-card .cat-body > label:last-child {
+    margin-bottom: 0;
+}
+
+.cat-body .shift-modal-note {
+    margin: 0 0 var(--sp-5);
+}
+
+.category-card .shift-toggle-btn {
+    height: 40px;
+}
+
+/* Shift Report: keep the footer buttons compact on desktop (the older
+   #shiftModal rules stretched them), full width on phones. */
+
+@media (max-width: 700px), (hover: none) {
+
+    #shiftModal .cat-foot .modal-actions {
+        flex: 1 1 auto;
+    }
+
+    #shiftModal .cat-foot .modal-actions .btn {
+        flex: 1 1 0;
+    }
+
+}
+
+
+
+/* =====================================================
+   PREMIUM CARD: THE REST OF THE APP
+   Target, Logout title, History, Item view, and every confirmation.
+   ===================================================== */
+
+.category-card .cat-titles h2 {
+    overflow-wrap: anywhere;
+}
+
+.category-card .cat-head,
+.category-card .cat-foot {
+    flex: 0 0 auto;
+}
+
+/* ---------- Confirmations (delete, sign out, save shift) ---------- */
+
+#confirmModal .confirm-card.category-card {
+    padding: 0;
+}
+
+.confirm-card.category-card .cat-head.confirm-head {
+    gap: var(--sp-3);
+    padding: var(--sp-6) var(--sp-5) var(--sp-3);
+    text-align: center;
+}
+
+.confirm-card .cat-head.confirm-head h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+.confirm-card .cat-body {
+    padding: 0 var(--sp-5) var(--sp-5);
+    text-align: center;
+}
+
+.confirm-card .cat-body .sub {
+    margin: 0;
+}
+
+.confirm-card .shift-save-summary {
+    text-align: left;
+}
+
+.confirm-card .cat-foot {
+    padding: var(--sp-4) var(--sp-5);
+}
+
+.confirm-card .cat-foot .modal-actions,
+#confirmModal .confirm-card .cat-foot .modal-actions {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+/* ---------- Logout title ---------- */
+
+#logoutTitleModal .cat-foot .modal-actions {
+    flex: 1 1 auto;
+}
+
+.category-card .emoji-toggle {
+    width: 44px;
+    height: 44px;
+}
+
+.cat-body > .shift-field:last-child {
+    margin-bottom: 0;
+}
+
+/* ---------- Sales History ---------- */
+
+.category-card .history-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding-top: var(--sp-2);
+}
+
+#historyModal .cat-foot .modal-actions {
+    flex: 1 1 auto;
+    width: 100%;
+    margin: 0;
+}
+
+.history-row {
+    padding: 12px var(--sp-4);
+    border-radius: var(--radius-lg);
+}
+
+.history-row[data-date]:hover {
+    border-color: var(--accent-border);
+}
+
+/* ---------- Item view (click a Model / Script) ---------- */
+
+.modal-card.wide.category-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.category-card .view-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-6);
+}
+
+.category-card .view-modal-text-wrap {
+    background: var(--input-background);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.category-card .view-modal-text {
+    padding: var(--sp-4);
+}
+
+.category-card .view-modal-fade {
+    background: linear-gradient(to bottom, transparent, var(--input-background) 65%);
+}
+
+
+
+/* =====================================================
+   FOOTER BUTTONS + SMALLER TARGET CARD + HISTORY FOOTER
+   ===================================================== */
+
+/* Every card footer: buttons share the width equally (base rule above). */
+
+#targetModal .category-card {
+    width: min(380px, 100%);
+}
+
+/* Sales History footer: "Copy for logout" (left) and "Clear history"
+   (right) always share the width equally. With no day selected the copy
+   button just fades out and keeps its slot, so the layout never shifts. */
+#historyModal #copyLogoutBtn,
+#historyModal #clearHistory {
+    flex: 1 1 0;
+    justify-content: center;
+}
+
+#historyModal #copyLogoutBtn {
+    margin-right: 0;
+}
+
+
+
+/* =====================================================
+   SIDEBAR REDESIGN (desktop)
+   -----------------------------------------------------
+   Same markup hooks as before (nav buttons, collapse button, settings,
+   account, drop-to-delete), restyled as one premium panel. The phone tab
+   bar is untouched: the new brand block and menu label stay hidden there.
+   ===================================================== */
+
+.sidebar-brand {
+    display: none;
+}
+
+@media (min-width: 701px) {
+
+    /* ---- Panel ---- */
+    .sidebar {
+        background-color: var(--sb-bg);
+        background-image:
+            radial-gradient(240px 170px at 0% 0%, rgba(209, 70, 126, 0.13), transparent 70%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 260px);
+    }
+
+    /* ---- Brand ---- */
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 var(--sp-4);
+        padding: 2px 36px var(--sp-4) 4px;
+        border-bottom: 1px solid var(--sb-border);
+    }
+
+    .brand-mark {
+        display: block;
+        flex: none;
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
+
+    .sidebar-brand .logo {
+        padding: 0;
+        font-size: 15px;
+        letter-spacing: 0.14em;
+        white-space: nowrap;
+    }
+
+    .sidebar-collapse-btn {
+        top: 23px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--sb-border);
+    }
+
+    .sidebar-collapse-btn:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    /* ---- Navigation ---- */
+    nav {
+        gap: 4px;
+    }
+
+    .nav-btn {
+        gap: 12px;
+        height: 42px;
+        border-radius: 10px;
+        transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+
+    .nav-btn .icon {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        transition: color 0.15s;
+    }
+
+    .nav-btn.active {
+        background: linear-gradient(90deg, rgba(209, 70, 126, 0.2), rgba(209, 70, 126, 0.05));
+        box-shadow: inset 0 0 0 1px rgba(209, 70, 126, 0.28);
+    }
+
+    .nav-btn.active .icon {
+        color: var(--sb-accent);
+    }
+
+    /* Active marker sits flush with the panel edge. */
+    .nav-btn.active::before {
+        left: -12px;
+        top: 11px;
+        bottom: 11px;
+        box-shadow: 0 0 10px rgba(209, 70, 126, 0.55);
+    }
+
+    /* ---- Bottom area ---- */
+    .sidebar-bottom {
+        gap: 10px;
+        padding-top: var(--sp-5);
+    }
+
+    .settings-btn,
+    .backup-btn,
+    .theme-toggle {
+        height: 40px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .settings-btn:hover,
+    .settings-group.open .settings-btn,
+    .backup-btn:hover,
+    .theme-toggle:hover {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .settings-btn-icon,
+    .backup-btn-icon,
+    .theme-toggle-icon {
+        color: var(--sb-muted);
+    }
+
+    .settings-btn::after {
+        content: "";
+        width: 6px;
+        height: 6px;
+        margin: 0 3px 0 auto;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        opacity: 0.55;
+        transform: rotate(-135deg);
+    }
+
+    .settings-popover {
+        width: 236px;
+        padding: 8px;
+        background: var(--sb-raised);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .settings-popover .theme-toggle,
+    .settings-popover .backup-btn {
+        height: 38px;
+        background: transparent;
+        border-radius: 8px;
+    }
+
+    .settings-popover .theme-toggle:hover,
+    .settings-popover .backup-btn:hover {
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    .backup-group {
+        margin-top: 6px;
+        padding-top: 8px;
+    }
+
+    /* Account row: same pill as Settings/backup buttons above it
+       (height, padding, radius, border) — just its own icon and
+       the accent "Sign out" chip. */
+    .account-btn {
+        padding: 0 12px;
+    }
+
+    .account-btn .backup-btn-icon .icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .account-btn-signout {
+        padding: 3px 8px;
+        background: rgba(209, 70, 126, 0.14);
+        border-radius: 999px;
+    }
+
+    .sidebar-note {
+        margin-top: 2px;
+        padding: var(--sp-3) 4px 0;
+        font-size: 11px;
+        letter-spacing: 0.03em;
+    }
+
+    .sidebar-note span {
+        margin-top: 1px;
+        color: var(--sb-muted);
+    }
+
+    /* Drop-to-delete zone (only visible while dragging). */
+    .sidebar-trash {
+        border-radius: 12px;
+    }
+
+    .sidebar-trash.armed {
+        height: 46px;
+        background: rgba(248, 113, 113, 0.07);
+    }
+
+    /* ---- Collapsed (icons only) ---- */
+    .app.sidebar-collapsed .sidebar-collapse-btn {
+        top: 16px;
+    }
+
+    .app.sidebar-collapsed .sidebar-brand {
+        justify-content: center;
+        margin: 36px 0 var(--sp-3);
+        padding: 0 0 var(--sp-3);
+    }
+
+    .app.sidebar-collapsed nav {
+        margin-top: 0;
+    }
+
+    .app.sidebar-collapsed .settings-btn::after {
+        display: none;
+    }
+
+    .app.sidebar-collapsed .nav-btn {
+        border-radius: 10px;
+    }
+
+    /* Collapsed sign-out now shares the same bordered square as
+       Settings above it — no special-casing needed. */
+
+
+    /* ---- Settings: an attached panel, not a floating popover ----
+       Only in expanded mode — the sidebar has room for this. Collapsed
+       (icons-only) mode keeps the flyout popover from the base rules.
+
+       The button sits near the bottom of the sidebar, so the panel
+       opens upward (above the button, into the sidebar's own empty
+       space) rather than downward, which would spill past the bottom
+       of the sidebar and force it to scroll. It's `position: absolute`
+       and anchored to the button's own box, so the button never moves
+       when it opens or closes, and nothing below it reflows either.
+       Matching border and no gap make it read as attached rather than
+       a floating card — it just sits over the nav above it while open. */
+
+    .app:not(.sidebar-collapsed) .settings-group {
+        position: relative;
+    }
+
+    .app:not(.sidebar-collapsed) .settings-btn {
+        position: relative;
+        z-index: 2;
+        border-radius: 10px;
+        transition: background-color 0.15s, border-color 0.15s, border-radius 0.2s ease 0.1s;
+    }
+
+    .app:not(.sidebar-collapsed) .settings-group.open .settings-btn {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.16);
+        border-top-color: transparent;
+        border-radius: 0 0 10px 10px;
+        transition: background-color 0.15s, border-color 0.15s, border-radius 0.15s ease;
+    }
+
+    /* Up when closed ("opens above"), down when open ("collapse it"). */
+    .app:not(.sidebar-collapsed) .settings-btn::after {
+        transform: rotate(-135deg);
+        transition: transform 0.26s var(--fx-in);
+    }
+
+    .app:not(.sidebar-collapsed) .settings-group.open .settings-btn::after {
+        transform: rotate(45deg);
+    }
+
+    .app:not(.sidebar-collapsed) .settings-popover {
+        position: absolute;
+        bottom: 100%;
+        top: auto;
+        left: 0;
+        right: 0;
+        z-index: 1;
+        width: auto;
+        margin-bottom: -1px;
+        transform: translateY(4px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        background: var(--sb-raised);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.5);
+        padding: 6px 6px 7px;
+        transition: opacity 0.16s ease, transform 0.16s var(--fx-out), visibility 0s linear 0.16s;
+    }
+
+    .app:not(.sidebar-collapsed) .settings-group.open .settings-popover {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0);
+        transition: opacity 0.2s ease, transform 0.24s var(--fx-in), visibility 0s;
+    }
+
+    /* The panel's own border already forms the seam where it meets
+       the button — no separate divider line needed above the seam. */
+
+}
+
+
+/* =====================================================
+   SIDEBAR EDGE LINE (desktop)
+   -----------------------------------------------------
+   The collapse control is a vertical gray line just outside the sidebar's
+   right border, at its vertical middle. It only shows while the pointer is
+   over the sidebar. Click it or drag it (see app.js) to collapse / expand.
+   It's position: fixed, so it overlays the layout and changes no widths,
+   padding or gaps. Kept at the end of the file so it wins over the older
+   button rules. The phone layout still hides it (display: none).
+   ===================================================== */
+
+@media (min-width: 701px) {
+
+    .sidebar-collapse-btn,
+    .app.sidebar-collapsed .sidebar-collapse-btn {
+        position: fixed;
+        top: calc(50% - 80px);
+        bottom: auto;
+        right: auto;
+        left: var(--sidebar-w);
+        z-index: 5;
+        width: 14px;
+        height: 160px;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        transform: none;
+        cursor: col-resize;
+        touch-action: none;
+        transition: left 0.18s ease;
+    }
+
+    .app.sidebar-collapsed .sidebar-collapse-btn {
+        left: var(--sidebar-w-collapsed);
+    }
+
+    .sidebar-collapse-btn:hover,
+    .app.sidebar-collapsed .sidebar-collapse-btn:hover {
+        background: transparent;
+        border: 0;
+    }
+
+    /* The chevron is replaced by the line */
+    .sidebar-collapse-btn .icon {
+        display: none;
+    }
+
+    /* Hidden until the pointer is over the sidebar */
+    .sidebar-collapse-btn::before {
+        content: "";
+        position: absolute;
+        top: 20px;
+        bottom: 20px;
+        left: 6px;
+        width: 3px;
+        border-radius: 3px;
+        background: var(--border-strong);
+        opacity: 0;
+        transition: opacity 0.15s, background-color 0.15s;
+    }
+
+    .sidebar:hover .sidebar-collapse-btn::before {
+        opacity: 0.6;
+    }
+
+    .sidebar-collapse-btn:hover::before,
+    .sidebar-collapse-btn:focus-visible::before,
+    .sidebar-collapse-btn.dragging::before {
+        background: var(--text-muted);
+        opacity: 1;
+    }
+
+}
+
+
+/* Sidebar wordmark: "OUT" white, "FLOWW" pink */
+.sidebar .logo {
+    color: var(--sb-accent);
+}
+
+.sidebar .logo span {
+    color: #ffffff;
+}
+
+
+/* =====================================================
+   SIDEBAR BRAND DIVIDER ↔ TOP BAR LINE (desktop)
+   -----------------------------------------------------
+   The line under the logo now sits at the same height as the bottom
+   border of the sticky page top bar. --topbar-line mirrors the top bar's
+   own box: padding-top + title line (h1) + sub gap + sub line + padding-bottom
+   + 1px border. If the top bar's padding or title size ever changes,
+   update it to match. The brand block starts at the very top of the
+   sidebar (negative margin cancels the sidebar's top padding) so the
+   logo is centred on the top bar's midline.
+   ===================================================== */
+
+@media (min-width: 701px) {
+
+    .sidebar {
+        --topbar-line: calc(
+            var(--sp-5)
+            + var(--fs-2xl) * 1.2
+            + 2px
+            + var(--fs-base) * 1.5
+            + var(--sp-4)
+            + 1px
+        );
+    }
+
+    .sidebar-brand {
+        box-sizing: border-box;
+        flex: none;
+        height: var(--topbar-line);
+        margin: calc(var(--sp-5) * -1) 0 var(--sp-4);
+        padding: 0 36px 0 4px;
+    }
+
+    .app.sidebar-collapsed .sidebar-brand {
+        margin: calc(var(--sp-4) * -1) 0 var(--sp-4);
+        padding: 0;
+    }
+
+}
+
+
+/* =====================================================
+   TOP BAR LINE: inset from the edges
+   -----------------------------------------------------
+   The line under every page's top bar no longer runs edge to edge. It's
+   drawn as a 1px bar inset by the same 12px as the sidebar's logo divider.
+   The real border stays (transparent) so the top bar keeps its exact
+   height and the two lines stay aligned.
+   ===================================================== */
+
+.page-topbar {
+    border-bottom-color: transparent;
+}
+
+.page-topbar::after {
+    content: "";
+    position: absolute;
+    left: var(--sp-3);
+    right: var(--sp-3);
+    bottom: -1px;
+    height: 1px;
+    background: var(--border-color);
+    pointer-events: none;
+    transition: background-color var(--ease);
+}
+
+
+/* =====================================================
+   FOOTER LINE: inset from the edges
+   -----------------------------------------------------
+   Same treatment as the top bar: the line above the footer is a 1px bar
+   inset 12px from each edge instead of running edge to edge. The real
+   border stays (transparent) so the footer keeps its exact height.
+   ===================================================== */
+
+.site-footer {
+    position: relative;
+    border-top-color: transparent;
+}
+
+.site-footer::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: var(--sp-3);
+    right: var(--sp-3);
+    height: 1px;
+    background: var(--border-subtle);
+    pointer-events: none;
 }
