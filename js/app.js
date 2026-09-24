@@ -492,6 +492,155 @@ function confirmDialog(options) {
 }
 
 
+/* Add-category card (#categoryModal). Promise-based replacement for
+   the native prompt(): resolves with the trimmed name, or null on
+   Cancel, backdrop click, or Escape.
+   options: { title, submitLabel, initial, isTaken(name) }
+   Validation (empty / duplicate) is shown inline, and the preview chip
+   mirrors how the category will look on the chip bar. */
+const CATEGORY_NAME_MAX = 30;
+const CATEGORY_MODAL_OUT_MS = 140;
+
+function categoryDialog(options) {
+
+    options = options || {};
+
+    return new Promise(resolve => {
+
+        const modal = $("#categoryModal");
+        const form = $("#categoryForm");
+        const input = $("#categoryName");
+        const count = $("#categoryCount");
+        const hint = $("#categoryHint");
+        const preview = $("#categoryPreviewChip");
+        const submitBtn = $("#categorySubmit");
+        const cancelBtn = $("#categoryCancel");
+        const closeBtn = $("#categoryClose");
+
+        const isTaken = options.isTaken || function () { return false; };
+        const DEFAULT_HINT = options.hint || "Appears as a chip above your scripts.";
+
+        $("#categoryTitle").textContent = options.title || "New category";
+        submitBtn.textContent = options.submitLabel || "Add category";
+        input.value = options.initial || "";
+
+        function validate() {
+
+            const value = input.value.trim();
+            const taken = value !== "" && isTaken(value);
+
+            count.textContent = input.value.length + "/" + CATEGORY_NAME_MAX;
+            count.classList.toggle(
+                "near",
+                input.value.length >= CATEGORY_NAME_MAX - 5
+            );
+
+            preview.textContent = value || "Category name";
+            preview.classList.toggle("is-empty", !value);
+
+            hint.textContent = taken
+                ? "A category with that name already exists."
+                : DEFAULT_HINT;
+            hint.classList.toggle("error", taken);
+            input.setAttribute("aria-invalid", taken ? "true" : "false");
+
+            const unchanged =
+                options.initial !== undefined &&
+                value === String(options.initial).trim();
+
+            submitBtn.disabled = !value || taken || unchanged;
+
+            return !submitBtn.disabled;
+        }
+
+        function open() {
+            clearTimeout(modal._hideTimer);
+            modal.classList.remove("fx-closing");
+            modal.classList.remove("hidden");
+            validate();
+            input.focus();
+            input.select();
+        }
+
+        function close() {
+
+            // Blur before hiding so the page doesn't jump (see closeModal).
+            if (document.activeElement && modal.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
+
+            clearTimeout(modal._hideTimer);
+
+            if (reduceMotion()) {
+                modal.classList.add("hidden");
+                return;
+            }
+
+            modal.classList.add("fx-closing");
+
+            modal._hideTimer = setTimeout(function () {
+                modal.classList.add("hidden");
+                modal.classList.remove("fx-closing");
+            }, CATEGORY_MODAL_OUT_MS);
+        }
+
+        function settle(result) {
+
+            form.removeEventListener("submit", onSubmit);
+            input.removeEventListener("input", validate);
+            cancelBtn.removeEventListener("click", onCancel);
+            closeBtn.removeEventListener("click", onCancel);
+            modal.removeEventListener("click", onBackdrop);
+            document.removeEventListener("keydown", onKeydown);
+
+            close();
+            resolve(result);
+        }
+
+        function onSubmit(event) {
+
+            event.preventDefault();
+
+            if (validate()) {
+                settle(input.value.trim());
+                return;
+            }
+
+            // Enter on an invalid name: nudge the field.
+            input.classList.remove("shake");
+            void input.offsetWidth;
+            input.classList.add("shake");
+            input.focus();
+        }
+
+        function onCancel() {
+            settle(null);
+        }
+
+        function onBackdrop(event) {
+            if (event.target === modal) {
+                settle(null);
+            }
+        }
+
+        function onKeydown(event) {
+            if (event.key === "Escape") {
+                settle(null);
+            }
+        }
+
+        form.addEventListener("submit", onSubmit);
+        input.addEventListener("input", validate);
+        cancelBtn.addEventListener("click", onCancel);
+        closeBtn.addEventListener("click", onCancel);
+        modal.addEventListener("click", onBackdrop);
+        document.addEventListener("keydown", onKeydown);
+
+        open();
+    });
+}
+
+
 /* What scrolls the app? On phones the document itself scrolls, so
    the browser's address bar and toolbars can tuck away. On larger
    screens the app fills the window and .main scrolls inside it. */
@@ -5160,10 +5309,10 @@ $("#clearHistory").addEventListener(
                 : getModelById(currentModelFilter);
 
         const confirmed = await confirmDialog({
-            title: "Clear saved history?",
-            message: activeModel
-                ? `Clear ${activeModel.title}'s saved history? (Today's sales are kept.)`
-                : "Clear saved history?",
+            title: activeModel
+                ? `Clear ${activeModel.title}'s history?`
+                : "Clear all history?",
+            message: "Saved days will be removed from Sales History. Today's sales are kept, and you can undo this right after.",
             confirmLabel: "Clear history"
         });
 
@@ -5278,13 +5427,24 @@ $$(".nav-btn").forEach(
    ===================================================== */
 
 
-// The FAQ button lives outside the main nav rail (in the sidebar,
-// above Settings, and as an icon on the mobile header), so it gets
+// The FAQ button lives outside the main nav rail (in the Settings
+// popover, as an icon on the mobile header, and in the footer), so it gets
 // its own small switcher instead of joining the .nav-btn group —
 // but it still plays by the same rules: no nav item stays "active"
 // while FAQ is open, and leaving FAQ via any .nav-btn already works
 // for free, since that handler hides every .page (FAQ included).
-$$("#faqBtn, #mobileFaqBtn, #footerFaqBtn").forEach(
+// About works the same way: it lives in the footer, not in the nav
+// rail, so it joins this switcher.
+const infoPageButtons = {
+    faq: "#faqBtn, #mobileFaqBtn, #footerFaqBtn",
+    about: "#footerAboutBtn",
+    terms: "#footerTermsBtn",
+    privacy: "#footerPrivacyBtn"
+};
+
+Object.keys(infoPageButtons).forEach(pageId => {
+
+$$(infoPageButtons[pageId]).forEach(
     button => {
 
         button.addEventListener(
@@ -5295,7 +5455,7 @@ $$("#faqBtn, #mobileFaqBtn, #footerFaqBtn").forEach(
                     btn => btn.classList.remove("active")
                 );
 
-                showPage("faq");
+                showPage(pageId);
 
                 // Close the settings popover(s) if they happened to be open.
                 const settingsGroup =
@@ -5316,6 +5476,45 @@ $$("#faqBtn, #mobileFaqBtn, #footerFaqBtn").forEach(
 
     }
 );
+
+});
+
+
+// Footer "Contact": phones keep the plain mailto: link (it opens the
+// Gmail / Mail app). On desktop (mouse + hover) mailto: often does
+// nothing when no mail app is set up, so open Gmail's compose window
+// in a new tab instead.
+const footerContactLink = $("#footerContactLink");
+
+if (footerContactLink) {
+
+    footerContactLink.addEventListener(
+        "click",
+        function (event) {
+
+            const isDesktop =
+                window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+            if (!isDesktop) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const to =
+                footerContactLink.getAttribute("href").replace(/^mailto:/, "");
+
+            window.open(
+                "https://mail.google.com/mail/?view=cm&fs=1&to=" +
+                    encodeURIComponent(to),
+                "_blank",
+                "noopener"
+            );
+
+        }
+    );
+
+}
 
 
 // Accordion: click a question to reveal its answer. Several can be
@@ -5522,62 +5721,62 @@ function renderChips(type) {
 }
 
 
-function addCategory(type) {
+async function addCategory(type) {
 
-    const name =
-        prompt("New category name:");
+    // Already open (double click on "+ Add").
+    if (!$("#categoryModal").classList.contains("hidden")) {
+        return;
+    }
+
+    // Closing the card can make some browsers snap the page to the
+    // top, so remember where we were and put it back afterwards.
+    const scroller = getScroller();
+    const scrollPos = scroller.scrollTop;
+
+    function restoreScroll() {
+        scroller.scrollTop = scrollPos;
+        requestAnimationFrame(function () {
+            scroller.scrollTop = scrollPos;
+            requestAnimationFrame(function () {
+                scroller.scrollTop = scrollPos;
+            });
+        });
+    }
+
+
+    const name = await categoryDialog({
+        title: "New category",
+        submitLabel: "Add category",
+        isTaken: value =>
+            getCategories(type).some(
+                category =>
+                    category.toLowerCase() === value.toLowerCase()
+            )
+    });
 
 
     if (name === null) {
-        return;
-    }
-
-
-    const trimmed =
-        name.trim();
-
-
-    if (!trimmed) {
-        return;
-    }
-
-
-    const alreadyExists =
-        getCategories(type)
-            .some(
-                category =>
-                    category.toLowerCase() ===
-                    trimmed.toLowerCase()
-            );
-
-
-    if (alreadyExists) {
-
-        toast(
-            "That category already exists.",
-            "error"
-        );
-
+        restoreScroll();
         return;
     }
 
 
     data.customCategories[type].push(
-        trimmed
+        name
     );
 
 
     saveData();
 
-    preserveScroll(function () {
-        renderChips(type);
-    });
+    renderChips(type);
 
-    toast(`"${trimmed}" category added`, "success");
+    restoreScroll();
+
+    toast(`"${name}" category added`, "success");
 }
 
 
-function renameCategory(type, oldName) {
+async function renameCategory(type, oldName) {
 
     const list =
         data.customCategories[type] || [];
@@ -5593,44 +5792,43 @@ function renameCategory(type, oldName) {
     }
 
 
-    const input =
-        prompt(
-            "Rename category:",
-            oldName
-        );
-
-
-    if (input === null) {
+    // Already open (e.g. a second long-press).
+    if (!$("#categoryModal").classList.contains("hidden")) {
         return;
     }
 
+    // Closing the card can make some browsers snap the page to the
+    // top, so remember where we were and put it back afterwards.
+    const scroller = getScroller();
+    const scrollPos = scroller.scrollTop;
 
-    const trimmed =
-        input.trim();
-
-
-    if (!trimmed || trimmed === oldName) {
-        return;
+    function restoreScroll() {
+        scroller.scrollTop = scrollPos;
+        requestAnimationFrame(function () {
+            scroller.scrollTop = scrollPos;
+            requestAnimationFrame(function () {
+                scroller.scrollTop = scrollPos;
+            });
+        });
     }
 
 
-    const alreadyExists =
-        getCategories(type)
-            .some(
+    const trimmed = await categoryDialog({
+        title: "Rename category",
+        submitLabel: "Save",
+        initial: oldName,
+        hint: "Scripts in this category will follow the new name.",
+        isTaken: value =>
+            getCategories(type).some(
                 category =>
                     category !== oldName &&
-                    category.toLowerCase() ===
-                    trimmed.toLowerCase()
-            );
+                    category.toLowerCase() === value.toLowerCase()
+            )
+    });
 
 
-    if (alreadyExists) {
-
-        toast(
-            "That category already exists.",
-            "error"
-        );
-
+    if (trimmed === null) {
+        restoreScroll();
         return;
     }
 
@@ -5658,10 +5856,10 @@ function renameCategory(type, oldName) {
 
     saveData();
 
-    preserveScroll(function () {
-        renderChips(type);
-        renderContent(type);
-    });
+    renderChips(type);
+    renderContent(type);
+
+    restoreScroll();
 
     toast(`Renamed to "${trimmed}"`, "success");
 }
@@ -5670,8 +5868,8 @@ function renameCategory(type, oldName) {
 async function removeCategory(type, category) {
 
     const confirmed = await confirmDialog({
-        title: "Remove category?",
-        message: `Remove the "${category}" category? Items already using it will keep it, but you won't be able to filter by it here anymore.`,
+        title: `Remove "${category}"?`,
+        message: "Scripts already using it keep the category, but it will no longer appear as a filter. You can undo this right after.",
         confirmLabel: "Remove"
     });
 
@@ -7968,6 +8166,23 @@ function openModal(
     );
 
 
+    // Header of the card: badge + label + subtitle follow the type.
+    $("#modalEyebrow").textContent =
+        type === "models" ? "Models" : "Scripts";
+
+    $("#modalSub").textContent =
+        id
+            ? "Update the details and save your changes."
+            : type === "models"
+                ? "Keep their info, preferences and notes in one place."
+                : "Save a reusable message you can copy in one click.";
+
+    $("#modalBadge").innerHTML =
+        type === "models"
+            ? svgIcon(`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`)
+            : svgIcon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/>`);
+
+
     $("#contentTitle").focus();
 }
 
@@ -8079,7 +8294,7 @@ $("#contentForm").addEventListener(
             if (!category) {
 
                 toast(
-                    "Add at least one category first (use the + Add category chip), then pick it here.",
+                    "Create a category first using “+ Add” above your scripts.",
                     "error"
                 );
 
@@ -8591,9 +8806,17 @@ function openViewModal(type, id) {
     } else {
 
         $("#viewModalMeta").style.display =
-            "none";
+            "block";
+
+        $("#viewModalMeta").textContent =
+            "Model";
 
     }
+
+    $("#viewModalBadge").innerHTML =
+        type === "models"
+            ? svgIcon(`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`)
+            : svgIcon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/>`);
 
     $("#viewModalText").textContent =
         item.text;
@@ -8745,10 +8968,85 @@ $("#mobileReduceMotionToggle").addEventListener(
 );
 
 
-$("#sidebarCollapseBtn").addEventListener(
-    "click",
-    toggleSidebarCollapse
-);
+/* The collapse control is a slim line on the sidebar's edge. Click it,
+   or drag it across the border: drag left to collapse, right to expand. */
+(function initSidebarEdgeHandle() {
+
+    const btn = $("#sidebarCollapseBtn");
+
+    const DRAG_DISTANCE = 30;   // px of travel that counts as a drag
+    const CLICK_SLOP = 4;       // less than this is still a click
+
+    let startX = 0;
+    let dragging = false;
+    let moved = false;
+    let triggered = false;
+    let suppressClick = false;
+
+    btn.addEventListener("pointerdown", function (e) {
+
+        if (e.button !== 0) return;
+
+        // Stops text from being selected while dragging
+        e.preventDefault();
+
+        startX = e.clientX;
+        dragging = true;
+        moved = false;
+        triggered = false;
+
+        btn.setPointerCapture(e.pointerId);
+        btn.classList.add("dragging");
+
+    });
+
+    btn.addEventListener("pointermove", function (e) {
+
+        if (!dragging) return;
+
+        const dx = e.clientX - startX;
+
+        if (Math.abs(dx) > CLICK_SLOP) moved = true;
+
+        if (triggered) return;
+
+        const collapsed = $(".app").classList.contains("sidebar-collapsed");
+
+        if ((!collapsed && dx <= -DRAG_DISTANCE) ||
+            (collapsed && dx >= DRAG_DISTANCE)) {
+
+            triggered = true;
+            toggleSidebarCollapse();
+
+        }
+
+    });
+
+    function endDrag() {
+
+        if (!dragging) return;
+
+        dragging = false;
+        btn.classList.remove("dragging");
+
+        // A drag shouldn't also count as a click
+        suppressClick = moved;
+        setTimeout(function () { suppressClick = false; }, 0);
+
+    }
+
+    btn.addEventListener("pointerup", endDrag);
+    btn.addEventListener("pointercancel", endDrag);
+
+    btn.addEventListener("click", function () {
+
+        if (suppressClick) return;
+
+        toggleSidebarCollapse();
+
+    });
+
+})();
 
 
 /* =====================================================
@@ -8852,7 +9150,7 @@ function importData(file) {
 
         const confirmed = await confirmDialog({
             title: "Replace all data?",
-            message: "Importing will replace ALL current data (sales, history, models, scripts) on this device with the contents of the backup file. This can't be undone. Continue?",
+            message: "Your current sales, history, models and scripts on this device will be replaced with the contents of the backup file. This can't be undone.",
             confirmLabel: "Import & replace"
         });
 
