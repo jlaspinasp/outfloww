@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=21">
+    <link rel="stylesheet" href="css/style.css?v=35">
 
     <script>
         (function () {
@@ -165,8 +165,9 @@
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
 
-        <div class="logo">
-             <span>OUT</span>FLOWW
+        <div class="sidebar-brand">
+            <img class="brand-mark" src="images/favicon-32x32.png" alt="" width="32" height="32">
+            <div class="logo"><span>OUT</span>FLOWW</div>
         </div>
 
         <nav>
@@ -196,17 +197,6 @@
             >
                 <span class="sidebar-trash-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></span>
                 <span>Drop to delete</span>
-            </button>
-
-            <button
-                class="backup-btn"
-                id="faqBtn"
-                type="button"
-                data-page="faq"
-                title="FAQ"
-            >
-                <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
-                <span>FAQ</span>
             </button>
 
             <div class="settings-group">
@@ -291,6 +281,21 @@
                             accept=".json,application/json"
                             hidden
                         >
+
+                    </div>
+
+                    <div class="backup-group">
+
+                        <button
+                            class="backup-btn"
+                            id="faqBtn"
+                            type="button"
+                            data-page="faq"
+                            title="FAQ"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></span>
+                            <span>FAQ</span>
+                        </button>
 
                     </div>
 
@@ -1268,22 +1273,293 @@
         </section>
 
 
+        <!-- ================= ABOUT ================= -->
+
+        <section id="about" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+                    <div>
+                        <h1>About</h1>
+                        <p class="sub">
+                            Where Outfloww came from, and what it does.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="about-content">
+
+                <p class="about-lead">
+                    Outfloww started as something I built for my partner and me — a simple way to track sales, targets, and net earnings without wrestling with spreadsheets or tools built for someone else's workflow.
+                </p>
+
+                <div class="about-block">
+                    <h2 class="about-heading">What it actually does</h2>
+
+                    <ul class="about-features">
+
+                        <li class="about-feature">
+                            <span class="about-feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                            <div class="about-feature-text">
+                                <h3>Models</h3>
+                                <p>Keep notes, preferences, and a color tag for each model in one place.</p>
+                            </div>
+                        </li>
+
+                        <li class="about-feature">
+                            <span class="about-feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+                            <div class="about-feature-text">
+                                <h3>Sales &amp; targets</h3>
+                                <p>Log sales as they happen, watch a daily target progress bar fill in real time, and see every model's progress at a glance in the Target Breakdown.</p>
+                            </div>
+                        </li>
+
+                        <li class="about-feature">
+                            <span class="about-feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
+                            <div class="about-feature-text">
+                                <h3>Tips &amp; outside sales</h3>
+                                <p>Tag sales by buyer or type (Tip, Outside Shift) so they're broken out separately, not lumped into one number.</p>
+                            </div>
+                        </li>
+
+                        <li class="about-feature">
+                            <span class="about-feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></span>
+                            <div class="about-feature-text">
+                                <h3>Shift Reports</h3>
+                                <p>End a shift, get a ready-to-paste handoff summary, and have everything filed into history automatically.</p>
+                            </div>
+                        </li>
+
+                        <li class="about-feature">
+                            <span class="about-feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></span>
+                            <div class="about-feature-text">
+                                <h3>Sales History</h3>
+                                <p>Every past day and every shift within it, broken down by model, always there if you need to check back.</p>
+                            </div>
+                        </li>
+
+                        <li class="about-feature">
+                            <span class="about-feature-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/></svg></span>
+                            <div class="about-feature-text">
+                                <h3>Scripts</h3>
+                                <p>A place to keep the lines and templates you actually reuse.</p>
+                            </div>
+                        </li>
+
+                    </ul>
+
+                    <p class="about-note">
+                        That's everything in it right now — nothing more, nothing less.
+                    </p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Who's behind it</h2>
+
+                    <p class="about-body">
+                        Right now it's just the two of us using it. It's still early — built and maintained by one person (me) — but that also means it stays focused on actually being useful, not padded out with features nobody asked for.
+                    </p>
+                </div>
+
+                <div class="card about-contact">
+                    <div class="about-contact-text">
+                        <h3>Something off or missing?</h3>
+                        <p>I'd genuinely like to hear about it.</p>
+                    </div>
+
+                    <a class="btn primary" href="mailto:jlaspinas.p@gmail.com">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span>jlaspinas.p@gmail.com</span>
+                    </a>
+                </div>
+
+                <p class="about-signoff">— Castor</p>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= PRIVACY ================= -->
+
+        <section id="privacy" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+                    <div>
+                        <h1>Privacy Policy</h1>
+                        <p class="sub">
+                            What Outfloww collects, where it lives, and what it's used for.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="about-content">
+
+                <p class="legal-updated">Last updated: September 25, 2026</p>
+
+                <div class="about-block">
+                    <h2 class="about-heading">What's collected</h2>
+                    <ul class="legal-list">
+                        <li>Your Google account email, name and account ID, received when you sign in with Google.</li>
+                        <li>Everything you enter into the app: models, notes and preferences, sales, targets, history and scripts.</li>
+                    </ul>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Where it lives</h2>
+                    <p class="about-body">Your data is stored in one private record for your account on Google's Firebase servers. A full copy also sits in your own browser's local storage, along with settings like theme, reduced motion and sidebar state, so the app works quickly and remembers how you left it.</p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">How it's used</h2>
+                    <p class="about-body">Only to run the app: signing you in, saving your data and syncing it between your devices. It isn't sold, shared for advertising, or used for analytics or tracking.</p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Who else is involved</h2>
+                    <ul class="legal-list">
+                        <li>Google, for sign-in (Firebase Authentication) and data hosting (Firestore).</li>
+                        <li>Google Fonts, which can see your IP address when the app's fonts load.</li>
+                    </ul>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Information about other people</h2>
+                    <p class="about-body">Notes and preferences you keep on models are information about other people. You're responsible for what you choose to store, and it's visible only to your own account.</p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Your control</h2>
+                    <ul class="legal-list">
+                        <li>Export a copy of everything anytime from Settings → Export data.</li>
+                        <li>Sign out anytime. Signing out doesn't delete your data, and clearing your browser's storage only removes the local copy.</li>
+                        <li>To have your account and stored data deleted, email me and I'll take care of it.</li>
+                    </ul>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Changes</h2>
+                    <p class="about-body">If this policy changes, the date at the top will be updated.</p>
+                </div>
+
+                <div class="card about-contact">
+                    <div class="about-contact-text">
+                        <h3>Questions?</h3>
+                        <p>Email me and I'll get back to you.</p>
+                    </div>
+
+                    <a class="btn primary" href="mailto:jlaspinas.p@gmail.com">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span>jlaspinas.p@gmail.com</span>
+                    </a>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= TERMS ================= -->
+
+        <section id="terms" class="page">
+
+            <div class="page-topbar">
+
+                <div class="top">
+                    <div>
+                        <h1>Terms of Use</h1>
+                        <p class="sub">
+                            The plain-language rules for using Outfloww.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="about-content">
+
+                <p class="legal-updated">Last updated: September 25, 2026</p>
+
+                <div class="about-block">
+                    <h2 class="about-heading">What Outfloww is</h2>
+                    <p class="about-body">A small personal tool for tracking sales, targets and shift reports, built and maintained by one person. It's provided as-is and as-available, with no guarantees that it will always work, stay online or be free of errors.</p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Not financial advice</h2>
+                    <p class="about-body">The figures, including net earnings, are for your own tracking only. They aren't accounting, tax or financial records, so don't rely on them as such.</p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Your data</h2>
+                    <p class="about-body">You own what you enter, and I don't claim any rights to it. You're responsible for keeping backups, which is what Export data is for. I'm not liable for lost or corrupted data.</p>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Acceptable use</h2>
+                    <ul class="legal-list">
+                        <li>Don't attack, overload or try to break into the service or other people's accounts.</li>
+                        <li>Don't use it for anything unlawful.</li>
+                        <li>Don't store information you have no right to keep.</li>
+                    </ul>
+                </div>
+
+                <div class="about-block">
+                    <h2 class="about-heading">Access and changes</h2>
+                    <p class="about-body">I may change or discontinue the app, or suspend or end an account, at any time. I may also update these terms; continuing to use Outfloww means you accept the current version.</p>
+                </div>
+
+                <div class="card about-contact">
+                    <div class="about-contact-text">
+                        <h3>Questions?</h3>
+                        <p>Email me and I'll get back to you.</p>
+                    </div>
+
+                    <a class="btn primary" href="mailto:jlaspinas.p@gmail.com">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span>jlaspinas.p@gmail.com</span>
+                    </a>
+                </div>
+
+            </div>
+
+        </section>
+
+
         <!-- ================= FOOTER ================= -->
 
         <footer class="site-footer">
 
-            <img
-                class="site-footer-logo"
-                src="images/favicon-32x32.png"
-                alt=""
-                width="20"
-                height="20"
-            >
+            <div class="site-footer-brand">
+                <img
+                    class="site-footer-logo"
+                    src="images/favicon-32x32.png"
+                    alt=""
+                    width="20"
+                    height="20"
+                >
+                <span class="site-footer-copy">© 2026 Outfloww</span>
+            </div>
 
-            <span class="site-footer-copy">© 2026 Outfloww</span>
+            <div class="site-footer-center">
 
-            <div class="site-footer-links">
-                <button type="button" id="footerFaqBtn">FAQ</button>
+                <div class="site-footer-links">
+                    <button type="button" id="footerFaqBtn">FAQ</button>
+                    <button type="button" id="footerAboutBtn">About</button>
+                    <button type="button" id="footerTermsBtn">Terms</button>
+                    <button type="button" id="footerPrivacyBtn">Privacy</button>
+                    <a id="footerContactLink" href="mailto:jlaspinas.p@gmail.com">Contact</a>
+                </div>
+
+                <button type="button" id="footerDoNotShareBtn" class="site-footer-optout">Do not share my personal information</button>
+
             </div>
 
             <span class="site-footer-credit">By Castor 演ス</span>
@@ -1335,84 +1611,62 @@
 
 <!-- ================= TARGET MODAL ================= -->
 
-<div
-    id="targetModal"
-    class="modal hidden"
->
+<div id="targetModal" class="modal hidden">
 
-    <div role="dialog" aria-modal="true" aria-label="Set daily target" class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Set daily target" class="modal-card category-card">
 
-        <div class="section-head">
+        <div class="cat-head">
 
-            <div class="target-modal-title-group">
+            <span class="cat-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
 
-                <h2>
-                    Set Daily Target
-                </h2>
-
-                <button
-                    class="icon-btn color-picker-trigger"
-                    id="targetModalColorBtn"
-                    type="button"
-                    title="Change this model's color"
-                    aria-label="Change this model's color"
-                >
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L19 8l-3-3 2.5-2.5Z" fill="currentColor"/>
-                        <path d="M16 5 5 16v3h3L19 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M2 22l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
-
+            <div class="cat-titles">
+                <span class="cat-eyebrow">Sales</span>
+                <div class="target-modal-title-group">
+                    <h2>Set Daily Target</h2>
+                    <button
+                        class="icon-btn color-picker-trigger"
+                        id="targetModalColorBtn"
+                        type="button"
+                        title="Change this model's color"
+                        aria-label="Change this model's color"
+                    >
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L19 8l-3-3 2.5-2.5Z" fill="currentColor"/>
+                            <path d="M16 5 5 16v3h3L19 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 22l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <button
-                class="icon-btn"
-                id="closeTargetModal"
-                type="button"
-            
-                aria-label="Close"
-            >
+            <button class="icon-btn" id="closeTargetModal" type="button" aria-label="Close">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
 
-
         <form id="targetForm">
 
-            <label>
+            <div class="cat-body">
 
-                Target amount ($, based on net earnings)
+                <label>
+                    Target amount ($, based on net earnings)
+                    <input
+                        id="targetAmount"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="e.g. 500"
+                    >
+                </label>
 
-                <input
-                    id="targetAmount"
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="e.g. 500"
-                >
+            </div>
 
-            </label>
-
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="btn"
-                    id="cancelTargetModal"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="btn primary"
-                >
-                    Save
-                </button>
-
+            <div class="cat-foot">
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="cancelTargetModal">Cancel</button>
+                    <button type="submit" class="btn primary">Save</button>
+                </div>
             </div>
 
         </form>
@@ -1429,92 +1683,66 @@
     class="modal hidden"
 >
 
-    <div role="dialog" aria-modal="true" aria-label="Logout title" class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Logout title" class="modal-card category-card">
 
-        <div class="section-head">
+        <div class="cat-head">
 
-            <h2>
-                Logout title
-            </h2>
+            <span class="cat-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg></span>
 
-            <button
-                class="icon-btn"
-                id="closeLogoutTitleModal"
-                type="button"
-                aria-label="Close"
-            >
+            <div class="cat-titles">
+                <span class="cat-eyebrow">Sales</span>
+                <h2>Logout title</h2>
+            </div>
+
+            <button class="icon-btn" id="closeLogoutTitleModal" type="button" aria-label="Close">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
 
-        <p class="sub shift-modal-note">
-            The first line of your logout text. Add your own emojis and style.
-        </p>
 
         <form id="logoutTitleForm" autocomplete="off">
 
-            <div class="shift-field">
+            <div class="cat-body">
 
-                <span class="shift-field-label">Title</span>
+                <p class="cat-sub shift-modal-note">
+                    The first line of your logout text. Add your own emojis and style.
+                </p>
 
-                <div class="logout-title-row">
+                <div class="shift-field">
+                    <span class="shift-field-label">Title</span>
+                    <div class="logout-title-row">
+                        <input
+                            id="logoutTitleInput"
+                            type="text"
+                            aria-label="Logout title"
+                            placeholder="🌸 LOGOUT 🌸"
+                        >
+                        <button
+                            type="button"
+                            class="emoji-toggle"
+                            id="logoutEmojiToggle"
+                            aria-expanded="false"
+                            aria-controls="emojiPicker"
+                            aria-label="Add emoji"
+                            title="Add emoji"
+                        >😊</button>
+                    </div>
+                </div>
 
-                    <input
-                        id="logoutTitleInput"
-                        type="text"
-                        aria-label="Logout title"
-                        placeholder="🌸 LOGOUT 🌸"
-                    >
-
-                    <button
-                        type="button"
-                        class="emoji-toggle"
-                        id="logoutEmojiToggle"
-                        aria-expanded="false"
-                        aria-controls="emojiPicker"
-                        aria-label="Add emoji"
-                        title="Add emoji"
-                    >😊</button>
-
+                <div class="shift-field">
+                    <span class="shift-field-label">Preview</span>
+                    <div class="shift-preview" id="logoutTitlePreview"></div>
                 </div>
 
             </div>
 
-            <div class="shift-field">
-
-                <span class="shift-field-label">Preview</span>
-
-                <div class="shift-preview" id="logoutTitlePreview"></div>
-
-            </div>
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="btn"
-                    id="resetLogoutTitle"
-                    style="margin-right:auto"
-                >
-                    Reset to default
-                </button>
-
-                <button
-                    type="button"
-                    class="btn"
-                    id="cancelLogoutTitle"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="btn primary"
-                >
-                    Save
-                </button>
-
+            <div class="cat-foot">
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="resetLogoutTitle" style="margin-right:auto">Reset to default</button>
+                    <button type="button" class="btn" id="cancelLogoutTitle">Cancel</button>
+                    <button type="submit" class="btn primary">Save</button>
+                </div>
             </div>
 
         </form>
@@ -1533,119 +1761,88 @@
 
 <!-- ================= LOGOUT SHIFT MODAL ================= -->
 
-<div
-    id="shiftModal"
-    class="modal hidden"
->
+<div id="shiftModal" class="modal hidden">
 
-    <div role="dialog" aria-modal="true" aria-label="Shift Report" class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Shift Report" class="modal-card category-card">
 
-        <div class="section-head">
+        <div class="cat-head">
 
-            <h2>
-                Shift Report
-            </h2>
+            <span class="cat-badge" aria-hidden="true">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </span>
 
-            <button
-                class="icon-btn"
-                id="closeShiftModal"
-                type="button"
-            
-                aria-label="Close"
-            >
+            <div class="cat-titles">
+                <span class="cat-eyebrow">Sales</span>
+                <h2>Shift Report</h2>
+            </div>
+
+            <button class="icon-btn" id="closeShiftModal" type="button" aria-label="Close">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
 
-        <p class="sub shift-modal-note">
-            Set your shift, then copy today's logout text.
-        </p>
-
 
         <form id="shiftForm">
 
-            <div class="shift-time-row">
+            <div class="cat-body">
 
-                <label>
-                    Start
-                    <input
-                        id="shiftStart"
-                        type="time"
-                        required
-                    >
-                </label>
+                <p class="cat-sub shift-modal-note">
+                    Set your shift, then copy today's logout text.
+                </p>
 
-                <label>
-                    End
-                    <input
-                        id="shiftEnd"
-                        type="time"
-                        required
-                    >
-                </label>
+                <div class="shift-time-row">
 
-            </div>
+                    <label>
+                        Start
+                        <input id="shiftStart" type="time" required>
+                    </label>
 
+                    <label>
+                        End
+                        <input id="shiftEnd" type="time" required>
+                    </label>
 
-            <div class="shift-field">
-
-                <span class="shift-field-label">Shift type</span>
-
-                <div class="shift-toggle" id="shiftTypeToggle">
-                    <button
-                        type="button"
-                        class="shift-toggle-btn"
-                        data-cover="false"
-                    >
-                        Regular
-                    </button>
-                    <button
-                        type="button"
-                        class="shift-toggle-btn"
-                        data-cover="true"
-                    >
-                        Cover
-                    </button>
                 </div>
 
+
+                <div class="shift-field">
+
+                    <span class="shift-field-label">Shift type</span>
+
+                    <div class="shift-toggle" id="shiftTypeToggle">
+                        <button type="button" class="shift-toggle-btn" data-cover="false">
+                            Regular
+                        </button>
+                        <button type="button" class="shift-toggle-btn" data-cover="true">
+                            Cover
+                        </button>
+                    </div>
+
+                </div>
+
+
+                <div class="shift-preview" id="shiftPreview"></div>
+
+
+                <!-- Copies today's logout text using the shift shown above. -->
+                <button type="button" class="btn shift-copy-btn" id="copyShiftLogoutBtn">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copy for logout
+                </button>
+
+                <p class="sub shift-copy-note hidden" id="shiftCopyNote">
+                    Select a model on the Sales page to copy.
+                </p>
+
             </div>
 
+            <div class="cat-foot">
 
-            <div class="shift-preview" id="shiftPreview"></div>
-
-
-            <!-- Copies today's logout text using the shift shown above. -->
-            <button
-                type="button"
-                class="btn shift-copy-btn"
-                id="copyShiftLogoutBtn"
-            >
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Copy for logout
-            </button>
-
-            <p class="sub shift-copy-note hidden" id="shiftCopyNote">
-                Select a model on the Sales page to copy.
-            </p>
-
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="btn"
-                    id="cancelShiftModal"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="btn primary"
-                >
-                    Save
-                </button>
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="cancelShiftModal">Cancel</button>
+                    <button type="submit" class="btn primary">Save</button>
+                </div>
 
             </div>
 
@@ -1659,50 +1856,39 @@
 <!-- ================= SAVE SHIFT CONFIRM ================= -->
 <!-- Sits right after the Shift Report window so it opens on top of it. -->
 
-<div
-    id="shiftSaveModal"
-    class="modal hidden"
->
+<div id="shiftSaveModal" class="modal hidden">
 
     <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="shiftSaveTitle"
         aria-describedby="shiftSaveDesc"
-        class="modal-card confirm-card"
+        class="modal-card confirm-card category-card"
     >
 
-        <div class="section-head">
+        <div class="cat-head confirm-head">
+            <span class="confirm-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
             <h2 id="shiftSaveTitle">Save this shift?</h2>
         </div>
 
-        <p class="sub" id="shiftSaveDesc">
-            This copies the logout text and marks all of
-            <strong id="shiftSaveModel"></strong>'s sales from this shift
-            as done. They'll be cleared from Today's sales and saved to
-            Sales History.
-        </p>
+        <div class="cat-body">
 
-        <div class="shift-preview shift-save-summary" id="shiftSaveSummary"></div>
+            <p class="sub" id="shiftSaveDesc">
+                This copies the logout text and marks all of
+                <strong id="shiftSaveModel"></strong>'s sales from this shift
+                as done. They'll be cleared from Today's sales and saved to
+                Sales History.
+            </p>
 
-        <div class="modal-actions">
+            <div class="shift-preview shift-save-summary" id="shiftSaveSummary"></div>
 
-            <button
-                type="button"
-                class="btn"
-                id="cancelShiftSave"
-            >
-                Cancel
-            </button>
+        </div>
 
-            <button
-                type="button"
-                class="btn primary"
-                id="confirmShiftSave"
-            >
-                Copy &amp; save
-            </button>
-
+        <div class="cat-foot">
+            <div class="modal-actions">
+                <button type="button" class="btn" id="cancelShiftSave">Cancel</button>
+                <button type="button" class="btn primary" id="confirmShiftSave">Copy &amp; save</button>
+            </div>
         </div>
 
     </div>
@@ -1712,69 +1898,45 @@
 
 <!-- ================= HISTORY MODAL ================= -->
 
-<div
-    id="historyModal"
-    class="modal hidden"
->
+<div id="historyModal" class="modal hidden">
 
-    <div role="dialog" aria-modal="true" aria-label="Sales history" class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Sales history" class="modal-card category-card">
 
-        <div class="section-head">
+        <div class="cat-head">
 
-            <h2>
-                Sales History
-            </h2>
+            <span class="cat-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></span>
 
-            <button
-                class="icon-btn"
-                id="closeHistoryModal"
-                type="button"
-            
-                aria-label="Close"
-            >
+            <div class="cat-titles">
+                <span class="cat-eyebrow">Sales</span>
+                <h2>Sales History</h2>
+            </div>
+
+            <button class="icon-btn" id="closeHistoryModal" type="button" aria-label="Close">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
 
-        <div
-            id="historyModelName"
-            class="history-model-name hidden"
-        ></div>
+        <div class="cat-body history-body">
 
-        <div
-            id="historyList"
-            class="history-list"
-        ></div>
+            <div id="historyModelName" class="history-model-name hidden"></div>
 
-        <div
-            id="emptyHistory"
-            class="empty"
-        >
-            Your previous days will appear here.
+            <div id="historyList" class="history-list"></div>
+
+            <div id="emptyHistory" class="empty">
+                Your previous days will appear here.
+            </div>
+
         </div>
 
-        <div class="modal-actions">
-
-            <button
-                class="btn copy-logout-btn hidden"
-                id="copyLogoutBtn"
-                type="button"
-            >
-                
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Copy for logout
-            
-            </button>
-
-            <button
-                class="btn danger"
-                id="clearHistory"
-                type="button"
-            >
-                Clear history
-            </button>
-
+        <div class="cat-foot">
+            <div class="modal-actions">
+                <button class="btn copy-logout-btn hidden" id="copyLogoutBtn" type="button">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copy for logout
+                </button>
+                <button class="btn primary" id="clearHistory" type="button">Clear history</button>
+            </div>
         </div>
 
     </div>
@@ -1784,26 +1946,20 @@
 
 <!-- ================= MODAL ================= -->
 
-<div
-    id="modal"
-    class="modal hidden"
->
+<div id="modal" class="modal hidden">
 
-    <div role="dialog" aria-modal="true" aria-label="Add or edit item" class="modal-card">
+    <div role="dialog" aria-modal="true" aria-label="Add or edit item" class="modal-card category-card">
 
-        <div class="section-head">
+        <div class="cat-head">
 
-            <h2 id="modalTitle">
-                Add Item
-            </h2>
+            <span class="cat-badge" id="modalBadge" aria-hidden="true"></span>
 
-            <button
-                class="icon-btn"
-                id="closeModal"
-                type="button"
-            
-                aria-label="Close"
-            >
+            <div class="cat-titles">
+                <span class="cat-eyebrow" id="modalEyebrow">Scripts</span>
+                <h2 id="modalTitle">Add Item</h2>
+            </div>
+
+            <button class="icon-btn" id="closeModal" type="button" aria-label="Close">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
@@ -1812,58 +1968,42 @@
 
         <form id="contentForm">
 
-            <label>
+            <div class="cat-body">
 
-                <span id="contentTitleLabel">Title</span>
+                <p class="cat-sub" id="modalSub"></p>
 
-                <input
-                    id="contentTitle"
-                    required
-                    placeholder="e.g. New Subscriber Greeting"
-                >
+                <label>
+                    <span id="contentTitleLabel">Title</span>
+                    <input
+                        id="contentTitle"
+                        required
+                        placeholder="e.g. New Subscriber Greeting"
+                    >
+                </label>
 
-            </label>
+                <label id="categoryField">
+                    Category
+                    <select id="contentCategory"></select>
+                </label>
 
+                <label>
+                    <span id="contentTextLabel">Text</span>
+                    <textarea
+                        id="contentText"
+                        rows="7"
+                        required
+                        placeholder="Write your message here..."
+                    ></textarea>
+                </label>
 
-            <label id="categoryField">
+            </div>
 
-                Category
+            <div class="cat-foot">
 
-                <select id="contentCategory"></select>
-
-            </label>
-
-
-            <label>
-
-                <span id="contentTextLabel">Text</span>
-
-                <textarea
-                    id="contentText"
-                    rows="7"
-                    required
-                    placeholder="Write your message here..."
-                ></textarea>
-
-            </label>
-
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="btn"
-                    id="cancelModal"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="btn primary"
-                >
-                    Save
-                </button>
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="cancelModal">Cancel</button>
+                    <button type="submit" class="btn primary">Save</button>
+                </div>
 
             </div>
 
@@ -1876,48 +2016,32 @@
 
 <!-- ================= VIEW MODAL ================= -->
 
-<div
-    id="viewModal"
-    class="modal hidden"
->
+<div id="viewModal" class="modal hidden">
 
-    <div role="dialog" aria-modal="true" aria-label="Details" class="modal-card wide">
+    <div role="dialog" aria-modal="true" aria-label="Details" class="modal-card wide category-card">
 
-        <div class="section-head">
+        <div class="cat-head">
 
-            <h2 id="viewModalTitle">
-                Title
-            </h2>
+            <span class="cat-badge" id="viewModalBadge" aria-hidden="true"></span>
 
-            <button
-                class="icon-btn"
-                id="closeViewModal"
-                type="button"
-            
-                aria-label="Close"
-            >
+            <div class="cat-titles">
+                <span class="cat-eyebrow" id="viewModalMeta"></span>
+                <h2 id="viewModalTitle">Title</h2>
+            </div>
+
+            <button class="icon-btn" id="closeViewModal" type="button" aria-label="Close">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
 
-        <div
-            id="viewModalMeta"
-            class="view-modal-meta"
-        ></div>
+        <div class="cat-body view-body">
 
-        <div class="view-modal-text-wrap">
-
-            <div
-                id="viewModalText"
-                class="view-modal-text"
-            ></div>
-
-            <div
-                id="viewModalFade"
-                class="view-modal-fade"
-            >
-                <span>Scroll for more ↓</span>
+            <div class="view-modal-text-wrap">
+                <div id="viewModalText" class="view-modal-text"></div>
+                <div id="viewModalFade" class="view-modal-fade">
+                    <span>Scroll for more ↓</span>
+                </div>
             </div>
 
         </div>
@@ -1929,53 +2053,38 @@
 
 <!-- ================= SIGN OUT CONFIRM ================= -->
 
-<div
-    id="signOutModal"
-    class="modal hidden"
->
+<div id="signOutModal" class="modal hidden">
 
     <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="signOutTitle"
         aria-describedby="signOutDesc"
-        class="modal-card confirm-card"
+        class="modal-card confirm-card category-card"
     >
 
-        <div class="section-head">
+        <div class="cat-head confirm-head">
+            <span class="confirm-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
             <h2 id="signOutTitle">Sign out?</h2>
         </div>
 
-        <p class="sub" id="signOutDesc">
-            This clears the data stored on this device. Sign in again to load it back from your account.
-        </p>
+        <div class="cat-body">
 
-        <p
-            id="signOutWarning"
-            class="confirm-warning hidden"
-            role="status"
-        >
-            Some recent changes haven't finished syncing and will be lost.
-        </p>
+            <p class="sub" id="signOutDesc">
+                This clears the data stored on this device. Sign in again to load it back from your account.
+            </p>
 
-        <div class="modal-actions">
+            <p id="signOutWarning" class="confirm-warning hidden" role="status">
+                Some recent changes haven't finished syncing and will be lost.
+            </p>
 
-            <button
-                type="button"
-                class="btn"
-                id="cancelSignOut"
-            >
-                Cancel
-            </button>
+        </div>
 
-            <button
-                type="button"
-                class="btn primary"
-                id="confirmSignOut"
-            >
-                Sign out
-            </button>
-
+        <div class="cat-foot">
+            <div class="modal-actions">
+                <button type="button" class="btn" id="cancelSignOut">Cancel</button>
+                <button type="button" class="btn primary" id="confirmSignOut">Sign out</button>
+            </div>
         </div>
 
     </div>
@@ -1989,45 +2098,108 @@
      delete item, import backup), so they all share the app's own
      modal styling instead of the native dialog. -->
 
-<div
-    id="confirmModal"
-    class="modal hidden"
->
+<div id="confirmModal" class="modal hidden">
 
     <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirmModalTitle"
         aria-describedby="confirmModalDesc"
-        class="modal-card confirm-card"
+        class="modal-card confirm-card category-card"
     >
 
-        <div class="section-head confirm-head">
+        <div class="cat-head confirm-head">
             <span class="confirm-icon" id="confirmModalIcon" aria-hidden="true"></span>
             <h2 id="confirmModalTitle"></h2>
         </div>
 
-        <p class="sub" id="confirmModalDesc"></p>
+        <div class="cat-body">
+            <p class="sub" id="confirmModalDesc"></p>
+        </div>
 
-        <div class="modal-actions">
+        <div class="cat-foot">
+            <div class="modal-actions">
+                <button type="button" class="btn" id="confirmModalCancel">Cancel</button>
+                <button type="button" class="btn primary" id="confirmModalConfirm">Confirm</button>
+            </div>
+        </div>
 
-            <button
-                type="button"
-                class="btn"
-                id="confirmModalCancel"
-            >
-                Cancel
-            </button>
+    </div>
 
-            <button
-                type="button"
-                class="btn danger"
-                id="confirmModalConfirm"
-            >
-                Confirm
+</div>
+
+
+<!-- ================= ADD CATEGORY ================= -->
+<!-- Card shown by categoryDialog() in app.js. Replaces the browser's
+     native prompt() when adding a Scripts category. -->
+
+<div id="categoryModal" class="modal hidden">
+
+    <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="categoryTitle"
+        class="modal-card category-card"
+    >
+
+        <div class="cat-head">
+
+            <span class="cat-badge" aria-hidden="true">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            </span>
+
+            <div class="cat-titles">
+                <span class="cat-eyebrow">Scripts</span>
+                <h2 id="categoryTitle">New category</h2>
+            </div>
+
+            <button class="icon-btn" id="categoryClose" type="button" aria-label="Close">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
 
         </div>
+
+        <form id="categoryForm" novalidate autocomplete="off">
+
+            <div class="cat-body">
+
+                <p class="cat-sub">Group your scripts so the right one is always a click away.</p>
+
+                <div class="cat-field">
+                    <div class="cat-label-row">
+                        <label for="categoryName">Category name</label>
+                        <span class="cat-count" id="categoryCount">0/30</span>
+                    </div>
+                    <input
+                        id="categoryName"
+                        maxlength="30"
+                        placeholder="e.g. Upsells"
+                        aria-describedby="categoryHint"
+                    >
+                    <p class="cat-hint" id="categoryHint" role="status"></p>
+                </div>
+
+                <div class="cat-preview" aria-hidden="true">
+                    <span class="cat-preview-label">Preview</span>
+                    <div class="cat-preview-bar">
+                        <span class="chip">All</span>
+                        <span class="chip active cat-preview-chip is-empty" id="categoryPreviewChip">Category name</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="cat-foot">
+
+
+                <div class="modal-actions">
+                    <button type="button" class="btn" id="categoryCancel">Cancel</button>
+                    <button type="submit" class="btn primary" id="categorySubmit" disabled>Add category</button>
+                </div>
+
+            </div>
+
+        </form>
 
     </div>
 
@@ -2120,7 +2292,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/app.js?v=22"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
