@@ -972,22 +972,84 @@ h2 {
     color: var(--text-primary);
 }
 
-.scripts-search-input {
+/* Wrapper that animates open/closed; the input and its × clear
+   button live inside it so the × can sit right on top of the
+   input's right edge instead of stealing its own flex slot. */
+.scripts-search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
     width: 0;
+    opacity: 0;
+    transition: width 0.18s ease, opacity 0.18s ease;
+}
+
+.scripts-search.open .scripts-search-field {
+    width: 200px;
+    opacity: 1;
+}
+
+.scripts-search-input {
+    width: 100%;
     height: 30px;
-    padding: 0;
+    padding: 0 4px 0 var(--sp-2);
     border: 0;
     background: transparent;
-    opacity: 0;
-    transition: width 0.18s ease, opacity 0.18s ease, padding 0.18s ease;
+    transition: border-color 0.12s, padding 0.18s ease;
 }
 
 .scripts-search.open .scripts-search-input {
-    width: 200px;
-    padding: 0 var(--sp-2);
-    opacity: 1;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
+}
+
+/* Extra right padding only once the × has something to show,
+   so the caret never sits underneath it. */
+.scripts-search.has-value .scripts-search-input {
+    padding-right: 26px;
+}
+
+/* Clear (×) button: same quiet, circular ghost-icon treatment as
+   .active-model-badge's clear control elsewhere in the app. */
+.scripts-search-clear {
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) scale(0.85);
+    transition: background-color 0.12s, color 0.12s, opacity 0.12s, transform 0.12s;
+}
+
+.scripts-search-clear .icon {
+    width: 13px;
+    height: 13px;
+}
+
+.scripts-search-clear:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.scripts-search-clear:active {
+    transform: translateY(-50%) scale(0.92);
+}
+
+.scripts-search.has-value .scripts-search-clear {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
 }
 
 .scripts-search.open .scripts-search-toggle {
@@ -3097,7 +3159,7 @@ label {
 .content-text {
     flex: 1;
     min-height: 0;
-    padding-bottom: 32px;
+    padding-bottom: 4px;
     overflow: hidden;
     white-space: pre-wrap;
     font-size: var(--fs-base);
@@ -3143,23 +3205,99 @@ label {
     z-index: 2;
 }
 
-/* Copy sits bottom-right on its own small surface */
-.card-actions {
+/* =====================================================
+   DOUBLE-CLICK TO COPY — a second click on a card (within
+   CARD_CLICK_DELAY_MS in app.js) copies its text instead of
+   opening it, and flashes this overlay so it's obvious the
+   copy landed. The single-click-to-open path is untouched;
+   it just waits that same short window before opening, in
+   case a second click is on its way. Same premium language
+   as .category-card: accent-tinted glass, hairline, and the
+   app's spring easing for the pop.
+   ===================================================== */
+
+.card-copy-overlay {
     position: absolute;
-    right: var(--sp-3);
-    bottom: var(--sp-3);
+    inset: 0;
+    z-index: 5;
     display: flex;
-    gap: 2px;
-    padding: 2px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-3);
+    background:
+        radial-gradient(circle at 50% 42%, var(--accent-soft), transparent 60%),
+        var(--overlay);
+    -webkit-backdrop-filter: blur(3px) saturate(1.1);
+    backdrop-filter: blur(3px) saturate(1.1);
+    border-radius: inherit;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s var(--fx-out), visibility 0s linear 0.18s;
 }
 
-.card-actions .card-icon-btn {
-    width: 32px;
-    height: 32px;
+/* Fine accent hairline along the top edge, echoing .category-card::before. */
+.card-copy-overlay::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.8;
+}
+
+.content-card.copy-flash .card-copy-overlay {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.12s var(--fx-in), visibility 0s;
+}
+
+.card-copy-check {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(155deg, var(--accent-text), var(--accent));
+    border: 1px solid var(--accent-border);
+    border-radius: 50%;
+    box-shadow: var(--shadow-lg);
+    color: #fff;
+    transform: scale(0.55);
+    opacity: 0;
+    transition: transform 0.16s var(--fx-out), opacity 0.16s var(--fx-out);
+}
+
+.card-copy-check .icon {
+    width: 24px;
+    height: 24px;
+    stroke-width: 3;
+}
+
+.content-card.copy-flash .card-copy-check {
+    transform: scale(1);
+    opacity: 1;
+    transition: transform 0.32s var(--fx-in) 0.03s, opacity 0.16s ease-out 0.03s;
+}
+
+.card-copy-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #fff;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: transform 0.16s var(--fx-out), opacity 0.16s var(--fx-out);
+}
+
+.content-card.copy-flash .card-copy-label {
+    opacity: 0.92;
+    transform: none;
+    transition: transform 0.26s var(--fx-in) 0.1s, opacity 0.2s ease-out 0.1s;
 }
 
 
@@ -3193,12 +3331,7 @@ label {
                 opacity 0.22s var(--fx-in), visibility 0s;
 }
 
-.card-actions {
-    transition: opacity 0.22s var(--fx-in), visibility 0s;
-}
-
-.content-grid.select-mode .card-edit-btn,
-.content-grid.select-mode .card-actions {
+.content-grid.select-mode .card-edit-btn {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -4718,85 +4851,14 @@ label {
     width: min(400px, 100%);
 }
 
-/* The new centered look below is for the generic delete/confirm
-   pop-up only. Sign out and Save shift share .confirm-card, so they
-   keep their original layout. */
-#confirmModal .confirm-card {
-    width: min(320px, 100%);
-    padding: var(--sp-5);
-    padding-top: var(--sp-6);
-    text-align: center;
-}
-
-/* Centered layout: big icon on top with a few sparkles around it,
-   then title, message, and two full-width buttons. */
-.confirm-head {
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: var(--sp-3);
-}
-
-.confirm-icon {
-    position: relative;
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: var(--accent-soft);
-    color: var(--accent-text);
-}
-
-.confirm-icon svg {
-    width: 28px;
-    height: 28px;
-}
-
-/* Sparkles: a "+" at the top right, a dot at the bottom left. */
-.confirm-icon::before,
-.confirm-icon::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-}
-
-.confirm-icon::before {
-    top: -2px;
-    right: -14px;
-    width: 12px;
-    height: 12px;
-    background:
-        linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat,
-        linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat;
-    opacity: 0.8;
-}
-
-.confirm-icon::after {
-    bottom: 6px;
-    left: -12px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    opacity: 0.6;
-    box-shadow: -8px -22px 0 -1px currentColor;
-}
-
-.confirm-head h2 {
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
+/* Sign out, Save shift, and the generic Confirm pop-up all share
+   .confirm-card, and now use the exact same header (.cat-head,
+   .cat-badge, .cat-titles, eyebrow, close button) as Add Category —
+   no separate centered/round-icon treatment. */
 
 .confirm-card .sub {
     line-height: 1.55;
     color: var(--text-muted);
-}
-
-#confirmModal .confirm-card .sub {
-    text-align: center;
 }
 
 .confirm-warning {
@@ -5650,27 +5712,11 @@ label {
     padding: 0;
 }
 
-.confirm-card.category-card .cat-head.confirm-head {
-    gap: var(--sp-3);
-    padding: var(--sp-6) var(--sp-5) var(--sp-3);
-    text-align: center;
-}
-
-.confirm-card .cat-head.confirm-head h2 {
-    font-family: var(--font-display);
-    font-size: 22px;
-    font-style: italic;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--text-primary);
-}
-
 .confirm-card .cat-body {
-    padding: 0 var(--sp-5) var(--sp-5);
-    text-align: center;
+    padding: 0 var(--sp-6) var(--sp-5);
 }
 
-.confirm-card .cat-body .sub {
+.confirm-card .cat-body .cat-sub {
     margin: 0;
 }
 
@@ -5679,7 +5725,7 @@ label {
 }
 
 .confirm-card .cat-foot {
-    padding: var(--sp-4) var(--sp-5);
+    padding: var(--sp-4) var(--sp-6);
 }
 
 .confirm-card .cat-foot .modal-actions,
