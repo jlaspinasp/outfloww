@@ -210,7 +210,8 @@ const ICONS = {
     check: svgIcon(`<polyline points="20 6 9 17 4 12"/>`),
     trash: svgIcon(`<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>`),
     alertTriangle: svgIcon(`<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>`),
-    info: svgIcon(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/>`)
+    info: svgIcon(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/>`),
+    open: svgIcon(`<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>`)
 };
 
 
@@ -561,6 +562,7 @@ function categoryDialog(options) {
             clearTimeout(modal._hideTimer);
             modal.classList.remove("fx-closing");
             modal.classList.remove("hidden");
+            setEmojiPickerOpen(false);
             validate();
             input.focus();
             input.select();
@@ -572,6 +574,8 @@ function categoryDialog(options) {
             if (document.activeElement && modal.contains(document.activeElement)) {
                 document.activeElement.blur();
             }
+
+            setEmojiPickerOpen(false);
 
             clearTimeout(modal._hideTimer);
 
@@ -629,6 +633,13 @@ function categoryDialog(options) {
 
         function onKeydown(event) {
             if (event.key === "Escape") {
+
+                // First Escape closes the emoji popover, the next the window.
+                if (isEmojiPickerOpen()) {
+                    setEmojiPickerOpen(false);
+                    return;
+                }
+
                 settle(null);
             }
         }
@@ -1722,8 +1733,15 @@ $("#trendBars").addEventListener(
         // immediate. A day worked in more than one shift has more
         // than one row for the same calendar date — expand all of
         // them together rather than guessing which one was meant.
+        // openHistoryModal's preserveScroll re-pins the page scroll
+        // position across two animation frames (undoing browsers'
+        // own scroll-to-top on the re-render); wait out both of
+        // those before scrolling to the day, or that second pin
+        // snaps the scroll back to the top right after we set it.
         requestAnimationFrame(() => {
-            expandAllHistoryRowsForDate(dateKey);
+            requestAnimationFrame(() => {
+                expandAllHistoryRowsForDate(dateKey);
+            });
         });
 
     }
@@ -4244,9 +4262,11 @@ function copyTextLegacy(text) {
 }
 
 
-// Returns true when the text made it to the clipboard. `quiet` skips
-// the success toast (the caller shows its own); errors always toast.
-async function copyLogoutText(dateKey, shift, scope, quiet) {
+// Returns true when the text made it to the clipboard. Success is
+// silent now (callers flash their own button instead — see
+// flashCopySwap); a failed copy still toasts, since there's nothing
+// else on screen to tell the person it didn't work.
+async function copyLogoutText(dateKey, shift, scope) {
 
     const text = buildLogoutText(dateKey, shift, scope);
 
@@ -4267,16 +4287,8 @@ async function copyLogoutText(dateKey, shift, scope, quiet) {
         copied = copyTextLegacy(text);
     }
 
-    if (copied) {
-
-        if (!quiet) {
-            toast("Logout text copied!", "success");
-        }
-
-    } else {
-
+    if (!copied) {
         toast("Couldn't copy. Please try again.", "error");
-
     }
 
     return copied;
@@ -4450,7 +4462,15 @@ function expandAllHistoryRowsForDate(calendarDate) {
 
     updateCopyLogoutButton();
 
-    rows[0].scrollIntoView({ block: "nearest" });
+    // "nearest" was leaving the row pinned to the very bottom edge of
+    // the modal whenever the list already roughly filled the visible
+    // area (nothing left above to scroll past) — the row itself
+    // counted as "in view" even though the breakdown that just
+    // expanded below it was cut off by the modal's footer. Aligning
+    // to the top of the modal instead guarantees the row AND its
+    // breakdown have room to show underneath.
+    rows[0].scrollIntoView({ block: "start" });
+    rows[0].focus({ preventScroll: true });
 }
 
 
@@ -4535,12 +4555,22 @@ function cleanLogoutTitle(raw) {
 }
 
 
+// Shows the whole shape of the logout text, not just the title — the
+// rest of it (model, shift, totals) is stand-in placeholders since
+// this is Settings, not an actual shift.
 function renderLogoutTitlePreview() {
 
     const title = cleanLogoutTitle($("#logoutTitleInput").value) ||
         DEFAULT_LOGOUT_TITLE;
 
-    $("#logoutTitlePreview").textContent = title;
+    $("#logoutTitlePreview").textContent =
+        `${title}\n\n` +
+        `[MODEL NAME] -\n\n` +
+        `Shift Time: [SHIFT TIME]\n` +
+        `Date: [DATE]\n` +
+        `Subscriptions - $\n` +
+        `MM Sales - $\n` +
+        `Tips + Messages - $0.00 net`;
 }
 
 
@@ -4585,6 +4615,12 @@ let emojiGroupIndex = 0;
 // also close the whole window behind it.
 let emojiClosedAt = 0;
 
+// The picker is shared by every field that has an .emoji-toggle next
+// to it (logout title, category name, ...). Whichever field's toggle
+// was last clicked is "active" — that's where emoji taps land and
+// whose button the popover is positioned against.
+let activeEmojiField = null;
+
 
 function renderEmojiGrid() {
 
@@ -4616,12 +4652,16 @@ function buildEmojiPicker() {
 }
 
 
-// Puts the popover just under the emoji button (right edges lined up),
-// or above it when there isn't room below.
+// Puts the popover just under the active field's emoji button (right
+// edges lined up), or above it when there isn't room below.
 function positionEmojiPicker() {
 
+    if (!activeEmojiField) {
+        return;
+    }
+
     const picker = $("#emojiPicker");
-    const toggle = $("#logoutEmojiToggle").getBoundingClientRect();
+    const toggle = activeEmojiField.toggle.getBoundingClientRect();
 
     const margin = 8;
     const gap = 6;
@@ -4648,9 +4688,13 @@ function positionEmojiPicker() {
 function setEmojiPickerOpen(open) {
 
     $("#emojiPicker").classList.toggle("hidden", !open);
-    $("#logoutEmojiToggle").setAttribute("aria-expanded", String(open));
 
-    if (open) {
+    $$(".emoji-toggle").forEach(btn =>
+        btn.setAttribute("aria-expanded", "false")
+    );
+
+    if (open && activeEmojiField) {
+        activeEmojiField.toggle.setAttribute("aria-expanded", "true");
         positionEmojiPicker();
     }
 }
@@ -4661,57 +4705,94 @@ function isEmojiPickerOpen() {
 }
 
 
-// The text box's cursor is remembered separately, because some browsers
-// reset it when the box loses focus (e.g. after tapping the picker).
-let logoutTitleCaret = { start: 0, end: 0 };
+// Wires up one text input + its .emoji-toggle button to the shared
+// picker. maxLength caps the field (graphemes, matching what's
+// already enforced elsewhere for it); onInsert runs after every emoji
+// drop (e.g. to refresh a live preview or re-validate the field).
+// The field's own cursor position is remembered on every keystroke/
+// click/blur, because some browsers reset it once the input loses
+// focus (e.g. after tapping the picker).
+function bindEmojiField(input, toggle, options) {
 
-function rememberLogoutTitleCaret() {
+    options = options || {};
 
-    const input = $("#logoutTitleInput");
-
-    logoutTitleCaret = {
-        start: input.selectionStart ?? input.value.length,
-        end: input.selectionEnd ?? input.value.length
+    const field = {
+        input,
+        toggle,
+        maxLength: options.maxLength || Infinity,
+        onInsert: options.onInsert || function () {},
+        caret: { start: input.value.length, end: input.value.length }
     };
+
+    field.remember = function () {
+        field.caret = {
+            start: input.selectionStart ?? input.value.length,
+            end: input.selectionEnd ?? input.value.length
+        };
+    };
+
+    ["input", "keyup", "click", "blur"].forEach(type =>
+        input.addEventListener(type, field.remember)
+    );
+
+    toggle.addEventListener("click", function () {
+
+        if (activeEmojiField === field && isEmojiPickerOpen()) {
+            setEmojiPickerOpen(false);
+            return;
+        }
+
+        activeEmojiField = field;
+        setEmojiPickerOpen(true);
+    });
+
+    return field;
 }
 
-["input", "keyup", "click", "blur"].forEach(type =>
-    $("#logoutTitleInput").addEventListener(type, rememberLogoutTitleCaret)
-);
 
+// Drops an emoji into whichever field is active, at its remembered
+// cursor (or over its selection), unless that would push it past its
+// length limit.
+function insertActiveEmoji(emoji) {
 
-// Drops an emoji in at the cursor (or over the selection), unless that
-// would push the title past its length limit.
-function insertLogoutEmoji(emoji) {
+    if (!activeEmojiField) {
+        return;
+    }
 
-    const input = $("#logoutTitleInput");
-
-    const { start, end } = logoutTitleCaret;
+    const { input, maxLength, caret, onInsert } = activeEmojiField;
 
     const next =
-        input.value.slice(0, start) + emoji + input.value.slice(end);
+        input.value.slice(0, caret.start) + emoji + input.value.slice(caret.end);
 
-    if (splitGraphemes(next).length > LOGOUT_TITLE_MAX) {
+    if (splitGraphemes(next).length > maxLength) {
         return;
     }
 
     input.value = next;
 
-    const caret = start + emoji.length;
+    const pos = caret.start + emoji.length;
 
-    logoutTitleCaret = { start: caret, end: caret };
+    activeEmojiField.caret = { start: pos, end: pos };
 
-    input.setSelectionRange(caret, caret);
+    input.setSelectionRange(pos, pos);
 
-    renderLogoutTitlePreview();
+    onInsert();
 }
 
 
 buildEmojiPicker();
 
-$("#logoutEmojiToggle").addEventListener("click", function () {
-    setEmojiPickerOpen(!isEmojiPickerOpen());
-});
+const logoutEmojiField = bindEmojiField(
+    $("#logoutTitleInput"),
+    $("#logoutEmojiToggle"),
+    { maxLength: LOGOUT_TITLE_MAX, onInsert: renderLogoutTitlePreview }
+);
+
+bindEmojiField(
+    $("#categoryName"),
+    $("#categoryEmojiToggle"),
+    { maxLength: CATEGORY_NAME_MAX, onInsert: () => $("#categoryName").dispatchEvent(new Event("input")) }
+);
 
 // Tapping anywhere else in the window closes the popover.
 document.addEventListener("pointerdown", function (event) {
@@ -4719,7 +4800,7 @@ document.addEventListener("pointerdown", function (event) {
     if (
         isEmojiPickerOpen() &&
         !event.target.closest("#emojiPicker") &&
-        !event.target.closest("#logoutEmojiToggle")
+        !event.target.closest(".emoji-toggle")
     ) {
         setEmojiPickerOpen(false);
         emojiClosedAt = Date.now();
@@ -4735,13 +4816,16 @@ window.addEventListener("resize", function () {
 
 });
 
-$("#logoutTitleModal .modal-card").addEventListener("scroll", function () {
+// Any scrollable ancestor (a modal card, mainly) moving the active
+// field's button re-anchors the popover. Capture-phase because scroll
+// events don't bubble.
+document.addEventListener("scroll", function () {
 
     if (isEmojiPickerOpen()) {
         positionEmojiPicker();
     }
 
-});
+}, true);
 
 // Keep the cursor in the text box while tapping the picker, so an emoji
 // lands where the person was typing (and the phone keyboard stays put).
@@ -4766,7 +4850,7 @@ $("#emojiGrid").addEventListener("click", function (event) {
     const btn = event.target.closest(".emoji-btn");
 
     if (btn) {
-        insertLogoutEmoji(btn.dataset.emoji);
+        insertActiveEmoji(btn.dataset.emoji);
     }
 });
 
@@ -4781,7 +4865,7 @@ function openLogoutTitleModal() {
 
     setEmojiPickerOpen(false);
 
-    logoutTitleCaret = {
+    logoutEmojiField.caret = {
         start: $("#logoutTitleInput").value.length,
         end: $("#logoutTitleInput").value.length
     };
@@ -4837,14 +4921,10 @@ document.addEventListener("keydown", function (event) {
 
 $("#logoutTitleInput").addEventListener("input", renderLogoutTitlePreview);
 
-$("#resetLogoutTitle").addEventListener("click", function () {
-
-    $("#logoutTitleInput").value = "";
-
-    renderLogoutTitlePreview();
-
-    $("#logoutTitleInput").focus();
-});
+// Clearing the field entirely and saving is how you reset to the
+// default — there's no separate "Reset" button. cleanLogoutTitle("")
+// yields "", and the submit handler below already treats a blank (or
+// default-matching) title as "use the default".
 
 $("#logoutTitleForm").addEventListener("submit", function (event) {
 
@@ -5031,7 +5111,13 @@ function openShiftSaveConfirm() {
 
     // Nothing left to save: just copy the text.
     if (!live.length) {
-        copyLogoutText(dateKey, draft, "live");
+        copyLogoutText(dateKey, draft, "live").then(
+            function (copied) {
+                if (copied) {
+                    flashCopySwap($("#copyShiftLogoutBtn"));
+                }
+            }
+        );
         return;
     }
 
@@ -5122,8 +5208,7 @@ async function confirmShiftSave() {
     const copied = await copyLogoutText(
         pending.dateKey,
         pending.shift,
-        "live",
-        true
+        "live"
     );
 
     if (!copied) {
@@ -5136,16 +5221,11 @@ async function confirmShiftSave() {
         saveShiftToHistory(pending, times);
     }
 
+    toast("Copied for logout", "success");
+
     closeShiftSaveConfirm();
 
     closeShiftModal();
-
-    toast(
-        times.length
-            ? `Logout text copied — ${times.length} sale${times.length === 1 ? "" : "s"} saved to history`
-            : "Logout text copied!",
-        "success"
-    );
 }
 
 
@@ -5293,7 +5373,7 @@ $("#historyModal").addEventListener(
 
 $("#copyLogoutBtn").addEventListener(
     "click",
-    function () {
+    async function () {
 
         if (!expandedHistoryDate) {
             return;
@@ -5301,13 +5381,15 @@ $("#copyLogoutBtn").addEventListener(
 
         const meta = historyRowMeta[expandedHistoryDate];
 
-        if (meta) {
-            // Copy exactly the shift that's expanded, not the whole day.
-            copyLogoutText(meta.dateKey, meta.shift, meta.times);
-            return;
+        const copied =
+            meta
+                ? await copyLogoutText(meta.dateKey, meta.shift, meta.times)
+                : await copyLogoutText(expandedHistoryDate);
+
+        if (copied) {
+            flashCopySwap($("#copyLogoutBtn"));
         }
 
-        copyLogoutText(expandedHistoryDate);
     }
 );
 
@@ -5661,6 +5743,10 @@ const CATEGORIZED_TYPES = ["scripts"];
 const ICON_EDIT = ICONS.edit;
 
 const ICON_CHECK = ICONS.check;
+
+const ICON_COPY = ICONS.copy;
+
+const ICON_OPEN = ICONS.open;
 
 
 /* =====================================================
@@ -6031,40 +6117,54 @@ function renderContent(type) {
     );
 
 
+    const isScripts = type === "scripts";
+
     container.innerHTML =
         filtered.map(
             item => `
 
                 <article
-                    class="card content-card${selectedIds[type].has(item.id) ? " selected" : ""}"
+                    class="card content-card static-card${selectedIds[type].has(item.id) ? " selected" : ""}"
                     draggable="${inSelectMode ? "false" : "true"}"
                     tabindex="0"
                     data-id="${item.id}"
                     onclick="handleCardClick('${type}', '${item.id}', event)"
                 >
 
-                    <div class="card-copy-overlay" aria-hidden="true">
-                        <span class="card-copy-check">${ICON_CHECK}</span>
-                        <span class="card-copy-label">Copied</span>
-                    </div>
-
                     <div class="card-select-circle" aria-hidden="true"></div>
 
-                    <button
-                        class="card-icon-btn card-edit-btn"
-                        type="button"
-                        title="Edit"
-                        aria-label="Edit"
-                        onclick="
-                            event.stopPropagation();
-                            editItem(
-                                '${type}',
-                                '${item.id}'
-                            )
-                        "
-                    >
-                        ${ICON_EDIT}
-                    </button>
+                    <div class="card-actions-top">
+                        <button
+                            class="card-icon-btn card-open-btn"
+                            type="button"
+                            title="Open"
+                            aria-label="Open"
+                            onclick="
+                                event.stopPropagation();
+                                openViewModal(
+                                    '${type}',
+                                    '${item.id}'
+                                )
+                            "
+                        >
+                            ${ICON_OPEN}
+                        </button>
+                        <button
+                            class="card-icon-btn card-edit-btn"
+                            type="button"
+                            title="Edit"
+                            aria-label="Edit"
+                            onclick="
+                                event.stopPropagation();
+                                editItem(
+                                    '${type}',
+                                    '${item.id}'
+                                )
+                            "
+                        >
+                            ${ICON_EDIT}
+                        </button>
+                    </div>
 
                     <h3>
                         ${escapeHTML(item.title)}
@@ -6081,6 +6181,36 @@ function renderContent(type) {
                     }
 
                     <div class="content-text">${escapeHTML(item.text)}</div>
+
+                    ${
+                        isScripts
+                            ? `
+                                <button
+                                    type="button"
+                                    class="card-copy-bar"
+                                    title="Copy this script's text"
+                                    aria-label="Copy this script's text"
+                                    onclick="
+                                        event.stopPropagation();
+                                        handleCopyBarClick(
+                                            '${type}',
+                                            '${item.id}',
+                                            event
+                                        )
+                                    "
+                                >
+                                    <span class="card-copy-bar-state card-copy-bar-idle">
+                                        ${ICON_COPY}
+                                        <span>Copy</span>
+                                    </span>
+                                    <span class="card-copy-bar-state card-copy-bar-done">
+                                        ${ICON_CHECK}
+                                        <span>Copied</span>
+                                    </span>
+                                </button>
+                            `
+                            : ""
+                    }
 
                 </article>
 
@@ -6106,77 +6236,82 @@ function renderContent(type) {
    ===================================================== */
 
 
-// A single click opens the card; a second click on the same card,
-// arriving before CARD_CLICK_DELAY_MS is up, is treated as a
-// double-click and copies instead (see flashCopied below). That
-// means every single click waits out this delay before the card
-// actually opens — the trade-off for telling one click from two.
-const CARD_CLICK_DELAY_MS = 280;
-
-let pendingCardClick = null;
-
+// Neither Models nor Scripts open or copy from a click on the card
+// body any more — opening is the dedicated open icon (openViewModal,
+// wired directly in the template) and editing is the edit icon
+// beside it. The only thing a card click still does is toggle
+// selection while in select mode.
 function handleCardClick(type, id, event) {
 
     if (selectMode[type]) {
         event.stopPropagation();
         toggleCardSelection(type, id);
-        return;
     }
 
-    const card =
-        event.currentTarget ||
-        event.target.closest(".content-card");
-
-    if (
-        pendingCardClick &&
-        pendingCardClick.type === type &&
-        pendingCardClick.id === id
-    ) {
-        clearTimeout(pendingCardClick.timer);
-        pendingCardClick = null;
-        flashCopied(type, id, card);
-        return;
-    }
-
-    pendingCardClick = {
-        type: type,
-        id: id,
-        timer: setTimeout(
-            function () {
-                pendingCardClick = null;
-
-                // A long-press could have entered select mode while
-                // this was waiting to see if a second click landed.
-                if (!selectMode[type]) {
-                    openViewModal(type, id);
-                }
-            },
-            CARD_CLICK_DELAY_MS
-        )
-    };
 }
 
 
-// Double-click-to-copy: same clipboard write as the corner Copy
-// button, plus a brief overlay + checkmark flash right on the card
-// so it's obvious something happened without waiting for the toast.
-async function flashCopied(type, id, card) {
+/* =====================================================
+   SCRIPT CARD: COPY
+   The card body does nothing when clicked — opening is the
+   dedicated open icon (top-right corner, wired straight to
+   openViewModal in the template) and copying is this dedicated bar
+   pinned to the bottom of the card (see .card-copy-bar in
+   style.css). Models share the same open/edit icons but have no
+   copy bar.
+   ===================================================== */
+
+async function handleCopyBarClick(type, id, event) {
+
+    const bar =
+        (event && event.currentTarget) ||
+        (event && event.target && event.target.closest(".card-copy-bar"));
 
     await copyItem(type, id);
 
-    if (!card) {
+    flashCopyBar(bar);
+}
+
+
+// Swaps the bar's icon/label to a "Copied" state briefly — the bar
+// IS the dedicated copy area, so the feedback lives there too.
+function flashCopyBar(bar) {
+
+    if (!bar) {
         return;
     }
 
-    card.classList.add("copy-flash");
+    bar.classList.add("copied");
 
-    clearTimeout(card._copyFlashTimer);
+    clearTimeout(bar._copyBarTimer);
 
-    card._copyFlashTimer = setTimeout(
+    bar._copyBarTimer = setTimeout(
         function () {
-            card.classList.remove("copy-flash");
+            bar.classList.remove("copied");
         },
-        900
+        1400
+    );
+}
+
+
+// Same idle/done swap as flashCopyBar above, for a plain .btn that
+// opted into .copy-swap-btn (the "Copy for logout" buttons) instead
+// of a toast.
+function flashCopySwap(btn) {
+
+    if (!btn) {
+        return;
+    }
+
+    btn.classList.add("copied");
+
+    clearTimeout(btn._copySwapTimer);
+
+    btn._copySwapTimer = setTimeout(
+        function () {
+            btn.classList.remove("copied");
+        },
+        1400
     );
 }
 
@@ -6505,6 +6640,7 @@ async function bulkDeleteItems(type, idSet) {
 
 
 const CONTENT_HOLD_MS = 500;
+const CONTENT_HOLD_VISUAL_DELAY_MS = 120;
 const CONTENT_HOLD_MOVE_TOLERANCE = 10;
 const SELECT_DRAG_MOVE_THRESHOLD = 8;
 
@@ -6524,6 +6660,7 @@ function cancelContentHold() {
     }
 
     clearTimeout(contentHoldState.timer);
+    clearTimeout(contentHoldState.visualTimer);
     contentHoldState.card.classList.remove("holding");
     contentHoldState = null;
 }
@@ -6615,7 +6752,11 @@ function endSelectDrag() {
                 const card =
                     event.target.closest(".content-card");
 
-                if (!card || event.target.closest(".card-icon-btn")) {
+                if (
+                    !card ||
+                    event.target.closest(".card-icon-btn") ||
+                    event.target.closest(".card-copy-bar")
+                ) {
                     return;
                 }
 
@@ -6642,13 +6783,22 @@ function endSelectDrag() {
                 }
 
                 // Not selecting yet — this could become a long-press
-                // that turns it on.
+                // that turns it on. Don't shrink the card right away:
+                // a plain tap releases well inside CONTENT_HOLD_VISUAL_DELAY_MS,
+                // so only a press that's actually lingering gets the
+                // "about to select" feedback.
                 contentHoldState = {
                     card: card,
                     type: type,
                     id: id,
                     startX: event.clientX,
                     startY: event.clientY,
+                    visualTimer: setTimeout(
+                        function () {
+                            card.classList.add("holding");
+                        },
+                        CONTENT_HOLD_VISUAL_DELAY_MS
+                    ),
                     timer: setTimeout(
                         function () {
 
@@ -6674,8 +6824,6 @@ function endSelectDrag() {
                         CONTENT_HOLD_MS
                     )
                 };
-
-                card.classList.add("holding");
             }
         );
 
@@ -7165,7 +7313,21 @@ $$(".scripts-search-input").forEach(
     // NodeList, so wrap it in Array.from before mapping.)
     const itemData = Array.from(items).map(item => {
         const text = item.textContent.toLowerCase();
-        return { item, text, tokens: tokenize(text) };
+
+        // The question text is kept separate from the full item text
+        // (question + answer) so a match can be scored higher when
+        // it's what the item is actually about, not just something
+        // the answer happens to mention in passing.
+        const titleEl = item.querySelector(".faq-q span");
+        const titleText = titleEl ? titleEl.textContent.toLowerCase() : "";
+
+        return {
+            item,
+            text,
+            tokens: tokenize(text),
+            titleText,
+            titleTokens: tokenize(titleText)
+        };
     });
 
     // Vocabulary of real words used across the FAQ, for typo matching.
@@ -7183,7 +7345,12 @@ $$(".scripts-search-input").forEach(
             syns.forEach(s => variants.add(s));
         }
 
-        if (word.length >= 4) {
+        // Only worth fuzzy-matching if the query word isn't already a
+        // real word in the FAQ -- if it is, it's not a typo of
+        // anything, and fuzzy-matching it anyway just risks landing on
+        // an unrelated real word that happens to be one letter off
+        // ("sale" and "same", "shift" and "shirt").
+        if (word.length >= 4 && !vocab.has(word)) {
             vocab.forEach(vocabWord => {
                 if (vocabWord.length >= 4 &&
                     !variants.has(vocabWord) &&
@@ -7202,13 +7369,24 @@ $$(".scripts-search-input").forEach(
             : d.tokens.includes(term);
     }
 
-    // Known idioms present in the raw query, each expanded to its
-    // synonym group. An item matching any term of a recognized idiom's
-    // group counts as a match on the idea alone.
-    function matchedIdiomGroups(q) {
-        return PHRASE_KEYS
-            .filter(key => q.includes(key))
-            .map(key => synonymLookup.get(key));
+    // Same check, scoped to just the question (not the answer below it).
+    function titleHasTerm(d, term) {
+        return term.includes(" ")
+            ? d.titleText.includes(term)
+            : d.titleTokens.includes(term);
+    }
+
+    // How many of the query's "concepts" (see filterFaq) are found,
+    // checked with `has` so it can be pointed at either the question
+    // alone or the whole item.
+    function countConceptHits(concepts, has) {
+        let hits = 0;
+        concepts.forEach(variants => {
+            if (Array.from(variants).some(has)) {
+                hits++;
+            }
+        });
+        return hits;
     }
 
     function filterFaq(query) {
@@ -7221,36 +7399,77 @@ $$(".scripts-search-input").forEach(
             return;
         }
 
-        const idiomGroups = matchedIdiomGroups(q);
-        const queryWords = tokenize(q);
-        const variantsPerWord = queryWords.map(expandWord);
+        // An idiom ("get rid of", "back up") is one concept, not the
+        // sum of its individual words -- "get" and "rid" mean nothing
+        // matched on their own, so they're pulled out of the plain
+        // query text before tokenizing it, and the idiom's synonym
+        // group is added back as a single concept in its place. This
+        // also de-dupes: "reduce motion" is both a phrase and (via
+        // "motion") an ordinary word, but it should only ever count
+        // once.
+        const idiomKeys = PHRASE_KEYS.filter(key => q.includes(key));
+        const idiomGroupSet = new Set(idiomKeys.map(key => synonymLookup.get(key)));
 
-        // Require a real majority of the query's words to be found
+        let remainder = q;
+        idiomKeys.forEach(key => { remainder = remainder.split(key).join(" "); });
+
+        const queryWords = tokenize(remainder);
+        const concepts = queryWords.map(expandWord)
+            .concat(Array.from(idiomGroupSet, group => new Set(group)));
+
+        // Two passes. A single concept ("sync", "ppv", "get rid of" on
+        // its own) is left to match anywhere in the item, same as
+        // before -- with only one concept there's nothing to
+        // disambiguate it against. From two concepts up, a search is
+        // really asking about a specific question, so pass 1 only
+        // looks at the question text itself: does some item's question
+        // cover every one of the query's concepts? If so, only those
+        // on-topic questions are shown -- this is what stops a search
+        // like "delete a model" from also surfacing every other item
+        // that happens to separately mention "model" and a delete-ish
+        // word ("remove a sale", "clear sales history", a model
+        // mentioned in passing while explaining scripts...). Pass 2
+        // (the old whole-item behavior) only kicks in as a fallback,
+        // when nothing's question fully covers the query, so
+        // differently-worded questions can still be found.
+        let titleMatchExists = false;
+
+        if (concepts.length >= 2) {
+            itemData.forEach(d => {
+                d._titleHits = countConceptHits(
+                    concepts,
+                    term => titleHasTerm(d, term)
+                );
+                d._titleMatch = d._titleHits === concepts.length;
+                if (d._titleMatch) {
+                    titleMatchExists = true;
+                }
+            });
+        }
+
+        // Require a real majority of the query's concepts to be found
         // (as themselves, a synonym, or a close typo match) — e.g. a
-        // 2-word query needs both words accounted for, not just one,
-        // or very common words ("script", "delete") on their own would
+        // 2-concept query needs both accounted for, not just one, or
+        // very common words ("script", "delete") on their own would
         // surface almost the entire FAQ.
-        const needHits = Math.ceil(queryWords.length * 0.6);
+        const needHits = Math.ceil(concepts.length * 0.6);
 
         itemData.forEach(d => {
 
             const exactMatch = d.text.includes(q);
+            let matches;
 
-            const idiomMatch = idiomGroups.some(group =>
-                group.some(term => textHasTerm(d, term))
-            );
-
-            let wordHits = 0;
-            variantsPerWord.forEach(variants => {
-                const found = Array.from(variants)
-                    .some(term => textHasTerm(d, term));
-                if (found) {
-                    wordHits++;
-                }
-            });
-
-            const matches = exactMatch || idiomMatch ||
-                (queryWords.length > 0 && wordHits >= needHits);
+            if (exactMatch) {
+                matches = true;
+            } else if (concepts.length >= 2 && titleMatchExists) {
+                matches = d._titleMatch;
+            } else {
+                const wordHits = countConceptHits(
+                    concepts,
+                    term => textHasTerm(d, term)
+                );
+                matches = concepts.length > 0 && wordHits >= needHits;
+            }
 
             d.item.style.display = matches ? "" : "none";
         });
