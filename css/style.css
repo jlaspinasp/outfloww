@@ -2895,34 +2895,89 @@ label {
     color: var(--text-primary);
 }
 
+/* ---------- Logout title: compact header/body ---------- */
+/* The badge icon was dropped and the header/body tightened up so this
+   window reads as a small, single-purpose settings panel rather than
+   a full category editor. */
+
+#logoutTitleModal .category-card {
+    width: min(450px, 100%);
+}
+
+.logout-title-head {
+    padding: var(--sp-4) var(--sp-5) var(--sp-3);
+}
+
+.logout-title-head .cat-titles h2 {
+    font-size: 18px;
+}
+
+.logout-title-body {
+    padding: 0 var(--sp-5) var(--sp-4);
+}
+
+#logoutTitleModal .shift-modal-note {
+    font-size: var(--fs-sm);
+    margin: 0 0 var(--sp-3);
+}
+
+#logoutTitleModal .shift-field {
+    margin-bottom: 0;
+}
+
+#logoutTitleModal .shift-field + .shift-field {
+    margin-top: var(--sp-3);
+}
+
+.logout-title-preview {
+    margin: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 /* ---------- Logout title: emoji picker ---------- */
+/* Messenger-style composer: the emoji button sits inside the text
+   field itself (right edge) instead of as a separate button beside it. */
 
 .logout-title-row {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
+    position: relative;
+}
+
+#logoutTitleModal .logout-title-row input {
+    width: 100%;
+    height: 38px;
+    padding-right: 38px;
+    font-size: var(--fs-sm);
 }
 
 .emoji-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
     flex: none;
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
     padding: 0;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
-    font-size: 20px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-full, 999px);
+    font-size: 16px;
     line-height: 1;
-    transition: background-color 0.12s, border-color 0.12s;
+    transition: background-color 0.12s;
 }
 
 .emoji-toggle:hover,
 .emoji-toggle[aria-expanded="true"] {
     background: var(--bg-hover);
-    border-color: var(--accent);
 }
 
 /* A popover: fixed to the screen and placed by app.js next to the
@@ -3165,8 +3220,6 @@ label {
     font-size: var(--fs-base);
     line-height: 1.6;
     color: var(--text-secondary);
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
 }
 
 .card-icon-btn {
@@ -3198,108 +3251,216 @@ label {
     background: var(--bg-pressed);
 }
 
-.card-edit-btn {
+.content-card.static-card {
+    /* Models and Scripts both open via the dedicated open icon (not
+       the card body), so the card itself shouldn't read as clickable
+       — no pointer cursor, no hover highlight. Only the icon buttons
+       and the copy bar (Scripts only) show any "you can click this"
+       affordance. */
+    cursor: default;
+}
+
+.content-card.static-card:hover {
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.content-card.static-card h3 {
+    /* Room for both the open and edit icons in the top-right
+       corner (see .card-actions-top below), not just one. */
+    padding-right: 68px;
+}
+
+/* Models and Scripts both show Open + Edit together in the
+   top-right corner now — only the copy bar at the bottom
+   (Scripts only) still differs between the two. */
+.card-actions-top {
     position: absolute;
     top: var(--sp-3);
     right: var(--sp-3);
     z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.card-actions-top .card-edit-btn,
+.card-actions-top .card-open-btn {
+    position: static;
+    top: auto;
+    right: auto;
 }
 
 /* =====================================================
-   DOUBLE-CLICK TO COPY — a second click on a card (within
-   CARD_CLICK_DELAY_MS in app.js) copies its text instead of
-   opening it, and flashes this overlay so it's obvious the
-   copy landed. The single-click-to-open path is untouched;
-   it just waits that same short window before opening, in
-   case a second click is on its way. Same premium language
-   as .category-card: accent-tinted glass, hairline, and the
-   app's spring easing for the pop.
+   SCRIPT CARDS — dedicated copy button
+   Card stays the same 280px height as Models — the copy bar just
+   takes its share of the existing flex layout (content-text is
+   flex:1, so it simply gets a little less room). The card body has
+   no click behaviour at all (see .content-card.static-card above
+   and handleCardClick in app.js); opening happens through the open
+   icon in .card-actions-top, and this bar is the only way to copy.
+   Models share the same static-card layout but have no copy bar.
+
+   Same "premium chip" language as .category-card (the Add/Edit
+   modal): accent-tinted glass on hover, a hairline glow, and the
+   app's spring easing for the copied pop.
    ===================================================== */
 
-.card-copy-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
+.card-copy-bar {
+    position: relative;
     display: flex;
-    flex-direction: column;
+    flex: none;
     align-items: center;
     justify-content: center;
-    gap: var(--sp-3);
-    background:
-        radial-gradient(circle at 50% 42%, var(--accent-soft), transparent 60%),
-        var(--overlay);
-    -webkit-backdrop-filter: blur(3px) saturate(1.1);
-    backdrop-filter: blur(3px) saturate(1.1);
-    border-radius: inherit;
+    gap: var(--sp-2);
+    width: auto;
+    height: 42px;
+    margin: var(--sp-2) calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5));
+    padding: 0 var(--sp-5);
+    background: var(--btn-bg);
+    border: 0;
+    border-top: 1px solid var(--btn-border);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    color: var(--text-primary);
+    cursor: pointer;
+    overflow: hidden;
+    transition: background-color 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+/* Hairline glow along the top edge, echoing .category-card::before
+   on the Add/Edit modal. */
+.card-copy-bar::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 18%;
+    right: 18%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-border), transparent);
+    opacity: 0;
+    transition: opacity 0.16s var(--ease);
+}
+
+.card-copy-bar:hover {
+    background: var(--btn-bg-hover);
+}
+
+.card-copy-bar:hover::before {
+    opacity: 1;
+}
+
+.card-copy-bar:active {
+    background: var(--btn-bg-hover);
+}
+
+.card-copy-bar .icon {
+    width: 15px;
+    height: 15px;
+    stroke-width: 2;
+}
+
+.card-copy-bar-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.card-copy-bar-done {
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(6px);
+    opacity: 0;
+    color: #fff;
+    transition: transform 0.18s var(--fx-out), opacity 0.14s var(--fx-out);
+}
+
+.card-copy-bar.copied {
+    background: linear-gradient(155deg, var(--accent-text), var(--accent));
+    border-top-color: transparent;
+}
+
+.card-copy-bar.copied .card-copy-bar-idle {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+.card-copy-bar.copied .card-copy-bar-done {
+    opacity: 1;
+    transform: none;
+    transition: transform 0.22s var(--fx-in) 0.02s, opacity 0.16s ease-out 0.02s;
+}
+
+.card-copy-bar-idle {
+    transition: transform 0.16s var(--fx-out), opacity 0.14s var(--fx-out);
+}
+
+/* =====================================================
+   COPY-SWAP BUTTONS — same idle/done icon+label swap as the
+   Scripts copy bar above, reused for the "Copy for logout"
+   buttons instead of a toast. Works on top of the regular .btn
+   sizing/surface; this just adds the two-state crossfade.
+   ===================================================== */
+
+.copy-swap-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.copy-swap-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+}
+
+.copy-swap-idle {
+    transition: transform 0.16s var(--fx-out), opacity 0.14s var(--fx-out);
+}
+
+.copy-swap-done {
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(6px);
+    opacity: 0;
+    transition: transform 0.18s var(--fx-out), opacity 0.14s var(--fx-out);
+}
+
+.copy-swap-btn.copied .copy-swap-idle {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+.copy-swap-btn.copied .copy-swap-done {
+    opacity: 1;
+    transform: none;
+    transition: transform 0.22s var(--fx-in) 0.02s, opacity 0.16s ease-out 0.02s;
+}
+
+/* Copying doesn't make sense mid-selection, same rule as the edit
+   button. */
+.content-grid.select-mode .card-copy-bar {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.18s var(--fx-out), visibility 0s linear 0.18s;
+    transition: opacity 0.16s var(--fx-out), visibility 0s linear 0.16s;
 }
 
-/* Fine accent hairline along the top edge, echoing .category-card::before. */
-.card-copy-overlay::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 12%;
-    right: 12%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.8;
-}
-
-.content-card.copy-flash .card-copy-overlay {
-    opacity: 1;
-    visibility: visible;
-    transition: opacity 0.12s var(--fx-in), visibility 0s;
-}
-
-.card-copy-check {
-    display: grid;
-    flex: none;
-    place-items: center;
-    width: 52px;
-    height: 52px;
-    background: linear-gradient(155deg, var(--accent-text), var(--accent));
-    border: 1px solid var(--accent-border);
-    border-radius: 50%;
-    box-shadow: var(--shadow-lg);
-    color: #fff;
-    transform: scale(0.55);
+/* Neither Open nor Edit make sense mid-selection either. */
+.content-grid.select-mode .card-actions-top {
     opacity: 0;
-    transition: transform 0.16s var(--fx-out), opacity 0.16s var(--fx-out);
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s var(--fx-out), visibility 0s linear 0.16s;
 }
-
-.card-copy-check .icon {
-    width: 24px;
-    height: 24px;
-    stroke-width: 3;
-}
-
-.content-card.copy-flash .card-copy-check {
-    transform: scale(1);
-    opacity: 1;
-    transition: transform 0.32s var(--fx-in) 0.03s, opacity 0.16s ease-out 0.03s;
-}
-
-.card-copy-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #fff;
-    opacity: 0;
-    transform: translateY(2px);
-    transition: transform 0.16s var(--fx-out), opacity 0.16s var(--fx-out);
-}
-
-.content-card.copy-flash .card-copy-label {
-    opacity: 0.92;
-    transform: none;
-    transition: transform 0.26s var(--fx-in) 0.1s, opacity 0.2s ease-out 0.1s;
-}
-
 
 /* =====================================================
    MULTI-SELECT — long-press a Model/Script card to enter
@@ -5480,7 +5641,7 @@ label {
     display: block;
     margin: 0;
     font-size: var(--fs-sm);
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-secondary);
 }
 
@@ -5493,6 +5654,17 @@ label {
 
 .cat-count.near {
     color: var(--warning);
+}
+
+/* Emoji button sits inside the input itself, same treatment as the
+   logout title field — no extra width or height added anywhere. */
+.cat-input-row {
+    position: relative;
+}
+
+.cat-input-row input {
+    width: 100%;
+    padding-right: 40px;
 }
 
 #categoryName {
@@ -5648,11 +5820,6 @@ label {
    SHARED CARD: New Script, New Model, Shift Report
    ===================================================== */
 
-.category-card .cat-body label,
-.category-card .cat-body .shift-field-label {
-    font-weight: 600;
-}
-
 .category-card .cat-body input:not([type="checkbox"]):not([type="radio"]),
 .category-card .cat-body select {
     height: 44px;
@@ -5741,8 +5908,8 @@ label {
 }
 
 .category-card .emoji-toggle {
-    width: 44px;
-    height: 44px;
+    width: 28px;
+    height: 28px;
 }
 
 .cat-body > .shift-field:last-child {
