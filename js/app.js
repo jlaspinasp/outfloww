@@ -207,6 +207,7 @@ const ICONS = {
     heart: svgIcon(`<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>`),
     edit: svgIcon(`<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>`),
     copy: svgIcon(`<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`),
+    check: svgIcon(`<polyline points="20 6 9 17 4 12"/>`),
     trash: svgIcon(`<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>`),
     alertTriangle: svgIcon(`<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>`),
     info: svgIcon(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/>`)
@@ -436,6 +437,7 @@ function confirmDialog(options) {
         const descEl = $("#confirmModalDesc");
         const cancelBtn = $("#confirmModalCancel");
         const confirmBtn = $("#confirmModalConfirm");
+        const closeBtn = $("#closeConfirmModal");
 
         if (iconEl) {
             iconEl.innerHTML =
@@ -459,6 +461,7 @@ function confirmDialog(options) {
             document.removeEventListener("keydown", onKeydown);
             cancelBtn.removeEventListener("click", onCancel);
             confirmBtn.removeEventListener("click", onConfirm);
+            if (closeBtn) closeBtn.removeEventListener("click", onCancel);
 
             resolve(result);
         }
@@ -485,6 +488,7 @@ function confirmDialog(options) {
 
         cancelBtn.addEventListener("click", onCancel);
         confirmBtn.addEventListener("click", onConfirm);
+        if (closeBtn) closeBtn.addEventListener("click", onCancel);
         modal.addEventListener("click", onBackdrop);
         document.addEventListener("keydown", onKeydown);
 
@@ -1106,6 +1110,11 @@ function initAuthGate() {
     });
 
     cancelSignOut.addEventListener("click", closeSignOutConfirm);
+
+    const closeSignOutModalBtn = $("#closeSignOutModal");
+    if (closeSignOutModalBtn) {
+        closeSignOutModalBtn.addEventListener("click", closeSignOutConfirm);
+    }
 
     signOutModal.addEventListener("click", function (event) {
 
@@ -5158,6 +5167,15 @@ $("#cancelShiftSave").addEventListener(
 );
 
 
+const closeShiftSaveModalBtn = $("#closeShiftSaveModal");
+if (closeShiftSaveModalBtn) {
+    closeShiftSaveModalBtn.addEventListener(
+        "click",
+        closeShiftSaveConfirm
+    );
+}
+
+
 $("#shiftSaveModal").addEventListener(
     "click",
     function (event) {
@@ -5642,7 +5660,7 @@ const CATEGORIZED_TYPES = ["scripts"];
 
 const ICON_EDIT = ICONS.edit;
 
-const ICON_COPY = ICONS.copy;
+const ICON_CHECK = ICONS.check;
 
 
 /* =====================================================
@@ -6025,6 +6043,11 @@ function renderContent(type) {
                     onclick="handleCardClick('${type}', '${item.id}', event)"
                 >
 
+                    <div class="card-copy-overlay" aria-hidden="true">
+                        <span class="card-copy-check">${ICON_CHECK}</span>
+                        <span class="card-copy-label">Copied</span>
+                    </div>
+
                     <div class="card-select-circle" aria-hidden="true"></div>
 
                     <button
@@ -6059,26 +6082,6 @@ function renderContent(type) {
 
                     <div class="content-text">${escapeHTML(item.text)}</div>
 
-                    <div class="card-actions">
-
-                        <button
-                            class="card-icon-btn"
-                            type="button"
-                            title="Copy"
-                            aria-label="Copy"
-                            onclick="
-                                event.stopPropagation();
-                                copyItem(
-                                    '${type}',
-                                    '${item.id}'
-                                )
-                            "
-                        >
-                            ${ICON_COPY}
-                        </button>
-
-                    </div>
-
                 </article>
 
             `
@@ -6103,6 +6106,15 @@ function renderContent(type) {
    ===================================================== */
 
 
+// A single click opens the card; a second click on the same card,
+// arriving before CARD_CLICK_DELAY_MS is up, is treated as a
+// double-click and copies instead (see flashCopied below). That
+// means every single click waits out this delay before the card
+// actually opens — the trade-off for telling one click from two.
+const CARD_CLICK_DELAY_MS = 280;
+
+let pendingCardClick = null;
+
 function handleCardClick(type, id, event) {
 
     if (selectMode[type]) {
@@ -6111,7 +6123,61 @@ function handleCardClick(type, id, event) {
         return;
     }
 
-    openViewModal(type, id);
+    const card =
+        event.currentTarget ||
+        event.target.closest(".content-card");
+
+    if (
+        pendingCardClick &&
+        pendingCardClick.type === type &&
+        pendingCardClick.id === id
+    ) {
+        clearTimeout(pendingCardClick.timer);
+        pendingCardClick = null;
+        flashCopied(type, id, card);
+        return;
+    }
+
+    pendingCardClick = {
+        type: type,
+        id: id,
+        timer: setTimeout(
+            function () {
+                pendingCardClick = null;
+
+                // A long-press could have entered select mode while
+                // this was waiting to see if a second click landed.
+                if (!selectMode[type]) {
+                    openViewModal(type, id);
+                }
+            },
+            CARD_CLICK_DELAY_MS
+        )
+    };
+}
+
+
+// Double-click-to-copy: same clipboard write as the corner Copy
+// button, plus a brief overlay + checkmark flash right on the card
+// so it's obvious something happened without waiting for the toast.
+async function flashCopied(type, id, card) {
+
+    await copyItem(type, id);
+
+    if (!card) {
+        return;
+    }
+
+    card.classList.add("copy-flash");
+
+    clearTimeout(card._copyFlashTimer);
+
+    card._copyFlashTimer = setTimeout(
+        function () {
+            card.classList.remove("copy-flash");
+        },
+        900
+    );
 }
 
 
@@ -6885,6 +6951,48 @@ $$(".search").forEach(
 );
 
 
+/* Clear (×) button inside every search field: shows once there's
+   text, clears it, and re-fires "input" so whatever's already
+   listening on that field (the scripts re-render above, or the
+   FAQ filter below) runs exactly as if the person had deleted the
+   text themselves. */
+
+$$(".scripts-search-input").forEach(
+    input => {
+
+        const box = input.closest(".scripts-search");
+        const clearBtn = box
+            ? box.querySelector(".scripts-search-clear")
+            : null;
+
+        if (!box || !clearBtn) {
+            return;
+        }
+
+        function syncHasValue() {
+            box.classList.toggle("has-value", !!input.value);
+        }
+
+        input.addEventListener("input", syncHasValue);
+        syncHasValue();
+
+        clearBtn.addEventListener("click", function () {
+
+            input.value = "";
+            syncHasValue();
+
+            input.dispatchEvent(
+                new Event("input", { bubbles: true })
+            );
+
+            input.focus();
+
+        });
+
+    }
+);
+
+
 /* Scripts search: the icon toggles an inline field open/closed.
    Closing with text still in it clears the field (and re-renders
    the unfiltered list); clicking outside only closes it if it's
@@ -6905,9 +7013,9 @@ $$(".search").forEach(
 
         if (clear && input.value) {
             input.value = "";
-            preserveScroll(function () {
-                renderContent("scripts");
-            });
+            input.dispatchEvent(
+                new Event("input", { bubbles: true })
+            );
         }
 
         box.classList.remove("open");
@@ -6950,7 +7058,15 @@ $$(".search").forEach(
    but instead of re-rendering a data list it just shows/hides the
    existing question-and-answer items (matching against both the
    question and the answer text), and hides a whole group heading
-   if nothing in it matches. */
+   if nothing in it matches.
+
+   Matching is "idea-based": an exact substring match still always
+   counts (old behavior), but on top of that each query word is also
+   expanded to close synonyms ("night mode" also finds "dark mode",
+   "signout" also finds "sign out") and to close typo matches against
+   the words that actually appear in the FAQ ("sinc" still finds
+   "sync"). An item matches if enough of the query's words are found
+   this way, so the box tolerates different wording, not just typos. */
 
 (function () {
 
@@ -6965,16 +7081,178 @@ $$(".search").forEach(
     const items = $$("#faq .faq-item");
     const groups = $$("#faq .faq-group");
 
+    // Groups of interchangeable words/phrases for this FAQ's topics,
+    // so searching for one finds items that only use another.
+    const SYNONYM_GROUPS = [
+        ["dark mode", "light mode", "night mode", "dark", "light", "theme", "appearance"],
+        ["reorder", "rearrange", "move", "drag", "sort", "order"],
+        ["delete", "remove", "erase", "clear", "get rid of", "throw away"],
+        ["undo", "revert", "bring back", "reverse"],
+        ["sale", "sales", "earning", "earnings", "income", "money"],
+        ["target", "goal", "quota"],
+        ["ppv", "ppvs"],
+        ["tip", "tips", "outside shift"],
+        ["history", "past days", "previous", "old"],
+        ["shift", "close shift", "session"],
+        ["sign out", "log out", "logout", "signout"],
+        ["overview", "summary", "totals"],
+        ["script", "scripts", "message", "template"],
+        ["category", "categories", "chip", "chips", "tag", "tags", "folder"],
+        ["backup", "back up", "export", "save a copy"],
+        ["restore", "import", "recover"],
+        ["sync", "synchronize", "synchronise", "across devices", "another device", "multiple devices"],
+        ["reduce motion", "animation", "animations", "motion"],
+        ["bulk", "multiple", "more than one", "several", "many"],
+        ["add", "create", "new"],
+        ["edit", "change", "update"],
+        ["model", "models", "creator", "creators"],
+        ["gross", "before fees"],
+        ["net", "after fees", "take home"],
+    ];
+
+    const synonymLookup = new Map();
+    SYNONYM_GROUPS.forEach(group => {
+        group.forEach(term => {
+            synonymLookup.set(term, group);
+        });
+    });
+
+    // Multi-word idioms only (e.g. "get rid of", "bring back", "back up"),
+    // checked against the raw query below so a colloquial phrase like
+    // "how do I get rid of a model" is recognized even though its
+    // individual words ("get", "rid") aren't meaningful on their own.
+    const PHRASE_KEYS = SYNONYM_GROUPS
+        .flatMap(group => group.filter(term => term.includes(" ")));
+
+    const STOPWORDS = new Set([
+        "a", "an", "the", "is", "are", "do", "does", "did", "i", "my", "me",
+        "to", "of", "for", "in", "on", "how", "what", "can", "it", "its",
+        "and", "or", "with", "when", "where", "why", "this", "that", "be",
+        "was", "were", "will", "if", "im", "youre"
+    ]);
+
+    function tokenize(str) {
+        return (str.toLowerCase().match(/[a-z0-9']+/g) || [])
+            .filter(w => w.length > 1 && !STOPWORDS.has(w));
+    }
+
+    // Small capped Levenshtein distance, used only to catch minor typos.
+    function editDistance(a, b, max) {
+
+        if (Math.abs(a.length - b.length) > max) {
+            return max + 1;
+        }
+
+        let prevRow = [];
+        for (let j = 0; j <= b.length; j++) {
+            prevRow[j] = j;
+        }
+
+        for (let i = 1; i <= a.length; i++) {
+            const row = [i];
+            for (let j = 1; j <= b.length; j++) {
+                row[j] = a[i - 1] === b[j - 1]
+                    ? prevRow[j - 1]
+                    : 1 + Math.min(prevRow[j - 1], prevRow[j], row[j - 1]);
+            }
+            prevRow = row;
+        }
+
+        return prevRow[b.length];
+    }
+
+    // Precompute each item's searchable text/tokens once. (items is a
+    // NodeList, so wrap it in Array.from before mapping.)
+    const itemData = Array.from(items).map(item => {
+        const text = item.textContent.toLowerCase();
+        return { item, text, tokens: tokenize(text) };
+    });
+
+    // Vocabulary of real words used across the FAQ, for typo matching.
+    const vocab = new Set();
+    itemData.forEach(d => d.tokens.forEach(t => vocab.add(t)));
+
+    // Every way a single query word could show up: itself, its synonyms,
+    // and any real FAQ word that's a close typo match for it.
+    function expandWord(word) {
+
+        const variants = new Set([word]);
+        const syns = synonymLookup.get(word);
+
+        if (syns) {
+            syns.forEach(s => variants.add(s));
+        }
+
+        if (word.length >= 4) {
+            vocab.forEach(vocabWord => {
+                if (vocabWord.length >= 4 &&
+                    !variants.has(vocabWord) &&
+                    editDistance(word, vocabWord, 1) <= 1) {
+                    variants.add(vocabWord);
+                }
+            });
+        }
+
+        return variants;
+    }
+
+    function textHasTerm(d, term) {
+        return term.includes(" ")
+            ? d.text.includes(term)
+            : d.tokens.includes(term);
+    }
+
+    // Known idioms present in the raw query, each expanded to its
+    // synonym group. An item matching any term of a recognized idiom's
+    // group counts as a match on the idea alone.
+    function matchedIdiomGroups(q) {
+        return PHRASE_KEYS
+            .filter(key => q.includes(key))
+            .map(key => synonymLookup.get(key));
+    }
+
     function filterFaq(query) {
 
         const q = query.trim().toLowerCase();
 
-        items.forEach(item => {
+        if (!q) {
+            itemData.forEach(d => { d.item.style.display = ""; });
+            groups.forEach(g => { g.style.display = ""; });
+            return;
+        }
 
-            const text = item.textContent.toLowerCase();
-            const matches = !q || text.includes(q);
+        const idiomGroups = matchedIdiomGroups(q);
+        const queryWords = tokenize(q);
+        const variantsPerWord = queryWords.map(expandWord);
 
-            item.style.display = matches ? "" : "none";
+        // Require a real majority of the query's words to be found
+        // (as themselves, a synonym, or a close typo match) — e.g. a
+        // 2-word query needs both words accounted for, not just one,
+        // or very common words ("script", "delete") on their own would
+        // surface almost the entire FAQ.
+        const needHits = Math.ceil(queryWords.length * 0.6);
+
+        itemData.forEach(d => {
+
+            const exactMatch = d.text.includes(q);
+
+            const idiomMatch = idiomGroups.some(group =>
+                group.some(term => textHasTerm(d, term))
+            );
+
+            let wordHits = 0;
+            variantsPerWord.forEach(variants => {
+                const found = Array.from(variants)
+                    .some(term => textHasTerm(d, term));
+                if (found) {
+                    wordHits++;
+                }
+            });
+
+            const matches = exactMatch || idiomMatch ||
+                (queryWords.length > 0 && wordHits >= needHits);
+
+            d.item.style.display = matches ? "" : "none";
         });
 
         groups.forEach(group => {
@@ -6994,7 +7272,9 @@ $$(".search").forEach(
 
         if (clear && input.value) {
             input.value = "";
-            filterFaq("");
+            input.dispatchEvent(
+                new Event("input", { bubbles: true })
+            );
         }
 
         box.classList.remove("open");
@@ -8754,9 +9034,6 @@ async function copyItem(
             await navigator.clipboard.writeText(plain);
 
         }
-
-
-        toast("Copied!", "success");
 
     } catch {
 
