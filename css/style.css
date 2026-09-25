@@ -3317,7 +3317,7 @@ label {
     height: 42px;
     margin: var(--sp-2) calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5));
     padding: 0 var(--sp-5);
-    background: var(--btn-bg);
+    background: color-mix(in srgb, var(--btn-bg) 97%, var(--text-primary) 3%);
     border: 0;
     border-top: 1px solid var(--btn-border);
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
