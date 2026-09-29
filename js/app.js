@@ -6267,6 +6267,19 @@ async function handleCopyBarClick(type, id, event) {
         (event && event.currentTarget) ||
         (event && event.target && event.target.closest(".card-copy-bar"));
 
+    // Release focus from the search box (or any input) first. A focused
+    // input is what makes the browser refuse the clipboard write.
+    const active = document.activeElement;
+
+    if (
+        active &&
+        active !== document.body &&
+        typeof active.blur === "function" &&
+        /^(INPUT|TEXTAREA)$/.test(active.tagName)
+    ) {
+        active.blur();
+    }
+
     await copyItem(type, id);
 
     flashCopyBar(bar);
@@ -9227,19 +9240,30 @@ async function copyItem(
     }
 
 
+    const plain = item.text;
+
+    const html =
+        "<span style=\"font-size:16px;font-family:inherit;\">" +
+        plain
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n/g, "<br>") +
+        "</span>";
+
+    // Try each way of reaching the clipboard in turn. The modern API
+    // can be refused (e.g. while the search box still has focus or the
+    // tap's "user gesture" has been used up), so fall back to the
+    // hidden-textarea copy before ever resorting to a pop-up.
+    let copied = false;
+
     try {
 
-        const plain = item.text;
-        const html =
-            "<span style=\"font-size:16px;font-family:inherit;\">" +
-            plain
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/\n/g, "<br>") +
-            "</span>";
-
-        if (window.ClipboardItem) {
+        if (
+            navigator.clipboard &&
+            window.ClipboardItem &&
+            navigator.clipboard.write
+        ) {
 
             await navigator.clipboard.write([
                 new ClipboardItem({
@@ -9248,20 +9272,39 @@ async function copyItem(
                 })
             ]);
 
-        } else {
-
-            await navigator.clipboard.writeText(plain);
-
+            copied = true;
         }
 
     } catch {
+        copied = false;
+    }
 
+    if (!copied) {
+
+        try {
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(plain);
+                copied = true;
+            }
+
+        } catch {
+            copied = false;
+        }
+    }
+
+    if (!copied) {
+        copied = copyTextLegacy(plain);
+    }
+
+    if (!copied) {
         prompt(
             "Copy this text:",
-            item.text
+            plain
         );
-
     }
+
+    return copied;
 }
 
 
