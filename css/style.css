@@ -4636,9 +4636,9 @@ label {
        browsers can leave the element painted at its first frame
        (e.g. opacity: 0) until something forces a repaint, such as
        hovering it. That is what hid text in the History cards. */
-    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *),
-    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *)::before,
-    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *)::after {
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *):not(.target-breakdown-row):not(.target-breakdown-row *),
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *):not(.target-breakdown-row):not(.target-breakdown-row *)::before,
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *):not(.target-breakdown-row):not(.target-breakdown-row *)::after {
         animation: none !important;
         transition: none !important;
         scroll-behavior: auto !important;
