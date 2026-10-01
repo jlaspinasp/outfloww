@@ -2009,6 +2009,9 @@ label {
     border-radius: 10px;
     color: var(--row-strong, rgba(0, 0, 0, 0.8));
     transition: filter 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+    /* A change in one row can't trigger layout work in another one
+       (so a burning name isn't re-laid-out when a neighbour updates). */
+    contain: layout style;
 }
 
 /* Rows aren't clickable any more (the switcher selects), so no hover lift. */
@@ -2042,6 +2045,7 @@ label {
 }
 
 .target-breakdown-name {
+    position: relative; /* anchors the fading "old tier" snapshot */
     display: flex;
     flex: 1;
     align-items: center;
@@ -2235,6 +2239,8 @@ label {
     overflow: hidden;
     background: var(--row-track-bg, var(--progress-track));
     border-radius: 999px;
+    /* The fill's width animates; keep that layout work inside the bar. */
+    contain: layout paint;
 }
 
 .progress-fill {
@@ -4627,9 +4633,9 @@ label {
        browsers can leave the element painted at its first frame
        (e.g. opacity: 0) until something forces a repaint, such as
        hovering it. That is what hid text in the History cards. */
-    *:not(.splash--intro):not(.splash--intro *):not(.on-fire),
-    *:not(.splash--intro):not(.splash--intro *):not(.on-fire)::before,
-    *:not(.splash--intro):not(.splash--intro *):not(.on-fire)::after {
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *),
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *)::before,
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire):not(.fire-fx):not(.fire-fx *)::after {
         animation: none !important;
         transition: none !important;
         scroll-behavior: auto !important;
@@ -7478,13 +7484,15 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
    Which percentage starts each tier is set in app.js (FIRE_TIERS).
    ===================================================== */
 
-/* ---- Tier palettes + which animations each one plays ---- */
+/* ---- Tier palettes + which animations each one plays ----
+   Colours follow flame temperature, cool to hot:
+   1 red-orange  ·  2 amber  ·  3 yellow-green  ·  4 teal  ·  5 blue */
 
+/* 1 - the original gold, with a shine that sweeps across the letters */
 .target-breakdown-title.on-fire-1 {
     --fl-low: #a87408; --fl-mid: #d9a21f; --fl-high: #f3cf5c; --fl-tip: #fff4b8;
     --fg1: rgba(255, 214, 80, 0.5); --fg2: rgba(255, 190, 40, 0.3); --fb: 0.8;
     --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 215, 90, 0.35), transparent);
-    /* A bright band sweeps left to right over the gold, then rests. */
     --fire-bg-image:
         linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.95) 50%, transparent 58%),
         linear-gradient(to top, var(--fl-low) 0%, var(--fl-mid) 38%, var(--fl-high) 72%, var(--fl-tip) 100%);
@@ -7493,35 +7501,38 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     --fire-anims: fire-shine 3.6s ease-in-out infinite;
 }
 
+/* 2 - orange, flowing heat with twinkling sparks */
 .target-breakdown-title.on-fire-2 {
-    --fl-low: #b94a08; --fl-mid: #e8730f; --fl-high: #ffa23a; --fl-tip: #ffd98a;
-    --fg1: rgba(255, 150, 40, 0.5); --fg2: rgba(255, 110, 20, 0.45); --fb: 1.2;
-    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 140, 40, 0.45), transparent);
-    --fire-anims: fire-flow 5.5s steps(10) infinite;
+    --fl-low: #d9480f; --fl-mid: #ff7a1a; --fl-high: #ffa94d; --fl-tip: #ffd08a;
+    --fg1: rgba(255, 150, 40, 0.5); --fg2: rgba(255, 125, 25, 0.75); --fb: 1.2;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 125, 30, 0.5), transparent);
+    --fire-anims: fire-flow 4s steps(8) infinite;
 }
 
+/* 3 - red flames with an orange-yellow tip, red embers */
 .target-breakdown-title.on-fire-3 {
-    --fl-low: #a02206; --fl-mid: #e0501a; --fl-high: #ff8a1f; --fl-tip: #ffd34d;
-    --fg1: rgba(255, 130, 20, 0.7); --fg2: rgba(255, 60, 0, 0.5); --fb: 1.3;
-    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 100, 20, 0.5), transparent);
-    --ember: #ffb347;
+    --fl-low: #6e0000; --fl-mid: #c8100a; --fl-high: #ff3a1a; --fl-tip: #ffa43a;
+    --fg1: rgba(255, 70, 30, 0.7); --fg2: rgba(255, 40, 20, 0.8); --fb: 1.4;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 40, 20, 0.55), transparent);
+    --ember: #ff5a2a;
     --fire-anims: fire-flow 3.2s steps(6) infinite, fire-lick 1.7s ease-in-out infinite;
 }
 
+/* 4 - teal flame, teal spark streaks */
 .target-breakdown-title.on-fire-4 {
-    --fl-low: #8f1500; --fl-mid: #e03a10; --fl-high: #ff7a14; --fl-tip: #ffe066;
-    --fg1: rgba(255, 160, 20, 0.8); --fg2: rgba(255, 50, 0, 0.6); --fb: 1.7;
-    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 80, 10, 0.6), transparent);
-    --ember: #ffc24d;
+    --fl-low: #067a55; --fl-mid: #12b585; --fl-high: #3fe0a8; --fl-tip: #d2fff0;
+    --fg1: rgba(70, 235, 170, 0.7); --fg2: rgba(30, 210, 150, 0.85); --fb: 1.8;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(20, 195, 140, 0.55), transparent);
+    --ember: #7ff5c8;
     --fire-anims: fire-flow 2.4s steps(5) infinite, fire-lick-strong 1s ease-in-out infinite;
 }
 
+/* 5 - hottest: blue-purple flame with a red base and red glow, red-pink orbs */
 .target-breakdown-title.on-fire-5 {
-    --fl-low: #6a0a00; --fl-mid: #d62a0a; --fl-high: #ff9a1a; --fl-tip: #fffbd0;
-    --fg1: rgba(255, 215, 80, 0.95); --fg2: rgba(255, 40, 0, 0.7); --fb: 2.2;
-    /* Orange heat with a violet edge: reads as hotter than red. */
-    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 110, 0, 0.6), rgba(150, 60, 255, 0.35) 62%, transparent);
-    --ember: #ffe27a;
+    --fl-low: #c4123f; --fl-mid: #6a2bd8; --fl-high: #8f7bff; --fl-tip: #f1e8ff;
+    --fg1: rgba(180, 150, 255, 0.9); --fg2: rgba(255, 50, 90, 0.9); --fb: 2.4;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(120, 60, 255, 0.6), rgba(255, 40, 80, 0.35) 62%, transparent);
+    --ember: #ff6a80;
     --fire-anims: fire-flow 1.8s steps(4) infinite, fire-lick-intense 0.6s ease-in-out infinite;
 }
 
@@ -7551,7 +7562,7 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     -webkit-text-fill-color: transparent;
     color: transparent;
     text-shadow: none;
-    filter: drop-shadow(0 0 2px var(--fg1)) drop-shadow(0 -2px calc(7px * var(--fb)) var(--fg2));
+    filter: drop-shadow(0 -1px calc(6px * var(--fb)) var(--fg2));
     will-change: transform;
     animation: var(--fire-anims);
 }
@@ -7590,52 +7601,7 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 .target-breakdown-title.on-fire-4::before { animation-duration: 1.05s; }
 .target-breakdown-title.on-fire-5::before { animation-name: fire-aura-hot; animation-duration: 0.75s; top: -40%; bottom: -30%; }
 
-/* ---- Embers rising off the name (tiers 3-5) ---- */
-
-.target-breakdown-title.on-fire-3::after,
-.target-breakdown-title.on-fire-4::after,
-.target-breakdown-title.on-fire-5::after {
-    content: "";
-    position: absolute;
-    left: 4%;
-    right: 4%;
-    bottom: 62%;
-    height: 1.5em;
-    pointer-events: none;
-    background-image:
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%);
-    background-size: 4px 4px, 3px 3px, 5px 5px, 3px 3px;
-    background-repeat: no-repeat;
-    background-position: 10% 100%, 35% 100%, 62% 100%, 88% 100%;
-    -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 100%);
-    mask-image: linear-gradient(to top, #000 0%, transparent 100%);
-    animation: fire-embers 2.6s ease-out infinite;
-}
-
-/* Blaze and inferno: six embers, rising faster */
-.target-breakdown-title.on-fire-4::after,
-.target-breakdown-title.on-fire-5::after {
-    background-image:
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
-        radial-gradient(circle, var(--ember) 0 38%, transparent 70%);
-    background-size: 4px 4px, 3px 3px, 5px 5px, 3px 3px, 4px 4px, 3px 3px;
-    background-position: 6% 100%, 22% 100%, 41% 100%, 58% 100%, 76% 100%, 92% 100%;
-    height: 1.8em;
-    animation: fire-embers-6 1.9s ease-out infinite;
-}
-
-.target-breakdown-title.on-fire-5::after {
-    background-size: 5px 5px, 4px 4px, 6px 6px, 4px 4px, 5px 5px, 4px 4px;
-    height: 2.1em;
-    animation-duration: 1.4s;
-}
+/* ---- Embers: see ".fire-fx" at the end of this file ---- */
 
 /* ---- Keyframes ---- */
 
@@ -7713,6 +7679,138 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 
 /* Only while app.js measures a name's width (see fitTargetBreakdownTitles). */
 .target-breakdown-title.fit-measure::before,
-.target-breakdown-title.fit-measure::after {
+.target-breakdown-title.fit-measure::after,
+.target-breakdown-title.fit-measure .fire-fx {
     display: none !important;
+}
+
+
+/* =====================================================
+   FIRE EMBERS (one set per tier, each with its own look)
+   Real elements animated with transform + opacity only.
+     3  smolder  round red embers drifting straight up
+     4  teal      spark streaks, zig-zagging fast
+     5  blue      white orbs with a blue halo, arcing outward
+   ===================================================== */
+
+.target-breakdown-title .fire-fx {
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    bottom: 58%;
+    height: 0;
+    pointer-events: none;
+}
+
+.target-breakdown-title .fire-fx i {
+    position: absolute;
+    bottom: 0;
+    left: calc(var(--x, 50) * 1%);
+    width: var(--sz, 4px);
+    height: var(--sz, 4px);
+    border-radius: 50%;
+    background: var(--ember);
+    opacity: 0;
+    will-change: transform, opacity;
+    animation: var(--ember-anim) var(--ember-dur) ease-out infinite;
+    animation-delay: calc(var(--ember-dur) * var(--p, 0) * -1);
+}
+
+/* Spread the embers out: position, phase, size, sideways drift */
+.fire-fx i:nth-child(1) { --x: 8;  --p: 0;    --dx: -4px; --sz: 4px; }
+.fire-fx i:nth-child(2) { --x: 35; --p: 0.45; --dx: 5px;  --sz: 3px; }
+.fire-fx i:nth-child(3) { --x: 62; --p: 0.8;  --dx: -3px; --sz: 5px; }
+.fire-fx i:nth-child(4) { --x: 21; --p: 0.25; --dx: 6px;  --sz: 3px; }
+.fire-fx i:nth-child(5) { --x: 78; --p: 0.6;  --dx: -6px; --sz: 4px; }
+.fire-fx i:nth-child(6) { --x: 48; --p: 0.1;  --dx: 7px;  --sz: 3px; }
+.fire-fx i:nth-child(7) { --x: 92; --p: 0.9;  --dx: -7px; --sz: 4px; }
+
+/* Tier 3: slow, round, orange, straight up */
+.target-breakdown-title.on-fire-3 .fire-fx i {
+    --ember-anim: ember-smolder;
+    --ember-dur: 2.8s;
+    box-shadow: 0 0 4px 1px rgba(255, 70, 30, 0.75);
+}
+
+/* Tier 4: thin yellow streaks, quick zig-zag */
+.target-breakdown-title.on-fire-4 .fire-fx i {
+    --ember-anim: ember-spark;
+    --ember-dur: 1.35s;
+    width: 2px;
+    height: calc(var(--sz, 4px) + 4px);
+    border-radius: 2px;
+    box-shadow: 0 0 6px 1px rgba(40, 230, 165, 0.9);
+}
+
+/* Tier 5: bright white orbs, violet halo, fan out in an arc */
+.target-breakdown-title.on-fire-5 .fire-fx i {
+    --ember-anim: ember-plasma;
+    --ember-dur: 1.7s;
+    width: calc(var(--sz, 4px) + 1px);
+    height: calc(var(--sz, 4px) + 1px);
+    box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.9), 0 0 11px 4px rgba(255, 50, 90, 0.8);
+}
+
+@keyframes ember-smolder {
+    0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+    15%  { opacity: 1; }
+    100% { transform: translate(var(--dx, 0px), -20px) scale(0.3); opacity: 0; }
+}
+
+@keyframes ember-spark {
+    0%   { transform: translate(0, 0); opacity: 0; }
+    12%  { opacity: 1; }
+    30%  { transform: translate(calc(var(--dx, 0px) * 0.9), -11px); }
+    55%  { transform: translate(calc(var(--dx, 0px) * -0.8), -22px); }
+    80%  { transform: translate(calc(var(--dx, 0px) * 0.7), -33px); opacity: 0.8; }
+    100% { transform: translate(0, -42px); opacity: 0; }
+}
+
+@keyframes ember-plasma {
+    0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+    15%  { opacity: 1; transform: translate(0, -6px) scale(1.1); }
+    100% { transform: translate(calc(var(--dx, 0px) * 3), -46px) scale(0.2); opacity: 0; }
+}
+
+
+/* Reduce motion: the model rows keep their pop/wiggle animations on
+   purpose, but the progress bar should simply jump to its new width. */
+:root[data-reduce-motion="true"] .progress-fill {
+    transition: none !important;
+}
+
+
+
+/* Tier 1 keeps its original two-layer glow (the other tiers use one). */
+.target-card .target-breakdown-row .target-breakdown-title.on-fire.on-fire-1 {
+    filter: drop-shadow(0 0 2px var(--fg1)) drop-shadow(0 -2px calc(7px * var(--fb)) var(--fg2));
+}
+
+/* Tier 2: sparks that twinkle in place around the letters
+   (tier 3 embers rise, tier 4 streaks zig-zag, tier 5 orbs arc out). */
+.target-breakdown-title.on-fire-2 .fire-fx {
+    bottom: 0;
+    height: 100%;
+}
+
+.target-breakdown-title.on-fire-2 .fire-fx i {
+    --ember-anim: ember-twinkle;
+    --ember-dur: 1.9s;
+    bottom: calc(var(--y, 50) * 1%);
+    width: 3px;
+    height: 3px;
+    background: #fff3c4;
+    box-shadow: 0 0 5px 2px rgba(255, 160, 40, 0.9);
+}
+
+.target-breakdown-title.on-fire-2 .fire-fx i:nth-child(1) { --x: 10; --y: 78; --p: 0; }
+.target-breakdown-title.on-fire-2 .fire-fx i:nth-child(2) { --x: 36; --y: 18; --p: 0.35; }
+.target-breakdown-title.on-fire-2 .fire-fx i:nth-child(3) { --x: 64; --y: 82; --p: 0.65; }
+.target-breakdown-title.on-fire-2 .fire-fx i:nth-child(4) { --x: 90; --y: 30; --p: 0.9; }
+
+@keyframes ember-twinkle {
+    0%, 100% { transform: scale(0); opacity: 0; }
+    35%      { transform: scale(1.4); opacity: 1; }
+    55%      { transform: scale(0.8); opacity: 0.9; }
+    75%      { transform: scale(0); opacity: 0; }
 }
