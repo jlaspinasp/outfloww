@@ -658,20 +658,30 @@
                                         autocomplete="off"
                                     >
 
-                                        <input
-                                            type="text"
-                                            id="saleTagField"
-                                            name="sale-tag"
-                                            placeholder="e.g. @u1234567"
-                                            maxlength="40"
-                                            autocomplete="off"
-                                            autocorrect="off"
-                                            autocapitalize="off"
-                                            spellcheck="false"
-                                            data-lpignore="true"
-                                            data-1p-ignore="true"
-                                            data-form-type="other"
-                                        >
+                                        <div class="tag-field" id="saleTagWrap">
+                                            <input
+                                                type="text"
+                                                id="saleTagField"
+                                                name="sale-tag"
+                                                placeholder="e.g. @u1234567"
+                                                maxlength="40"
+                                                autocomplete="off"
+                                                autocorrect="off"
+                                                autocapitalize="off"
+                                                spellcheck="false"
+                                                data-lpignore="true"
+                                                data-1p-ignore="true"
+                                                data-form-type="other"
+                                            >
+                                            <button
+                                                type="button"
+                                                class="tag-field-clear"
+                                                id="saleTagClear"
+                                                aria-label="Clear username"
+                                            >
+                                                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                            </button>
+                                        </div>
 
                                         <button
                                             class="btn primary"
@@ -1000,7 +1010,7 @@
                                 <span>Can I reorder my models or scripts?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Yes — press and hold a card, then drag it to a new spot in the list. Category chips on the Scripts page can be reordered the same way, or renamed by pressing and holding one.</p></div></div>
+                            <div class="faq-a"><div><p>Yes — drag a card to a new spot in its list. Models can also be reordered by dragging the model pills at the top of the Add a sale card on the Sales page, and both places stay in sync. On the Scripts page, category chips can be dragged to reorder, and pressing and holding a custom category chip lets you rename it. (Pressing and holding a model or script card starts select mode instead — see the delete-several-at-once questions below.)</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1008,7 +1018,7 @@
                                 <span>Can I undo a delete?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Usually, yes — deleting a model or a script, or clearing your sales history, shows a brief "Undo" button on the confirmation toast. Click it before the toast disappears to bring the item straight back.</p></div></div>
+                            <div class="faq-a"><div><p>Usually, yes. Deleting a model or a script asks you to confirm first, then shows an "Undo" button on the toast for a few seconds — click it to bring the item straight back (a restored model keeps its photo, color and daily target). Clearing your sales history works the same way. The exception is removing a single sale from Today's sales: that happens instantly, with no confirmation and no Undo.</p></div></div>
                         </div>
 
                     </div>
@@ -1027,23 +1037,31 @@
                                 <span>How do I add a model?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Go to Models and click "New Model". Give it a title and add any notes or preferences you want on hand — it'll then show up as an option whenever you log a sale.</p></div></div>
+                            <div class="faq-a"><div><p>Go to Models and click "New Model". The form lets you upload a photo, enter the model's name, pick a color, set an optional daily target, and write info &amp; notes (preferences, boundaries, rates, birthday — anything worth remembering). The name and notes are required; the photo, color and target are optional. Click Save and the model shows up right away on the Sales page, ready for you to log sales.</p></div></div>
                         </div>
 
                         <div class="faq-item">
                             <button type="button" class="faq-q" aria-expanded="false">
-                                <span>How do I view or edit a model's notes?</span>
+                                <span>How do I add or change a model's photo?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Click the open icon on a model's card to read its full notes, or the pencil icon to edit its title and notes. The same open icon also appears on that model's row in the Target Breakdown, so you can jump straight to its notes from the Sales page.</p></div></div>
+                            <div class="faq-a"><div><p>Open the New Model or Edit Model form and click "Upload photo" (it becomes "Change photo" once one is set). Pick any JPG or PNG up to 15 MB — it's automatically cropped to a centered square and shrunk down, so square photos look best. Use "Remove" to go back to the default silhouette. Nothing is saved until you click Save, so closing the form discards a photo change. Photos appear on the model pills, in the Target Breakdown, and in the model's details window, and they sync and back up along with the rest of your data.</p></div></div>
                         </div>
 
                         <div class="faq-item">
                             <button type="button" class="faq-q" aria-expanded="false">
-                                <span>How do I pick which model I'm logging sales for?</span>
+                                <span>How do I edit a model?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>On the Sales page, open the model picker — the small target icon next to "Add a sale" — and select a model, or tap its row in the Target Breakdown below. A badge with its name appears next to the "Sales" heading; tap the badge to clear the selection. The stats strip, target progress and today's sales list all switch to that model.</p></div></div>
+                            <div class="faq-a"><div><p>Click the pencil icon on the model's card to open the Edit Model form. You can change the photo, name, color, daily target and notes all in one place, then click Save.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I view a model's notes?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the open icon on a model's card to read its full notes — if the model has a photo, it shows up in the window's header. The same info icon also appears on that model's row in the Target Breakdown on the Sales page, so you can jump straight to its notes without leaving your shift.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1051,15 +1069,39 @@
                                 <span>How do I set a model's daily target?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open the model picker and select a model to set its daily target, based on net earnings. Once set, a progress bar fills as sales come in, and you can give the model its own color from the same screen.</p></div></div>
+                            <div class="faq-a"><div><p>Open the model's Edit Model form (pencil icon) and type an amount into "Daily target". It's based on net earnings, so it's measured against your 80% cut, not gross. Leave it blank for no target, or enter anything above $0 — the form won't save a zero or negative target. Once a target is set, the model's bar in the Target Breakdown fills as sales come in.</p></div></div>
                         </div>
 
                         <div class="faq-item">
                             <button type="button" class="faq-q" aria-expanded="false">
-                                <span>What's the list of bars below my target progress?</span>
+                                <span>How do I change a model's color?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>That's the Target Breakdown — it shows every model's progress toward its own daily target at a glance. Pick a model with the pills at the top of the card (drag a pill to reorder your models), or tap the info icon on a row to open that model's full notes. Hit 100% and it lights up 🎉 with a ✨ glow, then glows hotter the further past target you go (🟠 → 🔥 → 🔥🔥 → 🔥🔥🔥).</p></div></div>
+                            <div class="faq-a"><div><p>In the New or Edit Model form, click the Color field and choose a swatch, use the custom picker for any shade you like, or pick "Auto" to let Outfloww choose one for you. The color tints the model's pill, its Target Breakdown row, its photo placeholder, the Add Sale button and the Today's sales card while that model is selected.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I pick which model I'm logging sales for?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>On the Sales page, tap a model's pill at the top of the Add a sale card. If you have a lot of models the row scrolls sideways. A badge with the model's name appears next to the "Sales" heading, the Add Sale button and the Today's sales card take on the model's color, and the Gross, Net and PPV totals switch to that model. Tap the selected pill again, or tap the badge, to clear the selection. The rows in the Target Breakdown are for tracking progress — selecting is done with the pills.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What's the list of rows below the Add a sale box?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>That's the Target Breakdown — every model's progress toward its own daily target at a glance, each with its photo, a progress bar, its percentage, and how much net it has earned against its target (models with no target show "No target" and just their net). Tap the info icon on a row to open that model's notes. The pills above are how you select a model, and dragging a pill reorders your models.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What do the sparkles and flames next to a model's name mean?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>They're the "on fire" rewards for going past target. At 100% of its target a model shows "🎉 Hit", its bar is full, and its name gets a ✨ gold shine. Keep going and the name heats up: 🟠 warm glow at 120%, 🔥 flames and rising embers at 150%, 🔥🔥 a blaze at 185%, and 🔥🔥🔥 an inferno at 230%. The percentage keeps counting up even though the bar stops at full. These effects keep playing even when Reduce motion is on.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1067,7 +1109,7 @@
                                 <span>How do I delete a model?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Drag the model's card onto "Drop to delete" at the bottom of the sidebar. Sales already logged for that model keep its name in your history, so old records stay intact.</p></div></div>
+                            <div class="faq-a"><div><p>Drag the model's card onto "Drop to delete" at the bottom of the sidebar and confirm. An Undo button appears afterward if you change your mind. Sales already logged for that model keep its name in your history, so old records stay intact.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1094,7 +1136,15 @@
                                 <span>How do I log a sale?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Type the amount into the "Add a sale" box and click "+ Add Sale" (or hit Enter). The maximum for a single sale is $200. You'll get a little cha-ching sound as confirmation.</p></div></div>
+                            <div class="faq-a"><div><p>First select a model by tapping its pill at the top of the Add a sale card — the amount box and the Add Sale button stay locked ("Select a model first") until you do. Then type the amount and click "+ Add Sale" (or hit Enter). A single sale can be anywhere from $0.01 up to $200. You'll hear a little cha-ching, see a "Sale added!" toast, and the new sale slides into Today's sales.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Why are Gross, Net and PPVs showing dashes?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Those totals belong to one model at a time, so they show a dash until you select a model. Today's sales also stays empty ("Select a model to see today's sales") until you pick one. The Target Breakdown, on the other hand, always shows every model.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1102,7 +1152,7 @@
                                 <span>How do I remove a sale I added by mistake?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>With that model selected, click the × on the sale's row in Today's sales. It's removed right away, so double-check the amount before confirming.</p></div></div>
+                            <div class="faq-a"><div><p>With that model selected, click the × on the sale's row in Today's sales. It's removed immediately — there's no confirmation and no Undo — so check the amount before you click.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1126,7 +1176,7 @@
                                 <span>What are the Tips and Outside Shift tags for?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Click the small person icon next to the amount field before adding a sale to tag it with a buyer's username, either as a Tip or as an Outside Shift sale. Tagged sales are broken out separately in Sales History and in the "Copy for logout" summary.</p></div></div>
+                            <div class="faq-a"><div><p>Click the small person icon next to the amount field and choose Tips or Outside Shift, then enter the buyer's username and click Set. The icon lights up to show the tag is ready, and it's attached to your next sale only — after that it clears itself. Tagged sales show a Tip or Outside badge in Today's sales and are broken out separately in Sales History and in the "Copy for logout" summary. The tag button is locked until a model is selected.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1174,7 +1224,7 @@
                                 <span>Can I clear my saved sales history?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Yes — open Sales History and click "Clear history". With a model selected it only clears that model's past sales; with none selected it clears everything. Either way, today's sales are always kept, and you'll be asked to confirm first since this can't be undone.</p></div></div>
+                            <div class="faq-a"><div><p>Yes — open Sales History and click "Clear history". With a model selected it only clears that model's past sales; with none selected it clears everything. Either way, today's sales are always kept. You'll be asked to confirm first, and an Undo button appears right afterward in case you change your mind.</p></div></div>
                         </div>
 
                     </div>
@@ -1217,7 +1267,7 @@
                                 <span>How do I use a saved script?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Click the copy icon on its card to copy it straight into your chat. Open the card first if you want to read the full text before copying.</p></div></div>
+                            <div class="faq-a"><div><p>Click the Copy bar at the bottom of its card to copy it straight into your chat — it flips to "Copied" to confirm. Open the card first (the open icon) if you want to read the full text before copying.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1233,7 +1283,7 @@
                                 <span>How do I edit or delete a script?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Click the pencil icon on its card to edit it. To delete one, drag its card onto "Drop to delete" at the bottom of the sidebar, the same way you'd delete a model.</p></div></div>
+                            <div class="faq-a"><div><p>Click the pencil icon on its card to edit it. To delete one, drag its card onto "Drop to delete" at the bottom of the sidebar, the same way you'd delete a model — you'll be asked to confirm, and you can undo it right afterward.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1260,7 +1310,7 @@
                                 <span>How do I back up my data?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open your profile menu and click "Export data" to download a file with everything — models, sales, history and scripts — so you always have a copy of your own.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and click "Export data" to download a file with everything — models (including their photos, colors and daily targets), sales, history and scripts — so you always have a copy of your own.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1276,7 +1326,7 @@
                                 <span>How do I sync my data across devices?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Sign in with Google when prompted. Your data is then kept in sync automatically — sign in with the same account on another device and everything picks up right where you left off.</p></div></div>
+                            <div class="faq-a"><div><p>Sign in with Google when prompted. Your data is then kept in sync automatically — sign in with the same account on another device and everything picks up right where you left off, model photos included.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1300,7 +1350,7 @@
                                 <span>What does Reduce motion do?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open your profile menu and switch on "Reduce motion" to turn off the app's animations, like the fade and slide effects when cards, sales and rows appear or are removed. Handy if you find the motion distracting or want the app to feel snappier.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and switch on "Reduce motion" to turn off the app's animations, like the fade and slide effects when pages, cards, sales and rows appear or are removed. Handy if you find the motion distracting or want the app to feel snappier. Two things deliberately keep moving: the pop and wiggle on the model you've selected in the Target Breakdown (it's how you can tell which model you're logging for), and the glowing, flaming names of models past their target.</p></div></div>
                         </div>
 
                     </div>
