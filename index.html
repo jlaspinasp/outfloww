@@ -199,19 +199,35 @@
                 <span>Drop to delete</span>
             </button>
 
-            <div class="settings-group">
+            <div class="profile-group" id="profileGroup">
 
                 <button
-                    class="settings-btn"
+                    class="profile-btn"
                     id="settingsBtn"
                     type="button"
-                    title="Settings"
+                    title="Account &amp; settings"
+                    aria-haspopup="true"
+                    aria-expanded="false"
                 >
-                    <span class="settings-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
-                    <span>Settings</span>
+                    <span class="avatar" data-avatar><img alt="" hidden referrerpolicy="no-referrer"><span class="avatar-initials"></span></span>
+                    <span class="profile-btn-text">
+                        <span class="profile-btn-name" id="profileBtnName">Account</span>
+                        <span class="profile-btn-sub">Account &amp; settings</span>
+                    </span>
+                    <span class="profile-btn-chev" aria-hidden="true"></span>
                 </button>
 
-                <div class="settings-popover" id="settingsPopover">
+                <div class="profile-menu" id="settingsPopover" aria-label="Account and settings">
+
+                    <div class="pm-header">
+                        <span class="avatar avatar-lg" data-avatar><img alt="" hidden referrerpolicy="no-referrer"><span class="avatar-initials"></span></span>
+                        <div class="pm-id">
+                            <span class="pm-name" id="profileName">Account</span>
+                            <span class="pm-email" id="accountEmail">Signed in</span>
+                        </div>
+                    </div>
+
+
 
                     <button
                         class="theme-toggle"
@@ -299,21 +315,16 @@
 
                     </div>
 
+                    <div class="backup-group">
+                        <button class="backup-btn pm-signout hidden" id="signOutBtn" type="button" title="Sign out">
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
+                            <span>Sign out</span>
+                        </button>
+                    </div>
+
                 </div>
 
             </div>
-
-
-            <button
-                class="backup-btn account-btn hidden"
-                id="signOutBtn"
-                type="button"
-                title="Sign out"
-            >
-                <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
-                <span id="accountEmail">Signed in</span>
-                <span class="account-btn-signout">Sign out</span>
-            </button>
 
 
             <div class="sidebar-note">
@@ -367,10 +378,20 @@
                         title="Settings"
                         aria-label="Settings"
                     >
-                        <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                        <span class="avatar" data-avatar><img alt="" hidden referrerpolicy="no-referrer"><span class="avatar-initials"></span></span>
                     </button>
 
                     <div class="mobile-settings-popover" id="mobileSettingsPopover">
+
+                        <div class="pm-header">
+                            <span class="avatar avatar-lg" data-avatar><img alt="" hidden referrerpolicy="no-referrer"><span class="avatar-initials"></span></span>
+                            <div class="pm-id">
+                                <span class="pm-name" id="mobileProfileName">Account</span>
+                                <span class="pm-email" id="mobileAccountEmail">Signed in</span>
+                            </div>
+                        </div>
+
+
 
                         <button
                             class="backup-btn reduce-motion-toggle"
@@ -427,13 +448,13 @@
                         <div class="mobile-settings-divider"></div>
 
                         <button
-                            class="backup-btn account-btn hidden"
+                            class="backup-btn account-btn pm-signout hidden"
                             id="mobileSignOutBtn"
                             type="button"
                             title="Sign out"
                         >
                             <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>
-                            <span id="mobileAccountEmail">Signed in</span>
+                            <span>Sign out</span>
                         </button>
 
                     </div>
@@ -541,39 +562,6 @@
             </div>
 
 
-            <!-- TRENDS -->
-
-            <div class="card trends-card section">
-
-                <div class="section-head">
-                    <h2>Overview</h2>
-
-                    <div class="trend-toggle">
-                        <button
-                            class="icon-btn"
-                            id="openHistoryModal"
-                            type="button"
-                            title="View full history"
-                            aria-label="View full history"
-                        >
-                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>
-                        </button>
-                        <div class="segmented" role="group" aria-label="Chart range">
-                            <button class="trend-toggle-btn active" data-range="day">Daily</button>
-                            <button class="trend-toggle-btn" data-range="month">Monthly</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="trend-summary" id="trendSummary"></div>
-
-                <div class="trend-bars" id="trendBars"></div>
-
-                <div class="trend-extra" id="trendExtra"></div>
-
-            </div>
-
-
             <!-- ADD SALE + DAILY TARGET + TODAY'S SALES -->
 
             <div class="sales-layout section">
@@ -582,31 +570,21 @@
 
                     <div class="card target-card">
 
-                        <div class="section-head">
+                        <!-- Top bar: the card title on the left, the model switcher (pills)
+                             on the right. The switcher is the only way to pick which model a
+                             sale is for. The target setter (model picker) was taken out of
+                             this card for now; it is coming back on the Models page. -->
+                        <div class="target-card-top">
+
                             <h2>Add a sale</h2>
 
-                            <div class="target-head-actions">
+                            <div
+                                id="modelSwitcher"
+                                class="model-switcher hidden"
+                                role="group"
+                                aria-label="Select a model"
+                            ></div>
 
-                                <div class="model-picker">
-
-                                    <button
-                                        class="icon-btn"
-                                        id="openModelPicker"
-                                        type="button"
-                                        title="Set a model's target"
-                                        aria-label="Set a model's target"
-                                    >
-                                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                                    </button>
-
-                                    <div
-                                        id="modelPickerList"
-                                        class="model-picker-list hidden"
-                                    ></div>
-
-                                </div>
-
-                            </div>
                         </div>
 
 
@@ -787,6 +765,39 @@
                     </div>
 
                 </div>
+
+            </div>
+
+
+            <!-- TRENDS -->
+
+            <div class="card trends-card section">
+
+                <div class="section-head">
+                    <h2>Overview</h2>
+
+                    <div class="trend-toggle">
+                        <button
+                            class="icon-btn"
+                            id="openHistoryModal"
+                            type="button"
+                            title="View full history"
+                            aria-label="View full history"
+                        >
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>
+                        </button>
+                        <div class="segmented" role="group" aria-label="Chart range">
+                            <button class="trend-toggle-btn active" data-range="day">Daily</button>
+                            <button class="trend-toggle-btn" data-range="month">Monthly</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="trend-summary" id="trendSummary"></div>
+
+                <div class="trend-bars" id="trendBars"></div>
+
+                <div class="trend-extra" id="trendExtra"></div>
 
             </div>
 
@@ -981,7 +992,7 @@
                                 <span>How do I switch between light and dark mode?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open Settings in the sidebar and click "Dark mode" / "Light mode" to flip it. Your choice is remembered the next time you open the app.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu in the sidebar and click "Dark mode" / "Light mode" to flip it. Your choice is remembered the next time you open the app.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1048,7 +1059,7 @@
                                 <span>What's the list of bars below my target progress?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>That's the Target Breakdown — it shows every model's progress toward its own daily target at a glance. Tap a row to switch to that model, drag rows to reorder them, or tap the info icon on a row to open that model's full notes. Hit 100% and it lights up 🎉 with a ✨ glow, then glows hotter the further past target you go (🟠 → 🔥 → 🔥🔥 → 🔥🔥🔥).</p></div></div>
+                            <div class="faq-a"><div><p>That's the Target Breakdown — it shows every model's progress toward its own daily target at a glance. Pick a model with the pills at the top of the card (drag a pill to reorder your models), or tap the info icon on a row to open that model's full notes. Hit 100% and it lights up 🎉 with a ✨ glow, then glows hotter the further past target you go (🟠 → 🔥 → 🔥🔥 → 🔥🔥🔥).</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1249,7 +1260,7 @@
                                 <span>How do I back up my data?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open Settings and click "Export data" to download a file with everything — models, sales, history and scripts — so you always have a copy of your own.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and click "Export data" to download a file with everything — models, sales, history and scripts — so you always have a copy of your own.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1257,7 +1268,7 @@
                                 <span>How do I restore a backup?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open Settings and click "Import data", then choose a file you previously exported. This replaces what's currently in the app with the backup, so use it carefully.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and click "Import data", then choose a file you previously exported. This replaces what's currently in the app with the backup, so use it carefully.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1273,7 +1284,7 @@
                                 <span>How do I sign out?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Once you're signed in, an account button appears at the bottom of the sidebar showing your email — click "Sign out" on it.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu at the bottom of the sidebar (your photo or initials) and click "Sign out".</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1281,7 +1292,7 @@
                                 <span>Can I customize the title of my logout text?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open Settings and click "Logout title" to set the first line of your copied logout text — type your own wording and use the emoji button inside the field to add flair from the built-in picker. There's a live preview as you type, and clearing the field entirely brings back the original default.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and click "Logout title" to set the first line of your copied logout text — type your own wording and use the emoji button inside the field to add flair from the built-in picker. There's a live preview as you type, and clearing the field entirely brings back the original default.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1289,7 +1300,7 @@
                                 <span>What does Reduce motion do?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open Settings and switch on "Reduce motion" to turn off the app's animations, like the fade and slide effects when cards, sales and rows appear or are removed. Handy if you find the motion distracting or want the app to feel snappier.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and switch on "Reduce motion" to turn off the app's animations, like the fade and slide effects when cards, sales and rows appear or are removed. Handy if you find the motion distracting or want the app to feel snappier.</p></div></div>
                         </div>
 
                     </div>
@@ -1466,7 +1477,7 @@
                 <div class="about-block">
                     <h2 class="about-heading">Your control</h2>
                     <ul class="legal-list">
-                        <li>Export a copy of everything anytime from Settings → Export data.</li>
+                        <li>Export a copy of everything anytime from Profile menu → Export data.</li>
                         <li>Sign out anytime. Signing out doesn't delete your data, and clearing your browser's storage only removes the local copy.</li>
                         <li>To have your account and stored data deleted, email me and I'll take care of it.</li>
                     </ul>
@@ -2017,12 +2028,42 @@
 
                 <p class="cat-sub" id="modalSub"></p>
 
+                <!-- Models only: profile photo (hidden for scripts) -->
+                <div id="modelPhotoField" class="model-photo-field" style="display:none">
+
+                    <span id="modelPhotoPreview" class="model-photo-preview" aria-hidden="true"></span>
+
+                    <div class="model-photo-side">
+
+                        <div class="model-photo-actions">
+                            <button type="button" class="btn" id="modelPhotoUploadBtn">Upload photo</button>
+                            <button type="button" class="btn" id="modelPhotoRemoveBtn">Remove</button>
+                        </div>
+
+                        <p class="model-photo-hint">Square photos look best. It's resized automatically.</p>
+
+                        <input type="file" id="modelPhotoInput" accept="image/*" hidden>
+
+                    </div>
+
+                </div>
+
                 <label>
                     <span id="contentTitleLabel">Title</span>
                     <input
-                        id="contentTitle"
+                        id="itemLabelInput"
+                        name="item-label-field"
+                        type="search"
+                        enterkeyhint="done"
                         required
                         autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="words"
+                        spellcheck="false"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-bwignore="true"
+                        data-form-type="other"
                         placeholder="e.g. New Subscriber Greeting"
                     >
                 </label>
@@ -2031,6 +2072,28 @@
                     Category
                     <select id="contentCategory"></select>
                 </label>
+
+                <!-- Models only: colour + daily target (hidden for scripts) -->
+                <div id="modelExtrasField" style="display:none">
+
+                    <div class="model-field">
+                        <span>Color</span>
+                        <div id="modelColorRow" class="model-color-row"></div>
+                    </div>
+
+                    <label>
+                        Daily target ($, based on net earnings, optional)
+                        <input
+                            id="modelTargetInput"
+                            type="number"
+                            min="1"
+                            step="1"
+                            inputmode="numeric"
+                            placeholder="e.g. 500"
+                        >
+                    </label>
+
+                </div>
 
                 <label>
                     <span id="contentTextLabel">Text</span>
