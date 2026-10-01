@@ -745,10 +745,14 @@ nav {
 }
 
 .app.sidebar-collapsed .nav-btn {
-    justify-content: center;
-    width: 40px;
+    /* Same width rule as expanded (100% of the sidebar's content box),
+       so the pill follows the width animation instead of snapping to
+       40px first. The icon stays at the left edge; only its padding
+       changes (11px centres the 18px icon in the 40px column). */
+    justify-content: flex-start;
+    width: 100%;
     height: 40px;
-    padding: 0;
+    padding: 0 0 0 11px;
 }
 
 .app.sidebar-collapsed .nav-btn.active::before {
@@ -6160,7 +6164,8 @@ label {
         gap: 12px;
         height: 42px;
         border-radius: 10px;
-        transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+        transition: background-color 0.15s, color 0.15s, box-shadow 0.15s,
+                    padding 0.18s ease;
     }
 
     .nav-btn .icon {
@@ -6299,9 +6304,9 @@ label {
     }
 
     .app.sidebar-collapsed .sidebar-brand {
-        justify-content: center;
+        justify-content: flex-start;
         margin: 36px 0 var(--sp-3);
-        padding: 0 0 var(--sp-3);
+        padding: 0 0 var(--sp-3) 4px;
     }
 
     .app.sidebar-collapsed nav {
@@ -6519,7 +6524,7 @@ label {
 
     .app.sidebar-collapsed .sidebar-brand {
         margin: calc(var(--sp-4) * -1) 0 var(--sp-4);
-        padding: 0;
+        padding: 0 0 0 4px;
     }
 
 }
