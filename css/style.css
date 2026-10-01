@@ -736,8 +736,7 @@ nav {
 .app.sidebar-collapsed .nav-btn span,
 .app.sidebar-collapsed .settings-btn span:not(.settings-btn-icon),
 .app.sidebar-collapsed .account-btn span:not(.backup-btn-icon),
-.app.sidebar-collapsed .sidebar-trash span:not(.sidebar-trash-icon),
-.app.sidebar-collapsed .sidebar-note {
+.app.sidebar-collapsed .sidebar-trash span:not(.sidebar-trash-icon) {
     display: none;
 }
 
@@ -6601,6 +6600,7 @@ label {
     letter-spacing: 0.03em;
     line-height: 1;
     user-select: none;
+    transition: box-shadow 0.18s ease;
 }
 
 .avatar img {
@@ -6619,6 +6619,10 @@ label {
 .profile-group {
     position: relative;
     width: 100%;
+    /* One fixed height in both sidebar states. The button inside grows
+       and shrinks (50px <-> 40px) with matching margin, so the avatar's
+       centre never moves up or down while the sidebar animates. */
+    height: 50px;
 }
 
 .profile-btn {
@@ -6633,7 +6637,10 @@ label {
     border-radius: 12px;
     color: var(--sb-text);
     text-align: left;
-    transition: background-color 0.15s, border-color 0.15s;
+    overflow: hidden;
+    transition: background-color 0.15s, border-color 0.15s,
+                height 0.18s ease, margin 0.18s ease,
+                padding 0.18s ease, border-radius 0.18s ease;
 }
 
 .profile-btn:hover,
@@ -6761,15 +6768,20 @@ label {
 }
 
 .app.sidebar-collapsed .profile-group {
-    display: flex;
-    justify-content: center;
+    display: block;
 }
 
 .app.sidebar-collapsed .profile-btn {
-    justify-content: center;
-    width: 40px;
+    /* Same width rule as expanded (100% of the sidebar's content box),
+       so the button follows the sidebar's width animation instead of
+       snapping to 40px first. The avatar stays at the left edge and
+       only its padding changes (3.5px + 1px border centres it in the
+       40px collapsed column). */
+    justify-content: flex-start;
+    width: 100%;
     height: 40px;
-    padding: 0;
+    margin: 5px 0;
+    padding: 0 0 0 3.5px;
     background: transparent;
     border-color: transparent;
     border-radius: 10px;
@@ -6786,6 +6798,16 @@ label {
 
 .app.sidebar-collapsed .profile-btn-text,
 .app.sidebar-collapsed .profile-btn-chev { display: none; }
+
+/* Expanding: the name fades in while the sidebar grows. */
+.profile-btn-text,
+.profile-btn-chev {
+    animation: profile-btn-fade-in 0.2s ease 0.08s backwards;
+}
+
+@keyframes profile-btn-fade-in {
+    from { opacity: 0; }
+}
 
 /* The thin ring around the avatar is what read as a border here. */
 .app.sidebar-collapsed .profile-btn .avatar {
@@ -7813,4 +7835,43 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     35%      { transform: scale(1.4); opacity: 1; }
     55%      { transform: scale(0.8); opacity: 0.9; }
     75%      { transform: scale(0); opacity: 0; }
+}
+
+
+/* =====================================================
+   SIDEBAR NOTE ("Personal Chatter Tool") - no snapping on expand
+   The note sits BELOW the profile button. It used to be display: none
+   while collapsed, so expanding made it appear at once inside a still
+   60px-wide sidebar: the text wrapped onto many lines, the note was
+   tall for a moment, and it shoved the profile avatar upward until the
+   sidebar finished widening and the text un-wrapped (up, then back
+   down). Now the text never wraps, and the note's height / spacing
+   animate in step with the sidebar's width instead.
+   ===================================================== */
+
+@media (min-width: 701px) {
+
+    .sidebar-note {
+        max-height: 60px;
+        overflow: hidden;
+        white-space: nowrap;
+        transition: max-height 0.18s ease, opacity 0.18s ease,
+                    padding 0.18s ease, margin 0.18s ease,
+                    border-top-width 0.18s ease, visibility 0s;
+    }
+
+    /* Collapsed: takes no space at all (the negative margin cancels the
+       flex gap above it), exactly like the old display: none. */
+    .app.sidebar-collapsed .sidebar-note {
+        max-height: 0;
+        margin-top: -10px;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-top-width: 0;
+        opacity: 0;
+        visibility: hidden;
+        transition: max-height 0.18s ease, opacity 0.12s ease,
+                    padding 0.18s ease, margin 0.18s ease,
+                    border-top-width 0.18s ease, visibility 0s linear 0.18s;
+    }
 }
