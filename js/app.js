@@ -39,6 +39,12 @@ function limitGraphemes(text, max) {
 }
 
 
+// Model photos: only accept our own small data-URL images.
+const MODEL_IMAGE_RE = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+
+// Default model picture (no photo): a soft person silhouette.
+const MODEL_SILHOUETTE_SVG = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>';
+
 // Default data
 const defaultData = {
     sales: {},
@@ -52,6 +58,9 @@ const defaultData = {
     // Legacy: per-model colors from the retired color picker. Kept
     // (unused) so saved and synced data round-trips unchanged.
     modelColors: {},
+    // Model photos: { "<modelId>": "data:image/jpeg;base64,..." } — small
+    // square thumbnails made in the New/Edit Model form. "" = no photo.
+    modelImages: {},
     // Shift used only in the "Copy for logout" text (24h "HH:MM")
     logoutShift: { start: "16:00", end: "00:00", cover: false },
     // Custom first line of the logout text ("" = use the default)
@@ -97,6 +106,9 @@ function normalizeData(obj) {
 
     // Legacy (unused): see defaultData.
     obj.modelColors = obj.modelColors || {};
+
+    // Model photos (see defaultData).
+    obj.modelImages = obj.modelImages || {};
 
     // Shift time + cover flag, used only by the "Copy for logout" text.
     const TIME_RE = /^\d{1,2}:\d{2}$/;
@@ -1087,6 +1099,8 @@ function initAuthGate() {
 
     function openSignOutConfirm() {
 
+        $$(".profile-group.open").forEach(g => g.classList.remove("open"));
+
         // Warn if the last sync hadn't finished (or we're offline):
         // those changes only exist on this device.
         signOutWarning.classList.toggle(
@@ -1105,7 +1119,8 @@ function initAuthGate() {
 
         signOutModal.classList.add("hidden");
 
-        signOutBtn.focus();
+        const profileBtn = $("#settingsBtn");
+        (profileBtn || signOutBtn).focus();
 
     }
 
@@ -1873,6 +1888,12 @@ function getAvatarColor(id) {
         return data.modelColors[id];
     }
 
+    return getAutoAvatarColor(id);
+}
+
+// The generated pastel for a model (what "Auto" colour means).
+function getAutoAvatarColor(id) {
+
     let hash = 0;
 
     for (let i = 0; i < id.length; i++) {
@@ -2230,7 +2251,7 @@ const DESELECT_ANIM_MS = 350;
 // Same for ".selecting" (the pop-in) — matches model-select-pop-in.
 const SELECT_ANIM_MS = 400;
 
-function selectModel(modelId) {
+function selectModel(modelId, options) {
 
     const nextId = modelId || null;
     const previousId = currentModelFilter;
@@ -2305,6 +2326,18 @@ function selectModel(modelId) {
     // its content while invisible, then fades back in.
     fadeModelRegions(function () {
         renderSales({ skipBreakdown: true });
+
+        // Picked from the "Add a sale" switcher: drop the cursor straight
+        // into the amount box (it's only enabled once renderSales has run,
+        // so this has to happen after it) — type the number and hit Enter.
+        if (nextId !== null && options && options.focusAmount) {
+
+            const amountInput = $("#saleAmount");
+
+            if (amountInput && !amountInput.disabled) {
+                amountInput.focus({ preventScroll: true });
+            }
+        }
     });
 }
 
@@ -2459,6 +2492,12 @@ $("#activeModelBadge").addEventListener(
 
 function renderModelPickerList() {
 
+    // The picker was removed from the Add a sale card, so there may be
+    // nothing to render into.
+    if (!$("#modelPickerList")) {
+        return;
+    }
+
     $("#modelPickerList").innerHTML =
         data.models.map(model => `
             <button
@@ -2477,7 +2516,10 @@ function renderModelPickerList() {
 }
 
 
-$("#openModelPicker").addEventListener(
+// The target picker button was removed from the Add a sale card for now
+// (it is moving to the Models page), so these listeners only attach if
+// the elements exist.
+if ($("#openModelPicker")) $("#openModelPicker").addEventListener(
     "click",
     function () {
 
@@ -2490,7 +2532,7 @@ $("#openModelPicker").addEventListener(
 );
 
 
-$("#modelPickerList").addEventListener(
+if ($("#modelPickerList")) $("#modelPickerList").addEventListener(
     "click",
     function (event) {
 
@@ -2519,9 +2561,11 @@ document.addEventListener(
             return;
         }
 
-        $("#modelPickerList").classList.add(
-            "hidden"
-        );
+        const pickerList = $("#modelPickerList");
+
+        if (pickerList) {
+            pickerList.classList.add("hidden");
+        }
     }
 );
 
@@ -2721,7 +2765,7 @@ function renderSales(options) {
 
         saleAmountInput.placeholder =
             activeModel
-                ? activeModel.title
+                ? ""
                 : "Select a model first";
 
         if (!activeModel) {
@@ -2732,6 +2776,17 @@ function renderSales(options) {
     if (addSaleBtn) {
 
         addSaleBtn.disabled = !activeModel;
+
+        if (activeModel) {
+            addSaleBtn.style.setProperty(
+                "--model-deep",
+                getModelDeepColor(getAvatarColor(activeModel.id))
+            );
+            addSaleBtn.classList.add("model-themed");
+        } else {
+            addSaleBtn.style.removeProperty("--model-deep");
+            addSaleBtn.classList.remove("model-themed");
+        }
 
         addSaleBtn.title =
             activeModel
@@ -3071,44 +3126,46 @@ function renderTargetBreakdown() {
             const ink = getRowInk(rowColor);
 
             return `
-                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}${model.id === selectingModelId ? " selecting" : ""}" data-model="${model.id}" draggable="true" role="button" tabindex="0" aria-pressed="${model.id === currentModelFilter}" style="--badge-color:${rowColor};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : `Select to add a sale for ${escapeHTML(model.title)}`}">
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}${model.id === selectingModelId ? " selecting" : ""}" data-model="${model.id}" style="--badge-color:${rowColor};--row-deep:${getModelDeepColor(rowColor)};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : "Use the switcher above to select this model"}">
 
-                    <div class="target-breakdown-head">
-                        <span class="target-breakdown-name">
-                            <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}</span>${fireBadge}
-                        </span>
-                        <span class="target-breakdown-percent">
-                            ${percent === null
-                                ? "No target"
-                                : hit
-                                    ? "🎉 Hit"
-                                    : `${displayPercent}%`}
-                        </span>
+                    ${getModelAvatarHTML("lg", model.id)}
+
+                    <div class="target-breakdown-body">
+
+                        <div class="target-breakdown-head">
+                            <span class="target-breakdown-name">
+                                <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}</span>${fireBadge}
+                            </span>
+                            ${percent === null || hit
+                                ? `<span class="target-breakdown-status">${percent === null ? "No target" : "🎉 Hit"}</span>`
+                                : ""}
+                            <button
+                                type="button"
+                                class="target-breakdown-info-btn"
+                                draggable="false"
+                                title="View ${escapeHTML(model.title)}'s info"
+                                aria-label="View ${escapeHTML(model.title)}'s info"
+                                onclick="event.stopPropagation(); openViewModal('models', '${model.id}')"
+                            >
+                                ${ICONS.info}
+                            </button>
+                        </div>
+
+                        <div class="target-breakdown-label">Sales target</div>
+
+                        <div class="target-breakdown-figures">
+                            <span class="target-breakdown-percent">${percent === null ? 0 : percent}%</span>
+                            <span class="target-breakdown-amounts">${target > 0 ? `${money(net)} / ${money(target)}` : `${money(net)} net`}</span>
+                        </div>
+
+                        <div class="progress-track">
+                            <div
+                                class="progress-fill${hit ? " hit" : ""}"
+                                style="width:${displayPercent}%"
+                            ></div>
+                        </div>
+
                     </div>
-
-                    <div class="progress-track">
-                        <div
-                            class="progress-fill${hit ? " hit" : ""}"
-                            style="width:${displayPercent}%"
-                        ></div>
-                    </div>
-
-                    <div class="progress-label">
-                        ${target > 0
-                            ? `${money(net)} net / ${money(target)}`
-                            : "Set a target in this model's tab."}
-                    </div>
-
-                    <button
-                        type="button"
-                        class="target-breakdown-info-btn"
-                        draggable="false"
-                        title="View ${escapeHTML(model.title)}'s info"
-                        aria-label="View ${escapeHTML(model.title)}'s info"
-                        onclick="event.stopPropagation(); openViewModal('models', '${model.id}')"
-                    >
-                        ${ICONS.info}
-                    </button>
 
                 </div>
             `;
@@ -3116,7 +3173,108 @@ function renderTargetBreakdown() {
 
 
     fitTargetBreakdownTitles();
+    sizeModelRows();
+    renderModelSwitcher();
 }
+
+
+// A model's picture: its uploaded photo when it has one (set in the
+// New/Edit Model form), otherwise a soft person silhouette.
+function getModelAvatarHTML(size, modelId) {
+
+    const src = modelId ? getModelImage(modelId) : "";
+
+    if (src) {
+        return `<span class="model-avatar model-avatar-${size} has-image" aria-hidden="true"><img src="${src}" alt="" draggable="false"></span>`;
+    }
+
+    return `<span class="model-avatar model-avatar-${size}" aria-hidden="true">${MODEL_SILHOUETTE_SVG}</span>`;
+}
+
+
+// A deeper shade of a model's own colour (same hue) — used for the
+// "Add Sale" button while that model is selected.
+function getModelDeepColor(colorStr) {
+
+    const { r, g, b } = parseColorToRgb(colorStr);
+    const { h, s } = rgbToHsl(r, g, b);
+
+    // Greys / whites stay neutral instead of turning into a random hue.
+    const sat = s < 8 ? s : Math.min(Math.max(s, 28), 55);
+    const c = hslToRgb(h, sat, 30);
+
+    return `rgb(${c.r}, ${c.g}, ${c.b})`;
+}
+
+
+function renderModelSwitcher() {
+
+    const box = $("#modelSwitcher");
+
+    if (!box) {
+        return;
+    }
+
+    box.classList.toggle("hidden", data.models.length === 0);
+
+    // Rebuilding the pills empties the row, which snaps its sideways
+    // scroll back to 0 — remember it so selecting a pill doesn't jump.
+    const prevScroll = box.scrollLeft;
+
+    box.innerHTML = data.models.map(model => {
+
+        const color = getAvatarColor(model.id);
+        const ink = getRowInk(color);
+        const on = model.id === currentModelFilter;
+
+        return `
+            <button type="button" class="model-chip${on ? " selected" : ""}" data-model="${model.id}" draggable="true" style="--chip-color:${color};--chip-ink:${ink.strong}" aria-pressed="${on}" title="${on ? "Deselect" : "Select"} ${escapeHTML(model.title)}">
+                ${getModelAvatarHTML("sm", model.id)}
+                <span class="model-chip-name" data-text="${escapeHTML(model.title)}">${escapeHTML(model.title)}</span>
+            </button>
+        `;
+    }).join("");
+
+    box.scrollLeft = prevScroll;
+
+    // Only scroll when the selected pill is actually cut off, and
+    // measure against the row itself (offsetLeft is relative to a
+    // different parent, which made the old maths nudge the row).
+    const active = box.querySelector(".model-chip.selected");
+
+    if (active) {
+        const boxRect = box.getBoundingClientRect();
+        const chipRect = active.getBoundingClientRect();
+
+        if (chipRect.left < boxRect.left) {
+            box.scrollLeft += chipRect.left - boxRect.left - 8;
+        } else if (chipRect.right > boxRect.right) {
+            box.scrollLeft += chipRect.right - boxRect.right + 8;
+        }
+    }
+}
+
+
+$("#modelSwitcher").addEventListener(
+    "click",
+    function (event) {
+
+        const chip = event.target.closest(".model-chip");
+
+        if (!chip) {
+            return;
+        }
+
+        // Tapping the selected chip again deselects it
+        // (the badge next to "Sales" still clears it too).
+        selectModel(
+            chip.classList.contains("selected")
+                ? null
+                : chip.dataset.model,
+            { focusAmount: true }
+        );
+    }
+);
 
 
 // Long model names shrink to fit their row instead of getting cut
@@ -3124,7 +3282,7 @@ function renderTargetBreakdown() {
 // card's width and layout never change.
 function fitTargetBreakdownTitles() {
 
-    const MAX_FONT = 23;
+    const MAX_FONT = 27;
     const MIN_FONT = 13;
 
     $("#targetBreakdown")
@@ -3148,131 +3306,175 @@ function fitTargetBreakdownTitles() {
 }
 
 
-$("#targetBreakdown").addEventListener(
-    "click",
-    function (event) {
+// One fixed height for every model row: the height at which exactly 3 rows
+// fill the room the Add a sale card has for the list (the card is as tall
+// as the Today's sales card beside it). Measured, not hard-coded, so it
+// stays right if the card's other contents change size.
+let modelRowSizing = false;
 
-        const row = event.target.closest(".target-breakdown-row");
+function sizeModelRows() {
 
-        if (!row) {
-            return;
-        }
+    const wrap = $("#targetBreakdownWrap");
+    const box = $("#targetBreakdown");
 
-        const nextId =
-            row.dataset.model === currentModelFilter
-                ? null
-                : row.dataset.model;
-
-        // The wiggle is pure CSS on `.selected`, so it persists across
-        // re-renders and stops as soon as the model is deselected.
-        selectModel(nextId);
+    if (!wrap || !box || modelRowSizing) {
+        return;
     }
-);
+
+    // Hidden tab: nothing to measure. The ResizeObserver below tries
+    // again when the Sales page is shown.
+    if (!wrap.classList.contains("active") || wrap.offsetParent === null) {
+        return;
+    }
+
+    // Stacked layout (narrow screens): the card isn't stretched to match
+    // anything, so rows just use their natural height.
+    if (window.matchMedia("(max-width: 980px)").matches) {
+        box.style.removeProperty("--model-row-h");
+        return;
+    }
+
+    const firstRow = box.querySelector(".target-breakdown-row");
+
+    if (!firstRow) {
+        return;
+    }
+
+    modelRowSizing = true;
+
+    const before = box.style.getPropertyValue("--model-row-h");
+
+    // Natural height of a row (what its content needs).
+    box.style.setProperty("--model-row-h", "auto");
+    const natural = firstRow.offsetHeight;
+
+    // Collapse the rows so the list takes exactly the room left over in
+    // the stretched card.
+    box.style.setProperty("--model-row-h", "0px");
+    const room = wrap.getBoundingClientRect().height;
+
+    const cs = getComputedStyle(box);
+    const gap = parseFloat(cs.rowGap) || 8;
+    const pad =
+        (parseFloat(cs.paddingTop) || 0) +
+        (parseFloat(cs.paddingBottom) || 0);
+
+    const each = Math.floor((room - pad - gap * 2) / 3);
+    const height = Math.max(natural, each);
+
+    box.style.setProperty("--model-row-h", height + "px");
+
+    modelRowSizing = false;
+
+    return before !== height + "px";
+}
+
+if (window.ResizeObserver && $("#targetBreakdownWrap")) {
+    new ResizeObserver(function () {
+        requestAnimationFrame(sizeModelRows);
+    }).observe($("#targetBreakdownWrap"));
+}
+
+window.addEventListener("resize", function () {
+    sizeModelRows();
+});
 
 
-$("#targetBreakdown").addEventListener(
+// Selecting a model is done from the switcher at the top of the card
+// (renderModelSwitcher above) — clicking a row here does nothing on
+// purpose, and the rows themselves can't be dragged. Reordering models
+// is done by dragging the pills in the switcher instead:
+
+let switcherDragId = null;
+
+function clearSwitcherDragMarks() {
+
+    $$("#modelSwitcher .model-chip.dragging, #modelSwitcher .model-chip.drag-over")
+        .forEach(el => el.classList.remove("dragging", "drag-over"));
+}
+
+$("#modelSwitcher").addEventListener(
     "dragstart",
     function (event) {
 
-        const row =
-            event.target.closest(".target-breakdown-row");
+        const chip = event.target.closest(".model-chip");
 
-        if (!row) {
+        if (!chip) {
             return;
         }
 
-        dragState = {
-            type: "models",
-            id: row.dataset.model
-        };
+        switcherDragId = chip.dataset.model;
 
-        row.classList.add("dragging");
+        chip.classList.add("dragging");
 
         event.dataTransfer.effectAllowed = "move";
-
-        event.dataTransfer.setData(
-            "text/plain",
-            row.dataset.model
-        );
+        event.dataTransfer.setData("text/plain", switcherDragId);
     }
 );
 
-
-$("#targetBreakdown").addEventListener(
+$("#modelSwitcher").addEventListener(
     "dragover",
     function (event) {
 
-        if (!dragState || dragState.type !== "models") {
-            return;
-        }
-
-        const row =
-            event.target.closest(".target-breakdown-row");
-
-        if (!row) {
+        if (!switcherDragId) {
             return;
         }
 
         event.preventDefault();
-
         event.dataTransfer.dropEffect = "move";
 
-        $$(".target-breakdown-row.drag-over").forEach(
-            el => el.classList.remove("drag-over")
-        );
+        const box = event.currentTarget;
+        const chip = event.target.closest(".model-chip");
 
-        if (row.dataset.model !== dragState.id) {
-            row.classList.add("drag-over");
+        $$("#modelSwitcher .model-chip.drag-over")
+            .forEach(el => el.classList.remove("drag-over"));
+
+        if (chip && chip.dataset.model !== switcherDragId) {
+            chip.classList.add("drag-over");
+        }
+
+        // When the row scrolls sideways, dragging near an edge scrolls it.
+        const rect = box.getBoundingClientRect();
+
+        if (event.clientX < rect.left + 40) {
+            box.scrollLeft -= 14;
+        } else if (event.clientX > rect.right - 40) {
+            box.scrollLeft += 14;
         }
     }
 );
 
-
-$("#targetBreakdown").addEventListener(
+$("#modelSwitcher").addEventListener(
     "drop",
     function (event) {
 
-        if (!dragState || dragState.type !== "models") {
-            return;
-        }
-
-        const row =
-            event.target.closest(".target-breakdown-row");
-
-        $$(".target-breakdown-row.drag-over").forEach(
-            el => el.classList.remove("drag-over")
-        );
-
-        if (!row) {
+        if (!switcherDragId) {
             return;
         }
 
         event.preventDefault();
 
-        reorderItem(
-            "models",
-            dragState.id,
-            row.dataset.model
-        );
+        const chip = event.target.closest(".model-chip");
+        const dragId = switcherDragId;
 
-        preserveScroll(renderTargetBreakdown);
+        switcherDragId = null;
+        clearSwitcherDragMarks();
+
+        if (!chip) {
+            return;
+        }
+
+        // Re-saves the order and redraws the switcher and the list.
+        reorderItem("models", dragId, chip.dataset.model);
     }
 );
 
-
-$("#targetBreakdown").addEventListener(
+$("#modelSwitcher").addEventListener(
     "dragend",
     function () {
 
-        $$(".target-breakdown-row.dragging").forEach(
-            el => el.classList.remove("dragging")
-        );
-
-        $$(".target-breakdown-row.drag-over").forEach(
-            el => el.classList.remove("drag-over")
-        );
-
-        dragState = null;
+        switcherDragId = null;
+        clearSwitcherDragMarks();
     }
 );
 
@@ -4858,7 +5060,7 @@ $("#emojiGrid").addEventListener("click", function (event) {
 function openLogoutTitleModal() {
 
     // Close whichever settings popover the click came from.
-    $$(".settings-group.open, .mobile-settings-group.open")
+    $$(".profile-group.open, .mobile-settings-group.open")
         .forEach(group => group.classList.remove("open"));
 
     $("#logoutTitleInput").value = data.logoutTitle || "";
@@ -5559,7 +5761,7 @@ $$(infoPageButtons[pageId]).forEach(
 
                 // Close the settings popover(s) if they happened to be open.
                 const settingsGroup =
-                    $("#settingsBtn") && $("#settingsBtn").closest(".settings-group");
+                    $("#settingsBtn") && $("#settingsBtn").closest(".profile-group");
 
                 if (settingsGroup) {
                     settingsGroup.classList.remove("open");
@@ -8541,6 +8743,428 @@ document.addEventListener(
 
 
 /* =====================================================
+   MODEL PROFILE FIELDS
+   Photo, colour and daily target, edited right in the New/Edit
+   Model form. The form works on a draft (modelDraft) and only writes
+   to data.modelImages / modelColors / modelTargets when Save is hit.
+   "" means "none": no photo, automatic colour, no target. (Values are
+   blanked rather than deleted so the cloud merge-sync clears them too.)
+   ===================================================== */
+
+let modalNewId = null;
+let modelDraft = null;   // { id, image, color }
+
+const MODEL_PHOTO_PX = 192;           // saved thumbnail size (square)
+const MODEL_PHOTO_MAX_FILE_MB = 15;   // refuse absurdly large files
+
+
+// The stored photo for a model, or "" (also rejects anything that isn't
+// one of our own small data-URL images).
+function getModelImage(modelId) {
+
+    const src = data.modelImages && data.modelImages[modelId];
+
+    return (typeof src === "string" && MODEL_IMAGE_RE.test(src))
+        ? src
+        : "";
+}
+
+
+// Centre-crop to a square, shrink, and re-encode as JPEG so a phone
+// photo becomes a ~10–15 KB thumbnail that is cheap to store and sync.
+function readModelPhoto(file) {
+
+    return new Promise(function (resolve, reject) {
+
+        const reader = new FileReader();
+
+        reader.onerror = function () { reject(new Error("read")); };
+
+        reader.onload = function () {
+
+            const img = new Image();
+
+            img.onerror = function () { reject(new Error("decode")); };
+
+            img.onload = function () {
+
+                const side = Math.min(img.naturalWidth, img.naturalHeight);
+
+                if (!side) {
+                    reject(new Error("empty"));
+                    return;
+                }
+
+                const out = Math.min(MODEL_PHOTO_PX, side);
+                const canvas = document.createElement("canvas");
+
+                canvas.width = out;
+                canvas.height = out;
+
+                const ctx = canvas.getContext("2d");
+
+                // PNGs with transparency would turn black as JPEG.
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, out, out);
+                ctx.imageSmoothingQuality = "high";
+
+                ctx.drawImage(
+                    img,
+                    (img.naturalWidth - side) / 2,
+                    (img.naturalHeight - side) / 2,
+                    side,
+                    side,
+                    0,
+                    0,
+                    out,
+                    out
+                );
+
+                resolve(canvas.toDataURL("image/jpeg", 0.85));
+            };
+
+            img.src = reader.result;
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
+
+
+function renderModelColorRow() {
+
+    const current = (modelDraft && modelDraft.color || "").toLowerCase();
+
+    $("#modelColorRow").innerHTML = `
+        <button
+            type="button"
+            id="modelColorTrigger"
+            class="model-color-trigger"
+            aria-haspopup="true"
+            aria-expanded="false"
+        >
+            <span class="model-color-dot" id="modelColorDot"></span>
+            <span class="model-color-label" id="modelColorLabel"></span>
+            <svg class="model-color-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+
+        <div id="modelColorPopover" class="model-color-popover hidden">
+            <button
+                type="button"
+                class="model-color-swatch model-color-auto${current === "" ? " active" : ""}"
+                data-color=""
+                title="Automatic color"
+            >Auto</button>
+            ${MODEL_SWATCHES.map(color => `
+                <button
+                    type="button"
+                    class="model-color-swatch${color.toLowerCase() === current ? " active" : ""}"
+                    style="background:${color}"
+                    data-color="${color}"
+                    title="${color}"
+                    aria-label="${color}"
+                ></button>
+            `).join("")}
+            <div class="model-color-custom-row">
+                <label for="modelColorCustom">Custom</label>
+                <input
+                    type="color"
+                    id="modelColorCustom"
+                    class="model-color-custom"
+                    title="Custom color"
+                    aria-label="Custom color"
+                    value="${/^#[0-9a-f]{6}$/.test(current) ? current : "#ffd6e0"}"
+                >
+            </div>
+        </div>
+    `;
+
+    updateModelColorActive();
+}
+
+
+function setModelColorPopover(open) {
+
+    const pop = $("#modelColorPopover");
+    const trigger = $("#modelColorTrigger");
+
+    if (!pop || !trigger) {
+        return;
+    }
+
+    pop.classList.toggle("hidden", !open);
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+
+// Highlights the picked swatch (or the custom picker when the colour
+// isn't one of the swatches).
+function updateModelColorActive() {
+
+    if (!modelDraft) {
+        return;
+    }
+
+    const current = (modelDraft.color || "").toLowerCase();
+    const swatches = MODEL_SWATCHES.map(color => color.toLowerCase());
+
+    $$("#modelColorRow .model-color-swatch").forEach(btn => {
+        btn.classList.toggle(
+            "active",
+            (btn.dataset.color || "").toLowerCase() === current
+        );
+    });
+
+    const custom = $("#modelColorCustom");
+
+    if (custom) {
+        custom.classList.toggle(
+            "active",
+            current !== "" && !swatches.includes(current)
+        );
+    }
+
+    // The one-line trigger shows the current colour.
+    const dot = $("#modelColorDot");
+    const label = $("#modelColorLabel");
+
+    if (dot) {
+        dot.style.background =
+            current || getAutoAvatarColor(modelDraft.id);
+    }
+
+    if (label) {
+        label.textContent =
+            current === "" ? "Auto" : current.toUpperCase();
+    }
+}
+
+
+// Redraws the photo preview (photo or tinted silhouette) and buttons.
+function renderModelProfileFields() {
+
+    if (!modelDraft) {
+        return;
+    }
+
+    const color = modelDraft.color || getAutoAvatarColor(modelDraft.id);
+    const preview = $("#modelPhotoPreview");
+
+    preview.style.background = color;
+    preview.style.color = getRowInk(color).muted;
+    preview.classList.toggle("has-image", !!modelDraft.image);
+
+    preview.innerHTML = modelDraft.image
+        ? `<img src="${modelDraft.image}" alt="">`
+        : MODEL_SILHOUETTE_SVG;
+
+    $("#modelPhotoUploadBtn").textContent =
+        modelDraft.image ? "Change photo" : "Upload photo";
+
+    $("#modelPhotoRemoveBtn").style.display =
+        modelDraft.image ? "" : "none";
+
+    updateModelColorActive();
+}
+
+
+function setupModelProfileFields(isModel, id) {
+
+    $("#modelPhotoField").style.display = isModel ? "" : "none";
+    $("#modelExtrasField").style.display = isModel ? "" : "none";
+
+    if (!isModel || !id) {
+        modelDraft = null;
+        return;
+    }
+
+    modelDraft = {
+        id: id,
+        image: getModelImage(id),
+        color: (data.modelColors && data.modelColors[id]) || ""
+    };
+
+    const target = Number(data.modelTargets[id]) || 0;
+
+    $("#modelTargetInput").value = target > 0 ? target : "";
+
+    renderModelColorRow();
+    renderModelProfileFields();
+}
+
+
+// Writes the draft to the real data. Called by the form's submit
+// handler, before saveData().
+function applyModelProfile(modelId, target) {
+
+    if (!modelDraft || modelDraft.id !== modelId) {
+        return;
+    }
+
+    // Colour ("" = automatic)
+    if (modelDraft.color) {
+        data.modelColors[modelId] = modelDraft.color;
+    } else if (data.modelColors[modelId]) {
+        data.modelColors[modelId] = "";
+    }
+
+    // Photo ("" = none)
+    if (modelDraft.image) {
+        data.modelImages[modelId] = modelDraft.image;
+    } else if (data.modelImages[modelId]) {
+        data.modelImages[modelId] = "";
+    }
+
+    // Daily target (0 = none)
+    const before = Number(data.modelTargets[modelId]) || 0;
+
+    if (target > 0) {
+        data.modelTargets[modelId] = target;
+    } else if (before > 0) {
+        data.modelTargets[modelId] = 0;
+    }
+
+    // History rows show "% of target", so they need a refresh.
+    if (target !== before) {
+        updateHistory();
+    }
+}
+
+
+$("#modelPhotoUploadBtn").addEventListener(
+    "click",
+    function () {
+        $("#modelPhotoInput").click();
+    }
+);
+
+$("#modelPhotoRemoveBtn").addEventListener(
+    "click",
+    function () {
+
+        if (!modelDraft) {
+            return;
+        }
+
+        modelDraft.image = "";
+        renderModelProfileFields();
+    }
+);
+
+$("#modelPhotoInput").addEventListener(
+    "change",
+    async function () {
+
+        const file = this.files && this.files[0];
+
+        // Reset so choosing the same file again still fires "change".
+        this.value = "";
+
+        if (!file || !modelDraft) {
+            return;
+        }
+
+        if (!/^image\//.test(file.type)) {
+            toast("Pick an image file (JPG or PNG)", "error");
+            return;
+        }
+
+        if (file.size > MODEL_PHOTO_MAX_FILE_MB * 1024 * 1024) {
+            toast(`That photo is too large (max ${MODEL_PHOTO_MAX_FILE_MB} MB)`, "error");
+            return;
+        }
+
+        const draftAtStart = modelDraft;
+
+        try {
+
+            const src = await readModelPhoto(file);
+
+            // The form may have been closed while the photo loaded.
+            if (modelDraft !== draftAtStart) {
+                return;
+            }
+
+            modelDraft.image = src;
+            renderModelProfileFields();
+
+        } catch (error) {
+
+            toast("Couldn't read that image. Try a JPG or PNG.", "error");
+        }
+    }
+);
+
+$("#modelColorRow").addEventListener(
+    "click",
+    function (event) {
+
+        if (event.target.closest("#modelColorTrigger")) {
+
+            setModelColorPopover(
+                $("#modelColorPopover").classList.contains("hidden")
+            );
+            return;
+        }
+
+        const btn = event.target.closest(".model-color-swatch");
+
+        if (!btn || !modelDraft) {
+            return;
+        }
+
+        modelDraft.color = btn.dataset.color || "";
+        renderModelProfileFields();
+        setModelColorPopover(false);
+    }
+);
+
+// Click anywhere else, or Escape, closes the colour popover.
+document.addEventListener("click", function (event) {
+
+    const pop = $("#modelColorPopover");
+
+    if (
+        pop &&
+        !pop.classList.contains("hidden") &&
+        !event.target.closest("#modelColorRow")
+    ) {
+        setModelColorPopover(false);
+    }
+});
+
+document.addEventListener("keydown", function (event) {
+
+    const pop = $("#modelColorPopover");
+
+    if (
+        event.key === "Escape" &&
+        pop &&
+        !pop.classList.contains("hidden")
+    ) {
+        event.stopPropagation();
+        setModelColorPopover(false);
+    }
+}, true);
+
+$("#modelColorRow").addEventListener(
+    "input",
+    function (event) {
+
+        if (!modelDraft || event.target.id !== "modelColorCustom") {
+            return;
+        }
+
+        modelDraft.color = event.target.value;
+
+        // Only updates classes/preview; the row itself isn't rebuilt,
+        // so the native colour picker stays open while dragging.
+        renderModelProfileFields();
+    }
+);
+
+
+/* =====================================================
    OPEN MODAL
    ===================================================== */
 
@@ -8553,6 +9177,13 @@ function openModal(
     modalType = type;
 
     editingId = id;
+
+    // A new model gets its id now (not at save time) so the colour
+    // preview in the form matches what it will really be.
+    modalNewId =
+        type === "models" && !id
+            ? crypto.randomUUID()
+            : null;
 
 
     const item =
@@ -8593,7 +9224,7 @@ function openModal(
         $("#contentTitleLabel").textContent =
             "Model name";
 
-        $("#contentTitle").placeholder =
+        $("#itemLabelInput").placeholder =
             "e.g. Sophia";
 
         $("#contentTextLabel").textContent =
@@ -8607,7 +9238,7 @@ function openModal(
         $("#contentTitleLabel").textContent =
             "Title";
 
-        $("#contentTitle").placeholder =
+        $("#itemLabelInput").placeholder =
             "e.g. New Subscriber Greeting";
 
         $("#contentTextLabel").textContent =
@@ -8619,7 +9250,7 @@ function openModal(
     }
 
 
-    $("#contentTitle").value =
+    $("#itemLabelInput").value =
         item?.title || "";
 
 
@@ -8673,6 +9304,12 @@ function openModal(
     }
 
 
+    // Photo / colour / target fields exist for models only.
+    setupModelProfileFields(
+        type === "models",
+        id || modalNewId
+    );
+
     $("#modal").classList.remove(
         "hidden"
     );
@@ -8695,7 +9332,7 @@ function openModal(
             : svgIcon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/>`);
 
 
-    $("#contentTitle").focus();
+    $("#itemLabelInput").focus();
 }
 
 
@@ -8747,6 +9384,8 @@ function closeModal() {
 
     editingId = null;
     modalType = null;
+    modalNewId = null;
+    modelDraft = null;
 }
 
 
@@ -8788,6 +9427,31 @@ $("#contentForm").addEventListener(
         event.preventDefault();
 
 
+        // Models: check the optional daily target before anything is
+        // saved. Blank = no target.
+        let profileTarget = 0;
+
+        if (modalType === "models" && modelDraft) {
+
+            const rawTarget = $("#modelTargetInput").value.trim();
+
+            if (rawTarget !== "") {
+
+                profileTarget = Number(rawTarget);
+
+                if (!isFinite(profileTarget) || profileTarget <= 0) {
+
+                    toast(
+                        "Enter a target above $0, or leave it blank",
+                        "error"
+                    );
+
+                    return;
+                }
+            }
+        }
+
+
         const usesCategories =
             CATEGORIZED_TYPES.includes(
                 modalType
@@ -8820,10 +9484,11 @@ $("#contentForm").addEventListener(
 
             id:
                 editingId ||
+                modalNewId ||
                 crypto.randomUUID(),
 
             title:
-                $("#contentTitle")
+                $("#itemLabelInput")
                     .value
                     .trim(),
 
@@ -8899,6 +9564,11 @@ $("#contentForm").addEventListener(
 
         }
 
+
+        // Photo, colour and target chosen in the form.
+        if (modalType === "models") {
+            applyModelProfile(item.id, profileTarget);
+        }
 
         const savedType = modalType;
         const wasEditing = Boolean(editingId);
@@ -9352,10 +10022,18 @@ function openViewModal(type, id) {
 
     }
 
+    // A model with a photo shows it in the badge; otherwise the usual icon.
+    const badgePhoto =
+        type === "models" ? getModelImage(item.id) : "";
+
+    $("#viewModalBadge").classList.toggle("has-image", !!badgePhoto);
+
     $("#viewModalBadge").innerHTML =
-        type === "models"
-            ? svgIcon(`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`)
-            : svgIcon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/>`);
+        badgePhoto
+            ? `<img src="${badgePhoto}" alt="" draggable="false">`
+            : type === "models"
+                ? svgIcon(`<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`)
+                : svgIcon(`<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/>`);
 
     $("#viewModalText").textContent =
         item.text;
@@ -9458,11 +10136,11 @@ $("#viewModal").addEventListener(
 
 $("#settingsBtn").addEventListener("click", function (e) {
     e.stopPropagation();
-    $("#settingsBtn").closest(".settings-group").classList.toggle("open");
+    $("#settingsBtn").closest(".profile-group").classList.toggle("open");
 });
 
 document.addEventListener("click", function (e) {
-    const group = $("#settingsBtn").closest(".settings-group");
+    const group = $("#settingsBtn").closest(".profile-group");
     if (group.classList.contains("open") && !group.contains(e.target)) {
         group.classList.remove("open");
     }
@@ -10196,3 +10874,84 @@ setInterval(function () {
     }
 
 }, 60000);
+
+
+/* =====================================================
+   PROFILE: avatar + name
+   Uses the Google account's profile picture; if there isn't one (or it
+   fails to load) the avatar falls back to the person's initials.
+   ===================================================== */
+
+(function initProfile() {
+
+    let photo = null;
+    let displayName = "Account";
+
+    const group = $("#profileGroup");
+    const menuBtn = $("#settingsBtn");
+
+    function initialsOf(name) {
+        const parts = name.split(/[\s._\-+]+/).filter(Boolean);
+        if (!parts.length) return "?";
+        const first = Array.from(parts[0])[0];
+        const last = parts.length > 1 ? Array.from(parts[parts.length - 1])[0] : "";
+        return (first + last).toUpperCase();
+    }
+
+    function paint(el) {
+        el.querySelector(".avatar-initials").textContent = initialsOf(displayName);
+        const img = el.querySelector("img");
+        img.onerror = function () {
+            img.hidden = true;
+            el.classList.remove("has-photo");
+        };
+        if (photo) {
+            if (img.getAttribute("src") !== photo) img.src = photo;
+            img.hidden = false;
+        } else {
+            img.removeAttribute("src");
+            img.hidden = true;
+        }
+        el.classList.toggle("has-photo", !!photo);
+    }
+
+    function render() {
+        $$("[data-avatar]").forEach(paint);
+        ["#profileBtnName", "#profileName", "#mobileProfileName"].forEach(function (s) {
+            const n = $(s);
+            if (n) n.textContent = displayName;
+        });
+    }
+
+    auth.onAuthStateChanged(function (user) {
+
+        if (!user) {
+            photo = null;
+            displayName = "Account";
+            render();
+            return;
+        }
+
+        displayName = user.displayName || (user.email || "").split("@")[0] || "Account";
+
+        // Google serves a 96px image by default; ask for a sharper one.
+        photo = user.photoURL
+            ? user.photoURL.replace(/=s\d+-c$/, "=s192-c")
+            : null;
+
+        render();
+
+    });
+
+    new MutationObserver(function () {
+        menuBtn.setAttribute("aria-expanded", String(group.classList.contains("open")));
+    }).observe(group, { attributes: true, attributeFilter: ["class"] });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && group.classList.contains("open")) {
+            group.classList.remove("open");
+            menuBtn.focus();
+        }
+    });
+
+})();
