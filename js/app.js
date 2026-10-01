@@ -2794,6 +2794,24 @@ function renderSales(options) {
                 : "Select a model to add a sale";
     }
 
+    // The username tag button is locked the same way until a model is
+    // selected, and its popover closes if it was open.
+    const usernameToggle = $("#addUsernameToggle");
+
+    if (usernameToggle) {
+
+        usernameToggle.disabled = !activeModel;
+
+        usernameToggle.title =
+            activeModel
+                ? (usernameToggle.dataset.enabledTitle || "Tag the next sale with a username")
+                : "Select a model to tag a username";
+
+        if (!activeModel) {
+            $("#addUsernamePopover").classList.add("hidden");
+        }
+    }
+
 
     const visible = getVisibleSales();
     const sales = visible.map(entry => entry.sale);
@@ -3050,6 +3068,17 @@ function renderTargetProgress(net) {
 }
 
 
+// Where each "on fire" tier of a model's name starts (percent of target),
+// hottest first. Raise or lower the numbers to make the effects kick in
+// later or sooner.
+const FIRE_TIERS = [
+    { tier: 5, from: 230, emoji: "🔥🔥🔥" },
+    { tier: 4, from: 185, emoji: "🔥🔥" },
+    { tier: 3, from: 150, emoji: "🔥" },
+    { tier: 2, from: 120, emoji: "🟠" },
+    { tier: 1, from: 100, emoji: "✨" }
+];
+
 function renderTargetBreakdown() {
 
     const todayKey = getDateKey();
@@ -3090,31 +3119,22 @@ function renderTargetBreakdown() {
                 percent === null ? 0 : Math.min(percent, 100);
 
             // The further a model blows past its target, the hotter
-            // its name burns in the list.
-            //   0–99%    normal
-            //   100%     ✨ bright gold/white pulse + subtle glow
-            //   101–130% 🟠 subtle orange glow
-            //   131–160% 🔥 orange-red glow + flicker
-            //   161–199% 🔥🔥 intense multi-layer glow
-            //   200%+    🔥🔥🔥 maximum "blazing" effect
+            // its name burns in the list. Each tier has its own effect
+            // (see "ON FIRE" in style.css); the percentages that start
+            // each tier are in FIRE_TIERS, so they are easy to change.
+            //   0–99%   normal
+            //   tier 1  ✨ target hit: gold shine
+            //   tier 2  🟠 warm amber glow
+            //   tier 3  🔥 flames + embers
+            //   tier 4  🔥🔥 blaze
+            //   tier 5  🔥🔥🔥 inferno
             let fireTier = 0;
             let fireEmoji = "";
             if (percent !== null) {
-                if (percent >= 200) {
-                    fireTier = 5;
-                    fireEmoji = "🔥🔥🔥";
-                } else if (percent >= 161) {
-                    fireTier = 4;
-                    fireEmoji = "🔥🔥";
-                } else if (percent >= 131) {
-                    fireTier = 3;
-                    fireEmoji = "🔥";
-                } else if (percent >= 101) {
-                    fireTier = 2;
-                    fireEmoji = "🟠";
-                } else if (percent === 100) {
-                    fireTier = 1;
-                    fireEmoji = "✨";
+                const found = FIRE_TIERS.find(t => percent >= t.from);
+                if (found) {
+                    fireTier = found.tier;
+                    fireEmoji = found.emoji;
                 }
             }
             const fireClass = fireTier ? ` on-fire on-fire-${fireTier}` : "";
@@ -3293,6 +3313,11 @@ function fitTargetBreakdownTitles() {
 
             let size = MAX_FONT;
 
+            // The on-fire glow and embers are pseudo-elements that stick
+            // out past the name; they must not count as the name being
+            // too wide, or every burning name shrinks to the minimum.
+            title.classList.add("fit-measure");
+
             while (
                 title.scrollWidth > title.clientWidth &&
                 size > MIN_FONT
@@ -3300,6 +3325,8 @@ function fitTargetBreakdownTitles() {
                 size -= 1;
                 title.style.fontSize = size + "px";
             }
+
+            title.classList.remove("fit-measure");
 
         });
 
@@ -3645,10 +3672,16 @@ function setArmedUsername(username, type) {
         armedUsername ? "true" : "false"
     );
 
-    toggle.title =
+    // Remembered so the "select a model first" tooltip can be swapped
+    // back when a model gets selected.
+    toggle.dataset.enabledTitle =
         armedUsername
             ? `${usernameTypeLabel(armedUsernameType)} — ${armedUsername} (next sale — click to change)`
             : "Tag the next sale with a username";
+
+    if (!toggle.disabled) {
+        toggle.title = toggle.dataset.enabledTitle;
+    }
 }
 
 
@@ -3691,6 +3724,34 @@ document
     });
 
 
+// Show the × in the username box only while it has text (same idea
+// as the search boxes' clear button).
+function syncSaleTagClear() {
+
+    $("#saleTagWrap").classList.toggle(
+        "has-value",
+        !!$("#saleTagField").value
+    );
+}
+
+$("#saleTagField").addEventListener(
+    "input",
+    syncSaleTagClear
+);
+
+$("#saleTagClear").addEventListener(
+    "click",
+    function () {
+
+        $("#saleTagField").value = "";
+
+        syncSaleTagClear();
+
+        $("#saleTagField").focus();
+    }
+);
+
+
 $("#addUsernameToggle").addEventListener(
     "click",
     function () {
@@ -3709,6 +3770,8 @@ $("#addUsernameToggle").addEventListener(
             $("#saleTagField").value =
                 armedUsername || "";
 
+            syncSaleTagClear();
+
             $("#saleTagField").focus();
         }
     }
@@ -3724,12 +3787,34 @@ $("#addUsernameForm").addEventListener(
         const username =
             $("#saleTagField").value.trim();
 
+        const hadTag = Boolean(armedUsername);
+
         setArmedUsername(
             username,
             armedUsernameType
         );
 
         $("#addUsernamePopover").classList.add("hidden");
+
+        if (username) {
+
+            toast(
+                `${usernameTypeLabel(armedUsernameType)} tag set: ${username}`,
+                "success"
+            );
+
+        } else if (hadTag) {
+
+            toast("Username tag removed.");
+        }
+
+        // Straight on to the amount. (It's locked until a model is
+        // selected, and a locked input can't take focus.)
+        const amountInput = $("#saleAmount");
+
+        if (amountInput && !amountInput.disabled) {
+            amountInput.focus();
+        }
     }
 );
 
@@ -4709,6 +4794,94 @@ $("#historyList").addEventListener(
         const isHidden =
             breakdown.classList.contains("hidden") ||
             breakdown.classList.contains("fx-closing");
+
+        // A day with several shifts opened together (from the Overview
+        // bars) has no single "current" shift, so no logout button.
+        // Clicking one of those open shifts should pick it: keep it
+        // open, minimize the day's other shifts, and bring the button
+        // up for it — rather than closing everything.
+        const calendarDate = row.dataset.calendarDate;
+
+        const siblingRows =
+            calendarDate
+                ? Array.from(
+                    document.querySelectorAll(
+                        `.history-row[data-calendar-date="${calendarDate}"]`
+                    )
+                ).filter(other => other !== row)
+                : [];
+
+        const dayOpenedTogether =
+            !isHidden &&
+            expandedHistoryDate === null &&
+            siblingRows.some(other => {
+
+                const otherBreakdown =
+                    $(`[data-breakdown="${other.dataset.date}"]`);
+
+                return otherBreakdown &&
+                    !otherBreakdown.classList.contains("hidden") &&
+                    !otherBreakdown.classList.contains("fx-closing");
+            });
+
+        if (dayOpenedTogether) {
+
+            siblingRows.forEach(other => {
+
+                const otherBreakdown =
+                    $(`[data-breakdown="${other.dataset.date}"]`);
+
+                if (otherBreakdown) {
+                    hideHistoryBreakdown(otherBreakdown);
+                }
+            });
+
+            expandedHistoryDate = dateKey;
+            updateCopyLogoutButton();
+
+            // Shifts above the clicked one collapsing would push it up
+            // the screen. Don't scroll to it — just hold it exactly
+            // where it was clicked while the others fold away.
+            let scroller = row.parentElement;
+
+            while (scroller && scroller !== document.body) {
+
+                const overflowY =
+                    getComputedStyle(scroller).overflowY;
+
+                if (
+                    (overflowY === "auto" || overflowY === "scroll") &&
+                    scroller.scrollHeight > scroller.clientHeight
+                ) {
+                    break;
+                }
+
+                scroller = scroller.parentElement;
+            }
+
+            if (!scroller || scroller === document.body) {
+                scroller = document.scrollingElement;
+            }
+
+            const topBefore = row.getBoundingClientRect().top;
+            const holdUntil = performance.now() + HISTORY_BREAKDOWN_OUT_MS + 80;
+
+            (function holdPosition() {
+
+                const drift =
+                    row.getBoundingClientRect().top - topBefore;
+
+                if (drift) {
+                    scroller.scrollTop += drift;
+                }
+
+                if (performance.now() < holdUntil) {
+                    requestAnimationFrame(holdPosition);
+                }
+            })();
+
+            return;
+        }
 
         hideAllHistoryBreakdowns();
 
@@ -7469,6 +7642,8 @@ $$(".scripts-search-input").forEach(
         ["add", "create", "new"],
         ["edit", "change", "update"],
         ["model", "models", "creator", "creators"],
+        ["photo", "photos", "picture", "pictures", "image", "avatar", "pic", "profile picture"],
+        ["fire", "flames", "flame", "on fire", "inferno", "blaze", "embers", "sparkle", "sparkles", "glow"],
         ["gross", "before fees"],
         ["net", "after fees", "take home"],
     ];
