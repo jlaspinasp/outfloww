@@ -1794,7 +1794,7 @@ label {
     transition: background-color 0.12s, color 0.12s, border-color 0.12s;
 }
 
-.outside-shift-btn:hover {
+.outside-shift-btn:hover:not(:disabled) {
     background: var(--btn-bg-hover);
     color: var(--text-primary);
 }
@@ -1811,6 +1811,16 @@ label {
     background: var(--warning-bg);
     border-color: var(--warning-border);
     color: var(--warning);
+}
+
+/* Locked until a model is selected (same look as the disabled Add Sale) */
+.outside-shift-btn:disabled,
+.outside-shift-btn.active:disabled,
+.outside-shift-btn.active.armed-outside:disabled {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-disabled);
+    cursor: not-allowed;
 }
 
 .outside-shift-popover,
@@ -1844,6 +1854,64 @@ label {
     min-width: 0;
     height: 36px;
     font-size: var(--fs-sm);
+}
+
+/* Username box with a × clear button inside its right edge
+   (same look as the search boxes' clear button). */
+.tag-field {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.tag-field input {
+    width: 100%;
+}
+
+.tag-field.has-value input {
+    padding-right: 28px;
+}
+
+.tag-field-clear {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) scale(0.85);
+    transition: background-color 0.12s, color 0.12s, opacity 0.12s, transform 0.12s;
+}
+
+.tag-field-clear .icon {
+    width: 13px;
+    height: 13px;
+}
+
+.tag-field-clear:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tag-field-clear:active {
+    transform: translateY(-50%) scale(0.92);
+}
+
+.tag-field.has-value .tag-field-clear {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
 }
 
 .outside-shift-popover .btn {
@@ -4559,9 +4627,9 @@ label {
        browsers can leave the element painted at its first frame
        (e.g. opacity: 0) until something forces a repaint, such as
        hovering it. That is what hid text in the History cards. */
-    *:not(.splash--intro):not(.splash--intro *),
-    *:not(.splash--intro):not(.splash--intro *)::before,
-    *:not(.splash--intro):not(.splash--intro *)::after {
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire),
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire)::before,
+    *:not(.splash--intro):not(.splash--intro *):not(.on-fire)::after {
         animation: none !important;
         transition: none !important;
         scroll-behavior: auto !important;
@@ -4588,7 +4656,8 @@ label {
    signed in (.splash--intro), and the model rows inside the Sales
    tab's "Add a sale" card (.target-breakdown-row and everything in it). Their pop,
    wiggle and settle animations are what tell you which model you've
-   picked, so they keep playing. */
+   picked, so they keep playing. The "on fire" names (.on-fire) are
+   exempt from the OS-level block above for the same reason. */
 
 :root[data-reduce-motion="true"] *:not(.target-breakdown-row):not(.target-breakdown-row *):not(.splash--intro):not(.splash--intro *),
 :root[data-reduce-motion="true"] *:not(.target-breakdown-row):not(.target-breakdown-row *):not(.splash--intro):not(.splash--intro *)::before,
@@ -6773,9 +6842,9 @@ label {
 
 /* ---------- Model pills ---------- */
 
-/* Resolved once on the row (at the normal weight), so the bolder selected
-   pill doesn't change the width: 8.5ch (room for an 8-letter name, even in
-   bold) + picture/padding/gap/border. */
+/* Resolved once on the row, so the bolder selected pill doesn't change
+   the width: 6.5ch (room for a 6-letter name) + picture/padding/gap/border.
+   The row uses the same font as the names, so the ch unit matches them. */
 @property --chip-w {
     syntax: "<length>";
     inherits: true;
@@ -6783,9 +6852,10 @@ label {
 }
 
 .model-switcher {
-    --chip-w: calc(8.5ch + 57px);
-    font-size: var(--fs-sm);
-    font-weight: 500;
+    --chip-w: calc(6.5ch + 57px);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
     display: flex;
     flex: 0 1 auto;
     align-items: center;
@@ -6803,12 +6873,12 @@ label {
 
 .model-chip {
     display: flex;
-    /* Fixed width, never shrinks: sized for an 8-character name. Longer
+    /* Fixed width, never shrinks: sized for a 6-character name. Longer
        names get an ellipsis. (--chip-w is set on .model-switcher.) */
     flex: 0 0 auto;
     align-items: center;
     gap: 8px;
-    width: var(--chip-w, calc(8ch + 57px));
+    width: var(--chip-w, calc(6ch + 57px));
     min-width: 0;
     max-width: none;
     height: 38px;
@@ -7392,4 +7462,257 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     .target-card .target-breakdown-row.deselecting:not(.selected) {
         animation: none;
     }
+}
+
+/* =====================================================
+   ON FIRE: model names that are past target
+   Every tier has its own effect, not just a stronger version of the
+   same one. The name is filled with a gradient, and the glow follows
+   the letter shapes (drop-shadow, so it is never a box).
+     1  target hit    gold with a shine that sweeps across the letters
+     2  warm glow     amber, slowly breathing heat glow
+     3  flames        flickering flame colours, heat bloom, a few embers
+     4  blaze         taller flicker (letters lick upward), more embers
+     5  inferno       white-hot core, violet-edged plasma glow, rapid
+                      flicker, dense embers
+   Which percentage starts each tier is set in app.js (FIRE_TIERS).
+   ===================================================== */
+
+/* ---- Tier palettes + which animations each one plays ---- */
+
+.target-breakdown-title.on-fire-1 {
+    --fl-low: #a87408; --fl-mid: #d9a21f; --fl-high: #f3cf5c; --fl-tip: #fff4b8;
+    --fg1: rgba(255, 214, 80, 0.5); --fg2: rgba(255, 190, 40, 0.3); --fb: 0.8;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 215, 90, 0.35), transparent);
+    /* A bright band sweeps left to right over the gold, then rests. */
+    --fire-bg-image:
+        linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.95) 50%, transparent 58%),
+        linear-gradient(to top, var(--fl-low) 0%, var(--fl-mid) 38%, var(--fl-high) 72%, var(--fl-tip) 100%);
+    --fire-bg-size: 260% 100%, 100% 100%;
+    --fire-bg-pos: 100% 0, 0 0;
+    --fire-anims: fire-shine 3.6s ease-in-out infinite;
+}
+
+.target-breakdown-title.on-fire-2 {
+    --fl-low: #b94a08; --fl-mid: #e8730f; --fl-high: #ffa23a; --fl-tip: #ffd98a;
+    --fg1: rgba(255, 150, 40, 0.5); --fg2: rgba(255, 110, 20, 0.45); --fb: 1.2;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 140, 40, 0.45), transparent);
+    --fire-anims: fire-flow 5.5s steps(10) infinite;
+}
+
+.target-breakdown-title.on-fire-3 {
+    --fl-low: #a02206; --fl-mid: #e0501a; --fl-high: #ff8a1f; --fl-tip: #ffd34d;
+    --fg1: rgba(255, 130, 20, 0.7); --fg2: rgba(255, 60, 0, 0.5); --fb: 1.3;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 100, 20, 0.5), transparent);
+    --ember: #ffb347;
+    --fire-anims: fire-flow 3.2s steps(6) infinite, fire-lick 1.7s ease-in-out infinite;
+}
+
+.target-breakdown-title.on-fire-4 {
+    --fl-low: #8f1500; --fl-mid: #e03a10; --fl-high: #ff7a14; --fl-tip: #ffe066;
+    --fg1: rgba(255, 160, 20, 0.8); --fg2: rgba(255, 50, 0, 0.6); --fb: 1.7;
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 80, 10, 0.6), transparent);
+    --ember: #ffc24d;
+    --fire-anims: fire-flow 2.4s steps(5) infinite, fire-lick-strong 1s ease-in-out infinite;
+}
+
+.target-breakdown-title.on-fire-5 {
+    --fl-low: #6a0a00; --fl-mid: #d62a0a; --fl-high: #ff9a1a; --fl-tip: #fffbd0;
+    --fg1: rgba(255, 215, 80, 0.95); --fg2: rgba(255, 40, 0, 0.7); --fb: 2.2;
+    /* Orange heat with a violet edge: reads as hotter than red. */
+    --aura-bg: radial-gradient(ellipse closest-side at 50% 70%, rgba(255, 110, 0, 0.6), rgba(150, 60, 255, 0.35) 62%, transparent);
+    --ember: #ffe27a;
+    --fire-anims: fire-flow 1.8s steps(4) infinite, fire-lick-intense 0.6s ease-in-out infinite;
+}
+
+/* ---- The shared look ---- */
+
+/* Specificity matches the older per-tier (and selected / deselecting)
+   rules above, and this block comes last, so it wins. */
+.target-card .target-breakdown-row .target-breakdown-title.on-fire,
+.target-card .target-breakdown-row.selected .target-breakdown-title.on-fire,
+.target-card .target-breakdown-row.deselecting .target-breakdown-title.on-fire {
+    position: relative;
+    /* Let the glow spill outside the name instead of being cut to a box.
+       (app.js already shrinks long names to fit.) */
+    overflow: visible;
+    text-overflow: clip;
+    transform-origin: 50% 90%;
+    /* A little room so italic letter edges are not trimmed by the
+       gradient fill; margins cancel it out so nothing shifts. */
+    padding: 0.12em 0.16em;
+    margin: -0.12em -0.16em;
+    background-image: var(--fire-bg-image, linear-gradient(to top, var(--fl-low) 0%, var(--fl-mid) 38%, var(--fl-high) 72%, var(--fl-tip) 100%));
+    background-size: var(--fire-bg-size, 100% 150%);
+    background-position: var(--fire-bg-pos, 0 100%);
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 2px var(--fg1)) drop-shadow(0 -2px calc(7px * var(--fb)) var(--fg2));
+    will-change: transform;
+    animation: var(--fire-anims);
+}
+
+.target-card .target-breakdown-row.selected .target-breakdown-title.on-fire {
+    animation: model-selected-wiggle 0.9s ease-in-out 0.4s infinite, var(--fire-anims);
+}
+
+.target-card .target-breakdown-row.deselecting .target-breakdown-title.on-fire {
+    animation: model-deselect-settle 0.35s ease-in-out forwards, var(--fire-anims);
+}
+
+/* Heat bloom behind the name: a soft oval that fades out well before
+   its edges, so there is no visible box. */
+.target-breakdown-title.on-fire::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: -6%;
+    right: -6%;
+    top: -30%;
+    bottom: -25%;
+    pointer-events: none;
+    background: var(--aura-bg);
+    filter: blur(7px);
+    opacity: 0.8;
+    /* Only opacity/transform animate here, so it stays on the GPU. The
+       blur is applied once, not every frame. */
+    will-change: transform, opacity;
+    animation: fire-aura 2s ease-in-out infinite;
+}
+
+.target-breakdown-title.on-fire-1::before { opacity: 0.45; animation: none; }
+.target-breakdown-title.on-fire-2::before { animation: fire-aura-slow 3.4s ease-in-out infinite; }
+.target-breakdown-title.on-fire-3::before { animation-duration: 1.5s; }
+.target-breakdown-title.on-fire-4::before { animation-duration: 1.05s; }
+.target-breakdown-title.on-fire-5::before { animation-name: fire-aura-hot; animation-duration: 0.75s; top: -40%; bottom: -30%; }
+
+/* ---- Embers rising off the name (tiers 3-5) ---- */
+
+.target-breakdown-title.on-fire-3::after,
+.target-breakdown-title.on-fire-4::after,
+.target-breakdown-title.on-fire-5::after {
+    content: "";
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    bottom: 62%;
+    height: 1.5em;
+    pointer-events: none;
+    background-image:
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%);
+    background-size: 4px 4px, 3px 3px, 5px 5px, 3px 3px;
+    background-repeat: no-repeat;
+    background-position: 10% 100%, 35% 100%, 62% 100%, 88% 100%;
+    -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0%, transparent 100%);
+    animation: fire-embers 2.6s ease-out infinite;
+}
+
+/* Blaze and inferno: six embers, rising faster */
+.target-breakdown-title.on-fire-4::after,
+.target-breakdown-title.on-fire-5::after {
+    background-image:
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%),
+        radial-gradient(circle, var(--ember) 0 38%, transparent 70%);
+    background-size: 4px 4px, 3px 3px, 5px 5px, 3px 3px, 4px 4px, 3px 3px;
+    background-position: 6% 100%, 22% 100%, 41% 100%, 58% 100%, 76% 100%, 92% 100%;
+    height: 1.8em;
+    animation: fire-embers-6 1.9s ease-out infinite;
+}
+
+.target-breakdown-title.on-fire-5::after {
+    background-size: 5px 5px, 4px 4px, 6px 6px, 4px 4px, 5px 5px, 4px 4px;
+    height: 2.1em;
+    animation-duration: 1.4s;
+}
+
+/* ---- Keyframes ---- */
+
+/* Tier 1: the shine band crossing the letters, then a pause */
+@keyframes fire-shine {
+    0%, 35% { background-position: 100% 0, 0 0; }
+    100% { background-position: 0% 0, 0 0; }
+}
+
+/* The gradient drifts up and down so the colour seems to lick
+   through the letters. */
+@keyframes fire-flow {
+    0%, 100% { background-position: 0 100%; }
+    35% { background-position: 0 25%; }
+    65% { background-position: 0 70%; }
+}
+
+/* The letters themselves stretch upward and wobble, like flame tips.
+   Uses the separate `scale` / `translate` properties, so it never
+   fights the selected-name wiggle (which uses `transform`). */
+@keyframes fire-lick {
+    0%, 100% { scale: 1 1; }
+    40% { scale: 1.01 1.03; }
+    70% { scale: 0.995 1.015; }
+}
+
+@keyframes fire-lick-strong {
+    0%, 100% { scale: 1 1; }
+    25% { scale: 1.015 1.06; }
+    50% { scale: 0.99 1.02; }
+    75% { scale: 1.02 1.07; }
+}
+
+@keyframes fire-lick-intense {
+    0%, 100% { scale: 1 1; translate: 0 0; }
+    20% { scale: 1.02 1.09; translate: 0.4px -0.6px; }
+    45% { scale: 0.985 1.03; translate: -0.4px 0; }
+    70% { scale: 1.025 1.1; translate: 0.3px -0.5px; }
+}
+
+/* The glow flickers here (opacity + size only). */
+@keyframes fire-aura {
+    0%, 100% { transform: scale(1, 1); opacity: 0.7; }
+    18% { transform: scale(1.05, 1.14); opacity: 1; }
+    37% { transform: scale(0.98, 0.93); opacity: 0.5; }
+    58% { transform: scale(1.06, 1.18); opacity: 1; }
+    79% { transform: scale(1.01, 1.06); opacity: 0.8; }
+}
+
+@keyframes fire-aura-hot {
+    0%, 100% { transform: scale(1, 1.05); opacity: 0.85; }
+    15% { transform: scale(1.08, 1.22); opacity: 1; }
+    32% { transform: scale(0.97, 0.95); opacity: 0.6; }
+    55% { transform: scale(1.1, 1.26); opacity: 1; }
+    78% { transform: scale(1.03, 1.12); opacity: 0.9; }
+}
+
+@keyframes fire-aura-slow {
+    0%, 100% { transform: scale(1, 1); opacity: 0.6; }
+    50% { transform: scale(1.06, 1.14); opacity: 1; }
+}
+
+@keyframes fire-embers {
+    0% { background-position: 10% 100%, 35% 100%, 62% 100%, 88% 100%; opacity: 0; }
+    15% { opacity: 1; }
+    100% { background-position: 14% 0%, 31% -10%, 66% 8%, 84% -4%; opacity: 0; }
+}
+
+@keyframes fire-embers-6 {
+    0% { background-position: 6% 100%, 22% 100%, 41% 100%, 58% 100%, 76% 100%, 92% 100%; opacity: 0; }
+    15% { opacity: 1; }
+    100% { background-position: 10% 0%, 19% -12%, 44% 6%, 55% -8%, 80% 2%, 88% -14%; opacity: 0; }
+}
+
+
+/* Only while app.js measures a name's width (see fitTargetBreakdownTitles). */
+.target-breakdown-title.fit-measure::before,
+.target-breakdown-title.fit-measure::after {
+    display: none !important;
 }
