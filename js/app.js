@@ -757,6 +757,18 @@ let cloudDocRef = null;
 let cloudUnsubscribe = null;
 let isApplyingRemoteData = false;
 let lastPushedJSON = null;
+
+// Snapshotting the whole data object (photos included) is a big
+// JSON.stringify; do it when the browser is idle instead of right
+// when a write finishes, which could land in the middle of a tap.
+function rememberPushed() {
+    const run = function () { lastPushedJSON = JSON.stringify(data); };
+    if (window.requestIdleCallback) {
+        requestIdleCallback(run, { timeout: 2000 });
+    } else {
+        setTimeout(run, 0);
+    }
+}
 let pushTimer = null;
 let pushPending = false;
 let pushInFlight = null;
@@ -835,7 +847,7 @@ function pushToCloud() {
                 // those already matched local before it went out, so
                 // the full local snapshot is still an accurate record
                 // of what the cloud now holds.
-                lastPushedJSON = JSON.stringify(data);
+                rememberPushed();
                 setSyncStatus("synced");
             })
             .catch(function (err) {
@@ -864,7 +876,7 @@ function pushFullDataToCloud() {
 
     pushInFlight = cloudDocRef.set(data)
         .then(function () {
-            lastPushedJSON = JSON.stringify(data);
+            rememberPushed();
             setSyncStatus("synced");
         })
         .catch(function (err) {
@@ -887,7 +899,7 @@ function flushCloudPush() {
 
         pushInFlight = cloudDocRef.set(dataWithoutSales(), { merge: true })
             .then(function () {
-                lastPushedJSON = JSON.stringify(data);
+                rememberPushed();
                 setSyncStatus("synced");
             })
             .catch(function (err) {
@@ -920,7 +932,7 @@ function pushSaleAdded(dateKey, sale) {
         { merge: true }
     )
         .then(function () {
-            lastPushedJSON = JSON.stringify(data);
+            rememberPushed();
             setSyncStatus("synced");
         })
         .catch(function (err) {
@@ -947,7 +959,7 @@ function pushSaleRemoved(dateKey, sale) {
         { merge: true }
     )
         .then(function () {
-            lastPushedJSON = JSON.stringify(data);
+            rememberPushed();
             setSyncStatus("synced");
         })
         .catch(function (err) {
@@ -981,7 +993,7 @@ function startCloudSync(uid) {
                 // First sign-in on any device: seed the cloud
                 // with whatever is currently stored on this one.
                 cloudDocRef.set(data).then(function () {
-                    lastPushedJSON = JSON.stringify(data);
+                    rememberPushed();
                     setSyncStatus("synced");
                 });
                 return;
@@ -2935,7 +2947,7 @@ function renderSales(options) {
 
     // Target progress (based on net earnings, per current context)
     if (!skipBreakdown) {
-        renderTargetProgress(net);
+        renderTargetProgress(net, { patch: !!(options && options.patchBreakdown) });
     }
 
 
@@ -3057,14 +3069,14 @@ function getTargetPercent(net, target) {
 }
 
 
-function renderTargetProgress(net) {
+function renderTargetProgress(net, options) {
 
     // The per-model breakdown always stays visible now — model
     // selection (for logging a sale) no longer swaps it away.
     $("#targetProgress").classList.add("hidden");
     $("#targetBreakdownWrap").classList.add("active");
 
-    renderTargetBreakdown();
+    renderTargetBreakdown(options);
 }
 
 
@@ -3079,7 +3091,131 @@ const FIRE_TIERS = [
     { tier: 1, from: 100, emoji: "✨" }
 ];
 
-function renderTargetBreakdown() {
+// Embers are real little elements (not a background that slides around),
+// so each one animates on its own timing with transform/opacity only,
+// which the browser can run on the GPU. Each tier gets its own count and
+// motion style (see "ON FIRE" in style.css).
+const FIRE_FX_COUNT = { 2: 4, 3: 3, 4: 5, 5: 7 };
+
+function fireFxHTML(tier) {
+    const n = FIRE_FX_COUNT[tier] || 0;
+    return n
+        ? `<span class="fire-fx" aria-hidden="true">${"<i></i>".repeat(n)}</span>`
+        : "";
+}
+
+// Used when a name crosses into another tier without being rebuilt.
+function setFireFx(titleEl, tier) {
+    const old = titleEl.querySelector(":scope > .fire-fx");
+    if (old) old.remove();
+    const html = fireFxHTML(tier);
+    if (html) titleEl.insertAdjacentHTML("beforeend", html);
+}
+
+// ---- Smooth tier-to-tier transitions ----
+// When a name moves to another fire tier, a snapshot of its old look is
+// laid on top and fades out, so colour, glow and embers blend into the
+// new tier instead of switching instantly. Skipping tiers (1 -> 3) steps
+// through the ones in between (1 -> 2 -> 3). This uses the Web Animations
+// API on purpose: unlike CSS animations/transitions, it is not switched
+// off by the Reduce motion settings, so these blends always play.
+const FIRE_STEP_MS = 800;
+
+function getTitleTier(title) {
+    const m = /on-fire-(\d)/.exec(title.className);
+    return m ? Number(m[1]) : 0;
+}
+
+function applyFireTier(title, tier) {
+    const keep = title.classList.contains("fit-measure") ? " fit-measure" : "";
+    title.className = "target-breakdown-title" +
+        (tier ? ` on-fire on-fire-${tier}` : "") + keep;
+    setFireFx(title, tier);
+}
+
+function makeFireGhost(title) {
+    const parent = title.parentElement;
+    if (!parent || !title.offsetWidth) return null;
+
+    const ghost = title.cloneNode(true);
+    ghost.classList.add("fire-ghost");
+    ghost.setAttribute("aria-hidden", "true");
+
+    ghost.style.position = "absolute";
+    ghost.style.left = title.offsetLeft + "px";
+    ghost.style.top = title.offsetTop + "px";
+    ghost.style.width = title.offsetWidth + "px";
+    ghost.style.height = title.offsetHeight + "px";
+    ghost.style.boxSizing = "border-box";
+    ghost.style.margin = "0";
+    ghost.style.pointerEvents = "none";
+
+    parent.appendChild(ghost);
+    return ghost;
+}
+
+function clearFireTransition(title) {
+    clearTimeout(title._fireTimer);
+    (title._fireGhosts || []).forEach(g => g.remove());
+    title._fireGhosts = [];
+}
+
+function transitionFireTier(title, toTier) {
+
+    clearFireTransition(title);
+
+    const fromTier = getTitleTier(title);
+
+    if (fromTier === toTier) return;
+
+    // Every tier on the way, one step at a time (up or down).
+    const path = [];
+    const dir = toTier > fromTier ? 1 : -1;
+    for (let t = fromTier + dir; t !== toTier + dir; t += dir) {
+        path.push(t);
+    }
+
+    const runStep = function (i) {
+
+        if (i >= path.length || !title.isConnected) return;
+
+        const ghost = makeFireGhost(title);
+
+        applyFireTier(title, path[i]);
+
+        if (ghost) {
+
+            title._fireGhosts.push(ghost);
+
+            const fade = ghost.animate(
+                [{ opacity: 1 }, { opacity: 0 }],
+                { duration: FIRE_STEP_MS, easing: "ease-in-out", fill: "forwards" }
+            );
+
+            fade.onfinish = function () { ghost.remove(); };
+        }
+
+        title._fireTimer = setTimeout(function () {
+            runStep(i + 1);
+        }, FIRE_STEP_MS);
+    };
+
+    runStep(0);
+}
+
+function renderTargetBreakdown(options) {
+
+    // Which look a row is in: fire tier + (no target / hit / in progress).
+    // While this stays the same, a sale only changes numbers, so the row
+    // can be updated in place instead of being destroyed and rebuilt.
+    const stateOf = percent => {
+        let tier = 0;
+        if (percent !== null) {
+            const f = FIRE_TIERS.find(t => percent >= t.from);
+            if (f) tier = f.tier;
+        }
+        return tier + "|" + (percent === null ? "n" : percent >= 100 ? "h" : "p");
+    };
 
     const todayKey = getDateKey();
 
@@ -3111,8 +3247,9 @@ function renderTargetBreakdown() {
             : "block";
 
 
-    $("#targetBreakdown").innerHTML =
-        rows.map(({ model, net, target, percent }) => {
+    const box = $("#targetBreakdown");
+
+    const buildRowHTML = ({ model, net, target, percent }) => {
 
             const hit = percent !== null && percent >= 100;
             const displayPercent =
@@ -3138,15 +3275,14 @@ function renderTargetBreakdown() {
                 }
             }
             const fireClass = fireTier ? ` on-fire on-fire-${fireTier}` : "";
-            const fireBadge = fireTier
-                ? `<span class="fire-badge fire-badge-${fireTier}">${fireEmoji}</span>`
-                : "";
+            // Emoji badge removed: the name's own fire effect is enough.
+            const fireBadge = "";
 
             const rowColor = getAvatarColor(model.id);
             const ink = getRowInk(rowColor);
 
             return `
-                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}${model.id === selectingModelId ? " selecting" : ""}" data-model="${model.id}" style="--badge-color:${rowColor};--row-deep:${getModelDeepColor(rowColor)};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : "Use the switcher above to select this model"}">
+                <div class="target-breakdown-row${model.id === currentModelFilter ? " selected" : ""}${model.id === deselectingModelId ? " deselecting" : ""}${model.id === selectingModelId ? " selecting" : ""}" data-model="${model.id}" data-state="${stateOf(percent)}" style="--badge-color:${rowColor};--row-deep:${getModelDeepColor(rowColor)};--row-strong:${ink.strong};--row-muted:${ink.muted};--row-radio-border:${ink.radioBorder};--row-radio-bg:${ink.radioBg};--row-track-bg:${ink.trackBg};--row-track-fill:${ink.trackFill}" title="${model.id === currentModelFilter ? `Selected — adding sales for ${escapeHTML(model.title)}` : "Use the switcher above to select this model"}">
 
                     ${getModelAvatarHTML("lg", model.id)}
 
@@ -3154,7 +3290,7 @@ function renderTargetBreakdown() {
 
                         <div class="target-breakdown-head">
                             <span class="target-breakdown-name">
-                                <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}</span>${fireBadge}
+                                <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}${fireFxHTML(fireTier)}</span>${fireBadge}
                             </span>
                             ${percent === null || hit
                                 ? `<span class="target-breakdown-status">${percent === null ? "No target" : "🎉 Hit"}</span>`
@@ -3189,8 +3325,99 @@ function renderTargetBreakdown() {
 
                 </div>
             `;
-        }).join("");
+    };
 
+    // Fast path (used when adding / deleting a sale): same models in the
+    // same order -> patch text and bar width, and only rebuild a row if
+    // its fire tier or hit state actually changed.
+    if (options && options.patch) {
+
+        const existing = Array.from(box.children)
+            .filter(el => el.classList.contains("target-breakdown-row"));
+
+        const sameShape =
+            existing.length === rows.length &&
+            rows.every((r, i) => existing[i].dataset.model === r.model.id);
+
+        if (sameShape) {
+
+            const replaced = [];
+
+            rows.forEach((r, i) => {
+
+                const el = existing[i];
+
+                // Crossing a threshold (100%, 120%, 150%...) changes the
+                // fire tier / hit label. Swap just those classes on the
+                // existing elements. Rebuilding the whole row here was the
+                // stutter: every layer of the fire effect got recreated.
+                const newState = stateOf(r.percent);
+
+                if (el.dataset.state !== newState) {
+
+                    el.dataset.state = newState;
+
+                    const title = el.querySelector(".target-breakdown-title");
+                    const tier = Number(newState.split("|")[0]);
+
+                    if (title) {
+                        transitionFireTier(title, tier);
+                    }
+
+                    const fillEl = el.querySelector(".progress-fill");
+                    if (fillEl) {
+                        fillEl.classList.toggle("hit", r.percent !== null && r.percent >= 100);
+                    }
+
+                    // "No target" / "Hit" label next to the name
+                    const wantText = r.percent === null
+                        ? "No target"
+                        : r.percent >= 100 ? "🎉 Hit" : "";
+                    let statusEl = el.querySelector(".target-breakdown-status");
+
+                    if (wantText && !statusEl) {
+                        statusEl = document.createElement("span");
+                        statusEl.className = "target-breakdown-status";
+                        const nameEl = el.querySelector(".target-breakdown-name");
+                        if (nameEl) nameEl.after(statusEl);
+                    }
+                    if (statusEl) {
+                        if (wantText) {
+                            statusEl.textContent = wantText;
+                        } else {
+                            statusEl.remove();
+                        }
+                    }
+
+                    // The label can change how much room the name has.
+                    replaced.push(el);
+                }
+
+                const pctEl = el.querySelector(".target-breakdown-percent");
+                const amtEl = el.querySelector(".target-breakdown-amounts");
+                const fill = el.querySelector(".progress-fill");
+
+                const pctText = (r.percent === null ? 0 : r.percent) + "%";
+                const amtText = r.target > 0
+                    ? `${money(r.net)} / ${money(r.target)}`
+                    : `${money(r.net)} net`;
+                const width = (r.percent === null ? 0 : Math.min(r.percent, 100)) + "%";
+
+                if (pctEl && pctEl.textContent !== pctText) pctEl.textContent = pctText;
+                if (amtEl && amtEl.textContent !== amtText) amtEl.textContent = amtText;
+                if (fill && fill.style.width !== width) fill.style.width = width;
+            });
+
+            if (replaced.length) {
+                fitTargetBreakdownTitles(replaced);
+            }
+
+            return;
+        }
+    }
+
+    // Full rebuild (first render, model added/removed/reordered, etc.)
+    box.innerHTML = rows.map(buildRowHTML).join("");
 
     fitTargetBreakdownTitles();
     sizeModelRows();
@@ -3300,36 +3527,50 @@ $("#modelSwitcher").addEventListener(
 // Long model names shrink to fit their row instead of getting cut
 // off or stretching the "Add a sale" card. Font-size only — the
 // card's width and layout never change.
-function fitTargetBreakdownTitles() {
+function fitTargetBreakdownTitles(onlyRows) {
 
     const MAX_FONT = 27;
     const MIN_FONT = 13;
 
-    $("#targetBreakdown")
-        .querySelectorAll(".target-breakdown-title")
-        .forEach(title => {
+    const roots = onlyRows || [$("#targetBreakdown")];
+    const titles = [];
 
-            title.style.fontSize = MAX_FONT + "px";
+    roots.forEach(root => {
+        root.querySelectorAll(".target-breakdown-title:not(.fire-ghost)")
+            .forEach(t => titles.push(t));
+    });
 
-            let size = MAX_FONT;
+    titles.forEach(title => {
 
-            // The on-fire glow and embers are pseudo-elements that stick
-            // out past the name; they must not count as the name being
-            // too wide, or every burning name shrinks to the minimum.
-            title.classList.add("fit-measure");
+        // The on-fire glow and embers are pseudo-elements that stick
+        // out past the name; they must not count as the name being
+        // too wide, or every burning name shrinks to the minimum.
+        title.classList.add("fit-measure");
+        title.style.fontSize = MAX_FONT + "px";
 
-            while (
-                title.scrollWidth > title.clientWidth &&
-                size > MIN_FONT
-            ) {
-                size -= 1;
-                title.style.fontSize = size + "px";
+        // Most names fit at full size: one measurement and done.
+        if (title.scrollWidth > title.clientWidth) {
+
+            // Otherwise binary-search the largest size that fits
+            // (about 4 measurements instead of up to 14).
+            let lo = MIN_FONT;
+            let hi = MAX_FONT - 1;
+
+            while (lo < hi) {
+                const mid = Math.ceil((lo + hi) / 2);
+                title.style.fontSize = mid + "px";
+                if (title.scrollWidth > title.clientWidth) {
+                    hi = mid - 1;
+                } else {
+                    lo = mid;
+                }
             }
 
-            title.classList.remove("fit-measure");
+            title.style.fontSize = lo + "px";
+        }
 
-        });
-
+        title.classList.remove("fit-measure");
+    });
 }
 
 
@@ -3907,19 +4148,26 @@ $("#saleForm").addEventListener(
         setArmedUsername(null);
 
 
+        // Sound first so it isn't held up by the redraw.
+        playKaching();
+
         updateHistory();
 
-        saveData();
-
-        pushSaleAdded(dateKey, sale);
-
-        preserveScroll(renderSales);
-
-        playKaching();
+        // Only the numbers changed, so patch the model rows in place.
+        preserveScroll(() => renderSales({ patchBreakdown: true }));
 
         toast("Sale added!", "success");
 
         $("#saleAmount").focus();
+
+        // Let the browser paint the new sale, THEN do the heavy
+        // bookkeeping (JSON.stringify of everything + sync writes).
+        requestAnimationFrame(function () {
+            setTimeout(function () {
+                saveData();
+                pushSaleAdded(dateKey, sale);
+            }, 0);
+        });
     }
 );
 
@@ -3976,13 +4224,13 @@ function deleteSale(index, btn) {
 
         setTimeout(function () {
             list.classList.remove("is-busy");
-            preserveScroll(renderSales);
+            preserveScroll(() => renderSales({ patchBreakdown: true }));
         }, 220);
 
         return;
     }
 
-    preserveScroll(renderSales);
+    preserveScroll(() => renderSales({ patchBreakdown: true }));
 }
 
 
@@ -7643,7 +7891,7 @@ $$(".scripts-search-input").forEach(
         ["edit", "change", "update"],
         ["model", "models", "creator", "creators"],
         ["photo", "photos", "picture", "pictures", "image", "avatar", "pic", "profile picture"],
-        ["fire", "flames", "flame", "on fire", "inferno", "blaze", "embers", "sparkle", "sparkles", "glow"],
+        ["fire", "flames", "flame", "on fire", "inferno", "blaze", "embers", "ember", "sparkle", "sparkles", "spark", "sparks", "glow", "burning", "heat", "shine"],
         ["gross", "before fees"],
         ["net", "after fees", "take home"],
     ];
@@ -9962,7 +10210,45 @@ async function deleteItem(
 const kachingSound = new Audio("kaching.wav");
 kachingSound.volume = 0.6;
 
+// An <audio> element has to seek and restart every time it plays, which
+// can cost a visible hitch right as a sale is added (worst in Safari and
+// on phones). Web Audio decodes the sound once up front, so playing it
+// is just "start this buffer". The <audio> element above stays as the
+// fallback if Web Audio or the fetch isn't available.
+let kachingCtx = null;
+let kachingBuffer = null;
+
+(function prepareKaching() {
+    try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        kachingCtx = new AC();
+        fetch("kaching.wav")
+            .then(r => r.arrayBuffer())
+            .then(buf => new Promise((resolve, reject) =>
+                kachingCtx.decodeAudioData(buf, resolve, reject)))
+            .then(decoded => { kachingBuffer = decoded; })
+            .catch(() => { kachingBuffer = null; });
+    } catch {}
+})();
+
 function playKaching() {
+    try {
+        if (kachingCtx && kachingBuffer) {
+            if (kachingCtx.state === "suspended") {
+                kachingCtx.resume();
+            }
+            const src = kachingCtx.createBufferSource();
+            const gain = kachingCtx.createGain();
+            gain.gain.value = 0.6;
+            src.buffer = kachingBuffer;
+            src.connect(gain);
+            gain.connect(kachingCtx.destination);
+            src.start(0);
+            return;
+        }
+    } catch {}
+
     try {
         kachingSound.currentTime = 0; // rewind so back-to-back sales retrigger it
         kachingSound.play().catch(() => {}); // ignore autoplay-block errors
