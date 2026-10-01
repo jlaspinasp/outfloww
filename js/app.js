@@ -726,9 +726,20 @@ function flashRestoreFadeIn(elements) {
         void el.offsetWidth;
         el.classList.add("restore-fade-in");
 
+        // With Reduce motion on there is no animation, so animationend
+        // would never fire and the class would be left on the element.
+        if (reduceMotion()) {
+            el.classList.remove("restore-fade-in");
+            return;
+        }
+
         el.addEventListener(
             "animationend",
-            function handler() {
+            function handler(event) {
+                // animationend bubbles: ignore children's animations.
+                if (event.target !== el) {
+                    return;
+                }
                 el.classList.remove("restore-fade-in");
                 el.removeEventListener("animationend", handler);
             }
@@ -6298,7 +6309,7 @@ $$("#faq .faq-q").forEach(
                         offset;
 
                     getScroller().scrollTo(
-                        { top: top, behavior: "smooth" }
+                        { top: top, behavior: reduceMotion() ? "auto" : "smooth" }
                     );
 
                 }
