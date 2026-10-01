@@ -1940,13 +1940,10 @@ label {
     border: 2px solid transparent;
     border-radius: 10px;
     color: var(--row-strong, rgba(0, 0, 0, 0.8));
-    cursor: grab;
     transition: filter 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 
-.target-breakdown-row:hover {
-    filter: brightness(0.96);
-}
+/* Rows aren't clickable any more (the switcher selects), so no hover lift. */
 
 /* Selected: no border or ring. The model name pops out slightly
    (see .target-breakdown-name below) and keeps wiggling while selected. */
@@ -1954,9 +1951,6 @@ label {
     border-color: transparent;
 }
 
-.target-breakdown-row.selected:hover {
-    filter: brightness(0.97);
-}
 
 .target-breakdown-row.dragging {
     opacity: 0.4;
@@ -5591,6 +5585,31 @@ label {
     height: 22px;
 }
 
+/* Model photo in the badge: fills the rounded square. */
+.cat-badge.has-image {
+    overflow: hidden;
+}
+
+.cat-badge.has-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* The name field is type="search" (keeps Safari's contact-autofill icon
+   away); make it look like any other text field. */
+#itemLabelInput {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#itemLabelInput::-webkit-search-cancel-button,
+#itemLabelInput::-webkit-search-decoration {
+    -webkit-appearance: none;
+    display: none;
+}
+
 .cat-titles {
     display: grid;
     flex: 1 1 auto;
@@ -6479,4 +6498,892 @@ label {
     height: 1px;
     background: var(--border-subtle);
     pointer-events: none;
+}
+
+
+/* =====================================================
+   PROFILE MENU — avatar, merged account + settings menu
+   Replaces the separate Settings and Sign-out buttons in the sidebar.
+   Kept at the end of the file so it wins over the older sidebar rules.
+   ===================================================== */
+
+.avatar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 31px;
+    height: 31px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: linear-gradient(160deg, var(--sb-accent), color-mix(in srgb, var(--sb-accent) 68%, #000));
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    user-select: none;
+}
+
+.avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar img[hidden] { display: none; }
+.avatar.has-photo .avatar-initials { visibility: hidden; }
+
+.avatar-lg { width: 44px; height: 44px; font-size: 16px; }
+
+.profile-group {
+    position: relative;
+    width: 100%;
+}
+
+.profile-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 50px;
+    padding: 0 12px 0 9px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--sb-border);
+    border-radius: 12px;
+    color: var(--sb-text);
+    text-align: left;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.profile-btn:hover,
+.profile-group.open .profile-btn {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.profile-btn-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    gap: 1px;
+    line-height: 1.25;
+}
+
+.profile-btn-name,
+.profile-btn-sub,
+.pm-name,
+.pm-email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-btn-name { font-size: var(--fs-sm); font-weight: 600; }
+.profile-btn-sub { color: var(--sb-muted); font-size: 11.5px; }
+
+.profile-btn-chev {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin: 0 3px 0 auto;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    opacity: 0.55;
+    transform: rotate(-135deg);
+    transition: transform 0.26s var(--fx-in, ease-out);
+}
+
+.profile-group.open .profile-btn-chev { transform: rotate(45deg); }
+
+.profile-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: calc(100vh - 110px);
+    padding: 6px;
+    overflow-y: auto;
+    background: var(--sb-raised);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(6px) scale(0.97);
+    transform-origin: bottom left;
+    transition: opacity 0.14s var(--fx-out, ease), transform 0.14s var(--fx-out, ease), visibility 0s linear 0.14s;
+}
+
+.profile-group.open .profile-menu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition: opacity 0.18s ease-out, transform 0.22s var(--fx-in, ease-out), visibility 0s;
+}
+
+.pm-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    padding: 8px 8px 12px;
+    border-bottom: 1px solid var(--sb-border);
+}
+
+.pm-id {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+    line-height: 1.3;
+}
+
+.pm-name { color: var(--sb-text); font-size: var(--fs-base); font-weight: 600; }
+.pm-email { color: var(--sb-muted); font-size: var(--fs-xs); }
+
+.profile-menu .theme-toggle,
+.profile-menu .backup-btn,
+.mobile-settings-popover .backup-btn {
+    height: 38px;
+    background: transparent;
+    border-color: transparent;
+    border-radius: 8px;
+}
+
+.profile-menu .theme-toggle:hover,
+.profile-menu .backup-btn:hover,
+.mobile-settings-popover .backup-btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: transparent;
+}
+
+.profile-menu .backup-group {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--sb-border);
+}
+
+.pm-signout { color: var(--sb-danger); }
+.pm-signout .backup-btn-icon { color: inherit; }
+.pm-signout.hidden { display: none; }
+
+.profile-menu .pm-signout:hover,
+.mobile-settings-popover .pm-signout:hover {
+    background: rgba(248, 113, 113, 0.12);
+}
+
+.app.sidebar-collapsed .profile-group {
+    display: flex;
+    justify-content: center;
+}
+
+.app.sidebar-collapsed .profile-btn {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+    border-radius: 10px;
+}
+
+/* Same hover / open feedback as the collapsed nav tabs. This has to
+   out-rank the rule above, which is why the plain .profile-btn:hover
+   never showed. */
+.app.sidebar-collapsed .profile-btn:hover,
+.app.sidebar-collapsed .profile-group.open .profile-btn {
+    background: var(--sb-hover);
+    border-color: transparent;
+}
+
+.app.sidebar-collapsed .profile-btn-text,
+.app.sidebar-collapsed .profile-btn-chev { display: none; }
+
+/* The thin ring around the avatar is what read as a border here. */
+.app.sidebar-collapsed .profile-btn .avatar {
+    box-shadow: none;
+}
+
+.app.sidebar-collapsed .profile-menu {
+    left: calc(100% + 16px);
+    right: auto;
+    bottom: 0;
+    width: 244px;
+}
+
+#mobileSettingsBtn {
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+}
+
+#mobileSettingsBtn .avatar { width: 36px; height: 36px; }
+.mobile-settings-popover { width: 244px; }
+
+
+
+/* =====================================================
+   ADD A SALE CARD — layout from the design mockup
+   Top bar: "Add a sale" on the left, model pills on the right, with a
+   divider under it. Then the sale row, then one tinted row per model
+   (picture, name, "Sales target", big percentage, amounts, progress
+   bar) at the same compact size the rows always had.
+   Pictures are a default silhouette for now (.model-avatar).
+   ===================================================== */
+
+.target-card {
+    --card-pad: var(--sp-5);
+}
+
+@media (max-width: 700px) {
+    .target-card { --card-pad: var(--sp-4); }
+}
+
+/* ---------- Top bar ---------- */
+
+.target-card-top {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px;
+    min-height: 34px;
+    margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) calc(var(--card-pad) - 6px);
+    padding: 8px var(--card-pad);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.target-card-top h2 {
+    flex: none;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* ---------- Model pills ---------- */
+
+/* Resolved once on the row (at the normal weight), so the bolder selected
+   pill doesn't change the width: 8.5ch (room for an 8-letter name, even in
+   bold) + picture/padding/gap/border. */
+@property --chip-w {
+    syntax: "<length>";
+    inherits: true;
+    initial-value: 0px;
+}
+
+.model-switcher {
+    --chip-w: calc(8.5ch + 57px);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: auto;
+    padding: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.model-switcher::-webkit-scrollbar { display: none; }
+.model-switcher.hidden { display: none; }
+
+.model-chip {
+    display: flex;
+    /* Fixed width, never shrinks: sized for an 8-character name. Longer
+       names get an ellipsis. (--chip-w is set on .model-switcher.) */
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    width: var(--chip-w, calc(8ch + 57px));
+    min-width: 0;
+    max-width: none;
+    height: 38px;
+    padding: 0 14px 0 5px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    text-align: left;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.model-chip:hover:not(.selected) {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+/* Selected: tinted with the model's own colour, darker edge. */
+.model-chip.selected {
+    background: color-mix(in srgb, var(--chip-color) 45%, var(--bg-card));
+    border-color: color-mix(in srgb, var(--chip-color), #000 14%);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.model-chip:focus-visible {
+    outline-offset: -2px;
+}
+
+/* Dragging a pill to reorder the models. */
+.model-chip.dragging {
+    opacity: 0.4;
+}
+
+.model-chip.drag-over {
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.model-chip-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The selected pill is bolder, which would make its text (and the
+   pill) wider and push the pills beside it — the row is right-aligned,
+   so everything to the left slid. Reserve the bold width up front so
+   nothing moves when a pill is selected. */
+.model-chip-name::after {
+    content: attr(data-text);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+}
+
+/* ---------- Default model picture ---------- */
+
+.model-avatar {
+    --avatar-size: 34px;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--avatar-size);
+    height: var(--avatar-size);
+    overflow: hidden;
+    background: var(--avatar-bg, var(--bg-tertiary));
+    border-radius: 50%;
+    color: var(--avatar-fg, var(--text-muted));
+}
+
+.model-avatar svg {
+    width: 58%;
+    height: 58%;
+    fill: currentColor;
+}
+
+.model-avatar-sm {
+    --avatar-size: 28px;
+}
+
+.model-avatar-lg {
+    --avatar-size: 44px;
+}
+
+.model-chip .model-avatar {
+    --avatar-bg: var(--chip-color);
+    --avatar-fg: color-mix(in srgb, var(--chip-ink) 55%, transparent);
+}
+
+.target-breakdown-row .model-avatar {
+    --avatar-bg: color-mix(in srgb, var(--row-strong) 10%, transparent);
+    --avatar-fg: var(--row-muted);
+}
+
+/* ---------- Add a sale row ---------- */
+/* Sizes are the original ones; only the colour theming below is new. */
+
+/* Slightly tighter gaps: between the input and buttons, and above the model list. */
+.target-card .sale-box {
+    gap: 6px;
+}
+
+.target-card .target-breakdown-wrap {
+    margin-top: var(--sp-3);
+}
+
+/* Every model row is the same fixed height: the size where exactly 3 rows
+   fill the Add a sale card (app.js measures it into --model-row-h). Rows
+   never shrink, so with more models the list simply gets longer instead
+   of squeezing the rows; with 1-2 models they keep the same size. */
+.target-card .target-breakdown-wrap.active {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.target-card .target-breakdown {
+    flex: 1 1 auto;
+}
+
+.target-card .target-breakdown-row {
+    flex: 0 0 var(--model-row-h, auto);
+    max-height: none;
+}
+
+/* While a model is selected, Add Sale wears a deeper shade of its colour. */
+.target-card .sale-box > .btn.primary.model-themed:not(:disabled) {
+    background: var(--model-deep);
+    border-color: var(--model-deep);
+    color: #fff;
+}
+
+.target-card .sale-box > .btn.primary.model-themed:not(:disabled):hover {
+    filter: brightness(1.12);
+}
+
+/* ---------- Model rows (new design, original compact size) ---------- */
+
+.target-card .target-breakdown-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    min-height: 0;
+    padding: 6px var(--sp-3);
+    border-radius: 12px;
+}
+
+.target-breakdown-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    padding-left: 12px;
+    border-left: 1px solid color-mix(in srgb, var(--row-strong, #000) 16%, transparent);
+}
+
+.target-card .target-breakdown-head {
+    min-height: 0;
+}
+
+.target-card .target-breakdown-title {
+    font-size: 27px;
+}
+
+.target-breakdown-status {
+    flex: none;
+    color: var(--row-muted, rgba(0, 0, 0, 0.55));
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.target-breakdown-label {
+    margin-top: 1px;
+    color: var(--row-muted, rgba(0, 0, 0, 0.55));
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.target-breakdown-figures {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 0 3px;
+}
+
+.target-card .target-breakdown-percent {
+    color: var(--row-strong, rgba(0, 0, 0, 0.85));
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.target-breakdown-amounts {
+    color: var(--row-muted, rgba(0, 0, 0, 0.55));
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.target-card .progress-track {
+    height: 7px;
+}
+
+/* The info button sits in the row's top-right corner, in the flow. */
+.target-card .target-breakdown-info-btn {
+    position: static;
+    flex: none;
+    width: 26px;
+    height: 26px;
+    margin: -3px -4px -3px 0;
+}
+
+@media (max-width: 700px) {
+    .model-avatar-lg { --avatar-size: 40px; }
+    .target-card .target-breakdown-row { gap: 10px; }
+    .target-breakdown-body { padding-left: 10px; }
+}
+
+
+/* =====================================================
+   NEW / EDIT MODEL FORM — photo, colour, daily target
+   ===================================================== */
+
+.model-photo-field {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-4);
+}
+
+.model-photo-preview {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 76px;
+    height: 76px;
+    overflow: hidden;
+    background: var(--bg-tertiary);
+    border-radius: 50%;
+    color: var(--text-muted);
+}
+
+.model-photo-preview svg {
+    width: 58%;
+    height: 58%;
+    fill: currentColor;
+}
+
+.model-photo-preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.model-photo-side {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.model-photo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+}
+
+.model-photo-actions .btn {
+    height: 34px;
+    padding: 0 var(--sp-3);
+    font-size: var(--fs-sm);
+}
+
+.model-photo-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+}
+
+/* uploaded photos in pills / rows */
+.model-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.model-avatar.has-image {
+    background: none;
+}
+
+.model-field {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 var(--sp-4);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.model-color-row {
+    position: relative;
+}
+
+/* One line: dot + colour name + chevron. Opens the popover below. */
+.model-color-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: var(--fs-md);
+    text-align: left;
+    cursor: pointer;
+}
+
+.model-color-trigger:hover {
+    border-color: var(--text-muted);
+}
+
+.model-color-dot {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+}
+
+.model-color-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.model-color-chevron {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: var(--text-muted);
+}
+
+.model-color-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: min(300px, 100%);
+    padding: 12px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.model-color-popover.hidden {
+    display: none;
+}
+
+.model-color-custom-row {
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.model-color-swatch {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: transform 0.12s ease;
+}
+
+.model-color-swatch:hover {
+    transform: scale(1.1);
+}
+
+.model-color-swatch.active,
+.category-card .cat-body input.model-color-custom[type="color"].active {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* "Auto" is a small pill rather than a dot */
+.model-color-auto {
+    width: auto;
+    padding: 0 12px;
+    border-radius: 14px;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+}
+
+.category-card .cat-body input.model-color-custom[type="color"] {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    overflow: hidden;
+    background: none;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.model-color-custom::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.model-color-custom::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+.model-color-custom::-moz-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+
+/* =====================================================
+   MODEL ROWS: soft pastel look (Add a sale card)
+   A light tint of each model's own colour, a thin tinted edge, a soft
+   shadow, faint wave shapes in the corner, and tinted text. Layout and
+   sizes are untouched.
+   ===================================================== */
+
+.target-card .target-breakdown-row {
+    /* Text/accent colour: a deeper shade of the model's colour on the
+       light theme, the colour itself on the dark theme. */
+    --row-accent: var(--row-deep, var(--badge-color));
+    background: color-mix(in srgb, var(--badge-color) 24%, var(--bg-card));
+    border: 1px solid color-mix(in srgb, var(--badge-color) 44%, var(--bg-card));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--badge-color) 22%, transparent);
+}
+
+html:not([data-theme="light"]) .target-card .target-breakdown-row {
+    --row-accent: var(--badge-color);
+}
+
+.target-card .target-breakdown-row.selected {
+    background: color-mix(in srgb, var(--badge-color) 38%, var(--bg-card));
+    border-color: color-mix(in srgb, var(--badge-color) 72%, var(--bg-card));
+}
+
+/* Faint wave shapes, bottom-right */
+.target-card .target-breakdown-row::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        radial-gradient(60% 130% at 92% 138%, color-mix(in srgb, var(--badge-color) 20%, transparent) 0 60%, transparent 61%),
+        radial-gradient(46% 110% at 110% 72%, color-mix(in srgb, var(--badge-color) 14%, transparent) 0 60%, transparent 61%);
+}
+
+/* Keep the contents above the waves */
+.target-card .target-breakdown-row > .model-avatar,
+.target-card .target-breakdown-row > .target-breakdown-body {
+    position: relative;
+}
+
+.target-card .target-breakdown-row .model-avatar {
+    --avatar-bg: color-mix(in srgb, var(--badge-color) 55%, var(--bg-card));
+    --avatar-fg: color-mix(in srgb, var(--row-accent) 75%, transparent);
+}
+
+.target-breakdown-row .target-breakdown-body {
+    border-left-color: color-mix(in srgb, var(--row-accent) 30%, transparent);
+}
+
+.target-card .target-breakdown-row .target-breakdown-title:not(.on-fire) {
+    color: color-mix(in srgb, var(--row-accent) 38%, var(--text-primary));
+}
+
+.target-card .target-breakdown-row .target-breakdown-label,
+.target-card .target-breakdown-row .target-breakdown-status,
+.target-card .target-breakdown-row .target-breakdown-amounts {
+    color: color-mix(in srgb, var(--row-accent) 72%, transparent);
+}
+
+.target-card .target-breakdown-row .target-breakdown-percent,
+.target-card .target-breakdown-row.selected .target-breakdown-percent {
+    color: var(--row-accent);
+}
+
+.target-card .target-breakdown-row .target-breakdown-info-btn {
+    color: color-mix(in srgb, var(--row-accent) 80%, transparent);
+}
+
+.target-card .target-breakdown-row .target-breakdown-info-btn:hover {
+    background: color-mix(in srgb, var(--row-accent) 14%, transparent);
+    color: var(--row-accent);
+}
+
+/* A clearly darker track than the row, and a solid fill, so progress reads
+   at a glance. */
+.target-card .target-breakdown-row .progress-track {
+    background: color-mix(in srgb, var(--row-accent) 24%, transparent);
+}
+
+.target-card .target-breakdown-row .progress-fill:not(.hit) {
+    background: var(--row-accent);
+}
+
+
+/* ---- Fade the row colour when a model is selected / deselected ----
+   The list is redrawn on every selection, so a plain CSS transition has
+   nothing to animate from. These one-shot animations start from the old
+   colours and fade to the row's real ones (app.js adds .selecting and
+   .deselecting for a moment, see selectModel). */
+
+@keyframes model-row-tint-in {
+    from {
+        background: color-mix(in srgb, var(--badge-color) 24%, var(--bg-card));
+        border-color: color-mix(in srgb, var(--badge-color) 44%, var(--bg-card));
+    }
+}
+
+@keyframes model-row-tint-out {
+    from {
+        background: color-mix(in srgb, var(--badge-color) 38%, var(--bg-card));
+        border-color: color-mix(in srgb, var(--badge-color) 72%, var(--bg-card));
+    }
+}
+
+.target-card .target-breakdown-row.selected.selecting {
+    animation: model-row-tint-in 0.38s ease;
+}
+
+.target-card .target-breakdown-row.deselecting:not(.selected) {
+    animation: model-row-tint-out 0.33s ease;
+}
+
+/* Reduce motion: no colour fade (the name pop on these rows is a
+   deliberate exception, the fade is not). */
+:root[data-reduce-motion="true"] .target-card .target-breakdown-row.selected.selecting,
+:root[data-reduce-motion="true"] .target-card .target-breakdown-row.deselecting:not(.selected) {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .target-card .target-breakdown-row.selected.selecting,
+    .target-card .target-breakdown-row.deselecting:not(.selected) {
+        animation: none;
+    }
 }
