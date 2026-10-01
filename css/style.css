@@ -5588,6 +5588,7 @@ label {
 /* Model photo in the badge: fills the rounded square. */
 .cat-badge.has-image {
     overflow: hidden;
+    border: none;
 }
 
 .cat-badge.has-image img {
@@ -6853,6 +6854,11 @@ label {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Same font style as the names in the model list below. */
+    font-family: var(--font-display);
+    font-style: normal;
+    font-weight: 600;
+    font-size: 14px;
 }
 
 /* The selected pill is bolder, which would make its text (and the
