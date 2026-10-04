@@ -8886,6 +8886,204 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     color: var(--text-disabled);
 }
 
+/* The bar can't clip any more: a thin marker sits across it at where the
+   target says she should be by today. Fill ahead of the marker = ahead. */
+.model-card .mc-month-bar {
+    position: relative;
+    overflow: visible;
+}
+
+.model-card .mc-month-tick {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--text-primary);
+    border-radius: 2px;
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+/* ---------- Pace ---------- */
+
+.model-card .mc-pace {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 8px;
+    min-height: 22px;
+    margin-top: 2px;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.model-card .mc-pace-text strong {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+}
+
+.model-card .mc-pace.is-idle span {
+    font-style: italic;
+    color: var(--text-disabled);
+}
+
+.model-card .mc-pace-chip {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.model-card .mc-pace-chip .mc-short {
+    display: none;
+}
+
+/* "Pace" label on the left, pill on the right (the pace amount is gone).
+   Always the full "$690 ahead" label since there's room for it. */
+.model-card .mc-pace.is-chip-only {
+    justify-content: space-between;
+}
+
+/* "$690 behind" when the card is wide enough for it to share a line with
+   the pace; a compact "\2212$690" when it isn't (phones, narrow cards). */
+.model-card .mc-body {
+    container-type: inline-size;
+}
+
+@container (max-width: 229px) {
+
+    .model-card .mc-pace {
+        column-gap: 4px;
+    }
+
+    .model-card .mc-pace-chip {
+        padding: 2px 6px;
+    }
+
+    .model-card .mc-pace:not(.is-chip-only) .mc-pace-chip .mc-long {
+        display: none;
+    }
+
+    .model-card .mc-pace:not(.is-chip-only) .mc-pace-chip .mc-short {
+        display: inline;
+    }
+}
+
+.model-card .mc-month-label {
+    white-space: nowrap;
+}
+
+.model-card .mc-pace-chip.is-ahead {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.model-card .mc-pace-chip.is-behind {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+/* ---------- Last 7 days ---------- */
+
+/* Cards in a row are the same height, so pin the chart to the bottom:
+   charts then line up across the row whatever sits above them. */
+.content-card.model-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.model-card .mc-body {
+    flex: 1 1 auto;
+}
+
+.model-card .mc-week {
+    margin-top: auto;
+    --mc-chart-h: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.model-card .mc-week-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-2);
+}
+
+.model-card .mc-week-total {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+}
+
+.model-card .mc-chart {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    height: var(--mc-chart-h);
+}
+
+.model-card .mc-bar {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    height: calc(var(--mc-chart-h) * var(--r, 0));
+    min-height: 3px;
+    background: var(--m-color);
+    border-radius: 3px 3px 1px 1px;
+}
+
+/* A day with no sales is a quiet stub, not a gap. */
+.model-card .mc-bar.is-empty {
+    background: var(--progress-track);
+}
+
+/* The day isn't over yet. */
+.model-card .mc-bar.is-today:not(.is-empty) {
+    opacity: 0.55;
+}
+
+.model-card .mc-chart-target {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mc-chart-h) * var(--r, 0));
+    z-index: 1;
+    border-top: 1px dashed var(--text-disabled);
+    pointer-events: none;
+}
+
+.model-card .mc-days {
+    display: flex;
+    gap: 5px;
+    font-size: var(--fs-xs);
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+.model-card .mc-days > span {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+}
+
+.model-card .mc-days > .is-today {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* ---------- Select mode ---------- */
 
 .content-grid.select-mode .model-card .mc-photo > img,
