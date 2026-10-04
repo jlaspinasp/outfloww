@@ -4029,7 +4029,7 @@ function setUsernameTypeUI(type) {
 
 
 document
-    .querySelectorAll(".username-type-btn")
+    .querySelectorAll("#addUsernamePopover .username-type-btn")
     .forEach(btn => {
 
         btn.addEventListener(
@@ -4156,6 +4156,8 @@ document.addEventListener(
 );
 
 
+let saleBtnDoneTimer = null;
+
 $("#saleForm").addEventListener(
     "submit",
     function (event) {
@@ -4239,6 +4241,14 @@ $("#saleForm").addEventListener(
 
         toast("Sale added!", "success");
 
+        // Same "Added" check feedback as the Quick sale button.
+        const saleBtn = $("#addSaleBtn");
+        saleBtn.classList.add("done");
+        clearTimeout(saleBtnDoneTimer);
+        saleBtnDoneTimer = setTimeout(function () {
+            saleBtn.classList.remove("done");
+        }, 1000);
+
         $("#saleAmount").focus();
 
         // Let the browser paint the new sale, THEN do the heavy
@@ -4259,9 +4269,9 @@ $("#saleForm").addEventListener(
    Logs a sale from any tab without leaving it. The sale itself is
    built exactly like the Sales page form builds one (same fields,
    same tag handling, sound, history/progress refresh, save + sync);
-   the only difference is that the model comes from the popover, so
-   the model selected on the Sales page is never changed.
-   The popover remembers the last model you used on this device.
+   the model is the very same selection the Sales page uses
+   (currentModelFilter): picking or un-picking a model here picks or
+   un-picks it there too, and the other way round.
    ===================================================== */
 
 (function () {
@@ -4275,7 +4285,8 @@ $("#saleForm").addEventListener(
     const noModels = $("#quickAddNoModels");
     const amountInput = $("#quickAddAmount");
     const tagBtn = $("#quickAddTagBtn");
-    const tagDrawer = $("#quickAddTag");
+    const tagDrawer = $("#quickAddUsernamePopover");
+    const tagSet = $("#quickAddTagSet");
     const tagWrap = $("#quickAddTagWrap");
     const tagField = $("#quickAddTagField");
     const tagClear = $("#quickAddTagClear");
@@ -4287,7 +4298,7 @@ $("#saleForm").addEventListener(
     const footFig = $("#quickAddFootFig");
     const track = $("#quickAddTrack");
     const fill = $("#quickAddFill");
-    const segBtns = Array.from(panel ? panel.querySelectorAll(".qa-seg-btn") : []);
+    const segBtns = Array.from(panel ? panel.querySelectorAll(".username-type-btn") : []);
     const salesPage = $("#sales");
     const authGate = $("#authGate");
 
@@ -4295,18 +4306,10 @@ $("#saleForm").addEventListener(
         return;
     }
 
-    const MODEL_KEY = "chatterTool_quickAddModel";
-
-    let modelId = null;
     let isOpen = false;
-    let tagType = "tip";
     let salesNeedsRefit = false;
     let doneTimer = null;
     let recentTimer = null;
-
-    try {
-        modelId = localStorage.getItem(MODEL_KEY) || null;
-    } catch (err) {}
 
     function isTouch() {
         return window.matchMedia("(pointer: coarse)").matches;
@@ -4326,32 +4329,35 @@ $("#saleForm").addEventListener(
 
             const color = getAvatarColor(model.id);
             const ink = getRowInk(color);
-            const on = model.id === modelId;
+            const on = model.id === currentModelFilter;
 
             return `<button type="button" class="qa-chip${on ? " selected" : ""}" data-model="${model.id}" aria-pressed="${on}" style="--chip-color:${color};--chip-ink:${ink.strong}" title="${escapeHTML(model.title)}">${getModelAvatarHTML("sm", model.id)}<span class="qa-chip-name">${escapeHTML(model.title)}</span></button>`;
 
         }).join("");
     }
 
-    function setModel(id, focusAmount) {
+    // Same rule as the Sales page pills: tapping the selected model
+    // again un-selects it. It goes through selectModel(), so the Sales
+    // page, its badge and this window can never disagree.
+    function toggleModel(id, focusAmount) {
 
-        modelId = id;
+        selectModel(currentModelFilter === id ? null : id);
 
-        try {
-            localStorage.setItem(MODEL_KEY, id);
-        } catch (err) {}
+        syncChips();
+        syncControls();
+
+        if (focusAmount && currentModelFilter && !amountInput.disabled) {
+            amountInput.focus({ preventScroll: true });
+        }
+    }
+
+    function syncChips() {
 
         modelsBox.querySelectorAll(".qa-chip").forEach(function (chip) {
-            const on = chip.dataset.model === id;
+            const on = chip.dataset.model === currentModelFilter;
             chip.classList.toggle("selected", on);
             chip.setAttribute("aria-pressed", on ? "true" : "false");
         });
-
-        syncControls();
-
-        if (focusAmount && !amountInput.disabled) {
-            amountInput.focus({ preventScroll: true });
-        }
     }
 
     modelsBox.addEventListener("click", function (event) {
@@ -4359,7 +4365,7 @@ $("#saleForm").addEventListener(
         const chip = event.target.closest(".qa-chip");
 
         if (chip) {
-            setModel(chip.dataset.model, true);
+            toggleModel(chip.dataset.model, true);
         }
     });
 
@@ -4367,7 +4373,7 @@ $("#saleForm").addEventListener(
     /* ---------- Locked until a model is chosen; today's net ---------- */
 
     function currentModel() {
-        return modelId ? getModelById(modelId) : null;
+        return currentModelFilter ? getModelById(currentModelFilter) : null;
     }
 
     function syncControls() {
@@ -4383,6 +4389,7 @@ $("#saleForm").addEventListener(
         }
 
         tagBtn.disabled = !on;
+        syncTagButton();
         submitBtn.disabled = !on;
         submitBtn.classList.toggle("model-themed", on);
 
@@ -4568,10 +4575,10 @@ $("#saleForm").addEventListener(
     });
 
 
-    /* ---------- Username tag (shares the Sales page's armed tag) ---------- */
+    /* ---------- Username tag: the Sales page's popover, same rules ---------- */
 
     function setTagOpen(open) {
-        tagDrawer.classList.toggle("open", open);
+        tagDrawer.classList.toggle("hidden", !open);
         tagBtn.setAttribute("aria-expanded", open ? "true" : "false");
     }
 
@@ -4583,37 +4590,61 @@ $("#saleForm").addEventListener(
         tagBtn.classList.toggle("armed-outside", armed && armedUsernameType === "outside");
         tagBtn.setAttribute("aria-pressed", armed ? "true" : "false");
 
-        tagBtn.title = armed
-            ? `${usernameTypeLabel(armedUsernameType)} — ${armedUsername} (next sale — click to change)`
-            : "Tag the next sale with a username";
+        tagBtn.title = tagBtn.disabled
+            ? "Select a model to tag a username"
+            : armed
+                ? `${usernameTypeLabel(armedUsernameType)} \u2014 ${armedUsername} (next sale \u2014 click to change)`
+                : "Tag the next sale with a username";
     }
 
+    function syncTagClear() {
+        tagWrap.classList.toggle("has-value", !!tagField.value);
+    }
+
+    // The popover always shows the tag that is currently armed (shared
+    // with the Sales page), and starts closed.
     function syncTagUI() {
-
-        tagType = armedUsernameType || "tip";
+        setUsernameTypeUI(armedUsernameType || "tip");
         tagField.value = armedUsername || "";
-        tagWrap.classList.toggle("has-value", !!tagField.value);
-
-        segBtns.forEach(function (btn) {
-            const on = btn.dataset.type === tagType;
-            btn.classList.toggle("active", on);
-            btn.setAttribute("aria-pressed", on ? "true" : "false");
-        });
-
-        setTagOpen(Boolean(armedUsername));
+        syncTagClear();
+        setTagOpen(false);
         syncTagButton();
     }
 
-    // The tag is live: whatever is typed is what the next sale carries.
-    function applyTag() {
-        setArmedUsername(tagField.value.trim(), tagType);
-        tagWrap.classList.toggle("has-value", !!tagField.value);
+    // "Set": arm the typed username for the next sale, close the popover
+    // and drop straight into the amount box (same as the Sales page).
+    function commitTag() {
+
+        const username = tagField.value.trim();
+        const hadTag = Boolean(armedUsername);
+
+        setArmedUsername(username, armedUsernameType);
+        setTagOpen(false);
         syncTagButton();
+
+        if (username) {
+            toast(
+                `${usernameTypeLabel(armedUsernameType)} tag set: ${username}`,
+                "success"
+            );
+        } else if (hadTag) {
+            toast("Username tag removed.");
+        }
+
+        if (!amountInput.disabled) {
+            amountInput.focus({ preventScroll: true });
+        }
     }
 
     tagBtn.addEventListener("click", function () {
 
-        const opening = !tagDrawer.classList.contains("open");
+        const opening = tagDrawer.classList.contains("hidden");
+
+        if (opening) {
+            setUsernameTypeUI(armedUsernameType);
+            tagField.value = armedUsername || "";
+            syncTagClear();
+        }
 
         setTagOpen(opening);
 
@@ -4623,37 +4654,42 @@ $("#saleForm").addEventListener(
     });
 
     segBtns.forEach(function (btn) {
-
         btn.addEventListener("click", function () {
-
-            tagType = btn.dataset.type;
-
-            segBtns.forEach(function (other) {
-                const on = other === btn;
-                other.classList.toggle("active", on);
-                other.setAttribute("aria-pressed", on ? "true" : "false");
-            });
-
-            applyTag();
+            setUsernameTypeUI(btn.dataset.usernameType);
             tagField.focus({ preventScroll: true });
         });
     });
 
-    tagField.addEventListener("input", applyTag);
+    tagField.addEventListener("input", syncTagClear);
 
     tagField.addEventListener("keydown", function (event) {
-
-        // Enter here means "done with the username", not "add the sale".
+        // Enter means "Set", exactly like submitting the Sales page popover.
         if (event.key === "Enter") {
             event.preventDefault();
-            amountInput.focus({ preventScroll: true });
+            commitTag();
         }
     });
 
+    tagSet.addEventListener("click", commitTag);
+
     tagClear.addEventListener("click", function () {
         tagField.value = "";
-        applyTag();
+        syncTagClear();
         tagField.focus({ preventScroll: true });
+    });
+
+    // Click anywhere else in the window and the popover closes.
+    document.addEventListener("click", function (event) {
+
+        if (tagDrawer.classList.contains("hidden")) {
+            return;
+        }
+
+        if (event.target.closest("#quickAddPanel .outside-shift-picker")) {
+            return;
+        }
+
+        setTagOpen(false);
     });
 
 
@@ -5100,27 +5136,18 @@ $("#saleForm").addEventListener(
 
     function openPanel() {
 
+        // Wake the sound output now, while you pick a model and type
+        // the amount, so the sale's kaching isn't the one that gets lost.
+        primeKaching();
+
         if (isOpen) {
             return;
         }
 
         isOpen = true;
 
-        const models = data.models || [];
-
-        // Which model: last used, else the one picked on the Sales page,
-        // else the only model there is.
-        if (!modelId || !getModelById(modelId)) {
-
-            if (currentModelFilter && getModelById(currentModelFilter)) {
-                modelId = currentModelFilter;
-            } else if (models.length === 1) {
-                modelId = models[0].id;
-            } else {
-                modelId = null;
-            }
-        }
-
+        // The model is whatever is selected on the Sales page (or
+        // nothing), exactly like the Sales page itself.
         renderChips();
         syncControls();
         syncTagUI();
@@ -5160,6 +5187,8 @@ $("#saleForm").addEventListener(
         }
 
         isOpen = false;
+
+        setTagOpen(false);
 
         clearInterval(recentTimer);
 
@@ -9147,7 +9176,13 @@ $$(".scripts-search-input").forEach(
    "signout" also finds "sign out") and to close typo matches against
    the words that actually appear in the FAQ ("sinc" still finds
    "sync"). An item matches if enough of the query's words are found
-   this way, so the box tolerates different wording, not just typos. */
+   this way, so the box tolerates different wording, not just typos.
+
+   On top of that: word forms ("deleting" finds "delete", "copied" finds
+   "copy"), results sorted best-first inside each section, the matched
+   words highlighted in the questions, a short list of answers opening
+   by itself, Enter jumping to the top result, and a "did you mean"
+   empty state. */
 
 (function () {
 
@@ -9162,10 +9197,22 @@ $$(".scripts-search-input").forEach(
     const items = $$("#faq .faq-item");
     const groups = $$("#faq .faq-group");
 
+    const resultsEl = $("#faqResults");
+    const emptyEl = $("#faqEmpty");
+    const emptyQueryEl = $("#faqEmptyQuery");
+    const emptySuggestBtn = $("#faqEmptySuggest");
+
+    // When a search narrows down to this many answers or fewer, they
+    // open on their own so the answer is already on screen.
+    const AUTO_OPEN_MAX = 3;
+
     // Groups of interchangeable words/phrases for this FAQ's topics,
     // so searching for one finds items that only use another.
     const SYNONYM_GROUPS = [
-        ["dark mode", "light mode", "night mode", "dark", "light", "theme", "appearance"],
+        [
+            "dark mode", "light mode", "night mode", "dark", "light",
+            "theme", "appearance"
+        ],
         ["reorder", "rearrange", "move", "drag", "sort", "order"],
         ["delete", "remove", "erase", "clear", "get rid of", "throw away"],
         ["undo", "revert", "bring back", "reverse"],
@@ -9178,20 +9225,68 @@ $$(".scripts-search-input").forEach(
         ["sign out", "log out", "logout", "signout"],
         ["overview", "summary", "totals"],
         ["script", "scripts", "message", "template"],
-        ["category", "categories", "chip", "chips", "tag", "tags", "folder"],
-        ["backup", "back up", "export", "save a copy"],
+        [
+            "category", "categories", "chip", "chips", "tag", "tags",
+            "folder"
+        ],
+        ["backup", "back up", "export", "save a copy", "download"],
         ["restore", "import", "recover"],
-        ["sync", "synchronize", "synchronise", "across devices", "another device", "multiple devices"],
+        [
+            "sync", "synchronize", "synchronise", "across devices",
+            "another device", "multiple devices"
+        ],
         ["reduce motion", "animation", "animations", "motion"],
         ["bulk", "multiple", "more than one", "several", "many"],
         ["add", "create", "new"],
         ["edit", "change", "update"],
         ["model", "models", "creator", "creators"],
-        ["photo", "photos", "picture", "pictures", "image", "avatar", "pic", "profile picture"],
-        ["fire", "flames", "flame", "on fire", "inferno", "blaze", "embers", "ember", "sparkle", "sparkles", "spark", "sparks", "glow", "burning", "heat", "shine"],
-        ["quick sale", "quick add", "floating button", "plus button", "shortcut"],
+        [
+            "photo", "photos", "picture", "pictures", "image", "avatar",
+            "pic", "profile picture"
+        ],
+        [
+            "fire", "flames", "flame", "on fire", "inferno", "blaze",
+            "embers", "ember", "sparkle", "sparkles", "spark", "sparks",
+            "glow", "burning", "heat", "shine"
+        ],
+        [
+            "quick sale", "quick add", "floating button", "plus button",
+            "shortcut"
+        ],
         ["gross", "before fees"],
         ["net", "after fees", "take home"],
+
+        // ---- added with the monthly target / FAQ refresh ----
+        ["monthly", "month", "months", "per month", "this month", "month to date"],
+        ["percentage", "percent", "progress", "progress bar"],
+        ["card", "cards", "tile", "tiles"],
+        ["notes", "note", "info", "information", "preferences", "details"],
+        ["sidebar", "side bar", "navigation", "nav", "collapse", "expand", "hide", "minimize"],
+        ["sign in", "log in", "login", "signin", "continue with google"],
+        [
+            "offline", "internet", "connection", "network", "wifi",
+            "no internet", "disconnected"
+        ],
+        ["private", "privacy", "secure", "security", "who can see", "visible", "safe"],
+        ["average", "avg"],
+        ["color", "colour", "colors", "colours", "shade", "swatch"],
+        ["trash", "bin", "drop to delete", "recycle bin"],
+        [
+            "select mode", "long press", "press and hold", "hold",
+            "select all", "multi select"
+        ],
+        ["phone", "mobile", "iphone", "android", "small screen"],
+        ["mistake", "wrong", "accident", "accidentally", "oops", "by mistake"],
+        ["dash", "dashes", "blank", "empty", "missing"],
+        ["limit", "maximum", "max", "cap"],
+        ["username", "user name", "handle", "buyer"],
+        ["forget", "forgot", "forgotten"],
+        ["sound", "audio", "noise", "ching"],
+        ["toast", "notification", "notifications", "popup", "alert"],
+        ["copy", "copied", "clipboard", "paste"],
+        ["snappier", "faster", "slow", "lag", "laggy", "performance"],
+        ["contact", "support", "email"],
+        ["chart", "graph", "bars", "trend", "trends", "stats", "statistics"],
     ];
 
     const synonymLookup = new Map();
@@ -9220,13 +9315,28 @@ $$(".scripts-search-input").forEach(
             .filter(w => w.length > 1 && !STOPWORDS.has(w));
     }
 
-    // Small capped Levenshtein distance, used only to catch minor typos.
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    // Small capped edit distance, used only to catch minor typos.
+    // Swapping two neighbouring letters ("sycn", "shfit") counts as a
+    // single slip rather than two.
     function editDistance(a, b, max) {
 
         if (Math.abs(a.length - b.length) > max) {
             return max + 1;
         }
 
+        let beforePrev = null;
         let prevRow = [];
         for (let j = 0; j <= b.length; j++) {
             prevRow[j] = j;
@@ -9238,7 +9348,17 @@ $$(".scripts-search-input").forEach(
                 row[j] = a[i - 1] === b[j - 1]
                     ? prevRow[j - 1]
                     : 1 + Math.min(prevRow[j - 1], prevRow[j], row[j - 1]);
+
+                if (
+                    beforePrev &&
+                    i > 1 && j > 1 &&
+                    a[i - 1] === b[j - 2] &&
+                    a[i - 2] === b[j - 1]
+                ) {
+                    row[j] = Math.min(row[j], beforePrev[j - 2] + 1);
+                }
             }
+            beforePrev = prevRow;
             prevRow = row;
         }
 
@@ -9247,7 +9367,7 @@ $$(".scripts-search-input").forEach(
 
     // Precompute each item's searchable text/tokens once. (items is a
     // NodeList, so wrap it in Array.from before mapping.)
-    const itemData = Array.from(items).map(item => {
+    const itemData = Array.from(items).map((item, index) => {
         const text = item.textContent.toLowerCase();
 
         // The question text is kept separate from the full item text
@@ -9255,14 +9375,22 @@ $$(".scripts-search-input").forEach(
         // it's what the item is actually about, not just something
         // the answer happens to mention in passing.
         const titleEl = item.querySelector(".faq-q span");
-        const titleText = titleEl ? titleEl.textContent.toLowerCase() : "";
+        const titleOriginal = titleEl ? titleEl.textContent : "";
+        const titleText = titleOriginal.toLowerCase();
 
         return {
             item,
+            index,
             text,
             tokens: tokenize(text),
+            titleEl,
+            titleOriginal,
             titleText,
-            titleTokens: tokenize(titleText)
+            titleTokens: tokenize(titleText),
+            visible: true,
+            highlighted: false,
+            autoOpened: false,
+            score: 0
         };
     });
 
@@ -9270,16 +9398,100 @@ $$(".scripts-search-input").forEach(
     const vocab = new Set();
     itemData.forEach(d => d.tokens.forEach(t => vocab.add(t)));
 
-    // Every way a single query word could show up: itself, its synonyms,
-    // and any real FAQ word that's a close typo match for it.
+    // Plural / past-tense / -ing forms of a word that really are used
+    // somewhere in the FAQ ("deleting" -> "delete", "model" -> "models",
+    // "copy" -> "copied"). Only forms that exist in the FAQ (or are
+    // known synonym terms) come back, so this never invents words.
+    function wordForms(word) {
+
+        const out = new Set();
+
+        function add(candidate) {
+            if (
+                candidate.length >= 3 &&
+                candidate !== word &&
+                (vocab.has(candidate) || synonymLookup.has(candidate))
+            ) {
+                out.add(candidate);
+            }
+        }
+
+        if (word.length < 3) {
+            return out;
+        }
+
+        const last = word[word.length - 1];
+
+        // Down to the base form.
+        if (word.endsWith("ies") || word.endsWith("ied")) {
+            add(word.slice(0, -3) + "y");
+        }
+
+        if (word.endsWith("ing")) {
+            const stem = word.slice(0, -3);
+            add(stem);
+            add(stem + "e");
+            if (stem.length > 2 && stem[stem.length - 1] === stem[stem.length - 2]) {
+                add(stem.slice(0, -1));
+            }
+        }
+
+        if (word.endsWith("ed")) {
+            const stem = word.slice(0, -2);
+            add(stem);
+            add(stem + "e");
+            if (stem.length > 2 && stem[stem.length - 1] === stem[stem.length - 2]) {
+                add(stem.slice(0, -1));
+            }
+        }
+
+        if (word.endsWith("es")) {
+            add(word.slice(0, -2));
+            add(word.slice(0, -1));
+        }
+
+        if (word.endsWith("s") && !word.endsWith("ss")) {
+            add(word.slice(0, -1));
+        }
+
+        // Up to the common inflections.
+        add(word + "s");
+        add(word + "es");
+        add(word + "ed");
+        add(word + "d");
+        add(word + "ing");
+        add(word + last + "ed");
+        add(word + last + "ing");
+
+        if (word.endsWith("e")) {
+            add(word.slice(0, -1) + "ing");
+        }
+
+        if (word.endsWith("y")) {
+            add(word.slice(0, -1) + "ies");
+            add(word.slice(0, -1) + "ied");
+        }
+
+        return out;
+    }
+
+    // Every way a single query word could show up: itself, its other
+    // word forms, the synonyms of those, and any real FAQ word that's a
+    // close typo match for it.
     function expandWord(word) {
 
         const variants = new Set([word]);
-        const syns = synonymLookup.get(word);
 
-        if (syns) {
-            syns.forEach(s => variants.add(s));
-        }
+        const forms = wordForms(word);
+        forms.forEach(f => variants.add(f));
+
+        // Synonyms of the word and of its base forms.
+        Array.from(variants).forEach(v => {
+            const syns = synonymLookup.get(v);
+            if (syns) {
+                syns.forEach(s => variants.add(s));
+            }
+        });
 
         // Only worth fuzzy-matching if the query word isn't already a
         // real word in the FAQ -- if it is, it's not a typo of
@@ -9325,13 +9537,257 @@ $$(".scripts-search-input").forEach(
         return hits;
     }
 
+    // ---------- Result presentation ----------
+
+    // Highlights the words that made a question match, inside the
+    // question text only (answers are left exactly as written).
+    function applyHighlights(terms) {
+
+        const re = terms.length
+            ? new RegExp(
+                "(^|[^a-z0-9'])(" +
+                terms.map(escapeRegExp).join("|") +
+                ")(?![a-z0-9'])",
+                "gi"
+            )
+            : null;
+
+        itemData.forEach(d => {
+
+            if (!d.titleEl) {
+                return;
+            }
+
+            if (!re || !d.visible) {
+                if (d.highlighted) {
+                    d.titleEl.textContent = d.titleOriginal;
+                    d.highlighted = false;
+                }
+                return;
+            }
+
+            const text = d.titleOriginal;
+            let out = "";
+            let last = 0;
+            let found = false;
+            let m;
+
+            re.lastIndex = 0;
+
+            while ((m = re.exec(text)) !== null) {
+                const start = m.index + m[1].length;
+                out += escapeHtml(text.slice(last, start)) +
+                    "<mark>" + escapeHtml(m[2]) + "</mark>";
+                last = start + m[2].length;
+                found = true;
+                if (re.lastIndex === m.index) {
+                    re.lastIndex++;
+                }
+            }
+
+            if (found) {
+                d.titleEl.innerHTML = out + escapeHtml(text.slice(last));
+                d.highlighted = true;
+            } else if (d.highlighted) {
+                d.titleEl.textContent = d.titleOriginal;
+                d.highlighted = false;
+            }
+        });
+    }
+
+    function setItemOpen(d, open) {
+
+        d.item.classList.toggle("open", open);
+
+        const q = d.item.querySelector(".faq-q");
+        if (q) {
+            q.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+    }
+
+    // Nearest real FAQ word for each word of the query that isn't one
+    // (two letters off is fine here, since nothing matched at all).
+    function suggestQuery(query) {
+
+        const words = query.toLowerCase().match(/[a-z0-9']+/g) || [];
+        let changed = false;
+
+        const fixed = words.map(w => {
+
+            if (
+                w.length < 4 ||
+                vocab.has(w) ||
+                STOPWORDS.has(w) ||
+                synonymLookup.has(w) ||
+                wordForms(w).size
+            ) {
+                return w;
+            }
+
+            let best = null;
+            const maxSlip = w.length <= 5 ? 1 : 2;
+            let bestDistance = maxSlip + 1;
+
+            vocab.forEach(v => {
+                if (v.length >= 4) {
+                    const dist = editDistance(w, v, maxSlip);
+                    if (dist < bestDistance) {
+                        bestDistance = dist;
+                        best = v;
+                    }
+                }
+            });
+
+            if (best) {
+                changed = true;
+                return best;
+            }
+
+            return w;
+        });
+
+        return changed ? fixed.join(" ") : "";
+    }
+
+    function showResultsUi(query, matchedCount) {
+
+        if (resultsEl) {
+            if (query && matchedCount > 0) {
+                resultsEl.textContent =
+                    matchedCount === 1
+                        ? "1 answer found"
+                        : matchedCount + " answers found";
+                resultsEl.hidden = false;
+            } else {
+                resultsEl.textContent = "";
+                resultsEl.hidden = true;
+            }
+        }
+
+        if (emptyEl) {
+
+            const showEmpty = !!query && matchedCount === 0;
+
+            emptyEl.hidden = !showEmpty;
+
+            if (showEmpty) {
+
+                if (emptyQueryEl) {
+                    emptyQueryEl.textContent = query;
+                }
+
+                if (emptySuggestBtn) {
+
+                    const suggestion = suggestQuery(query);
+
+                    if (suggestion && suggestion !== query.toLowerCase()) {
+                        emptySuggestBtn.textContent =
+                            "Search for \u201c" + suggestion + "\u201d instead";
+                        emptySuggestBtn.dataset.query = suggestion;
+                        emptySuggestBtn.hidden = false;
+                    } else {
+                        emptySuggestBtn.hidden = true;
+                        delete emptySuggestBtn.dataset.query;
+                    }
+                }
+            }
+        }
+    }
+
+    // Best matches first: inside each section, and the sections
+    // themselves ordered by their best match, so the most relevant
+    // answer is the first thing you see. Clearing the search puts
+    // everything back in its original order.
+    function reorderGroups(searching) {
+
+        const groupList = Array.from(groups);
+
+        groupList.forEach(group => {
+
+            const list = group.querySelector(".faq-list");
+
+            if (!list) {
+                return;
+            }
+
+            const members = itemData.filter(d => group.contains(d.item));
+
+            members.sort((a, b) =>
+                searching
+                    ? (b.score - a.score) || (a.index - b.index)
+                    : a.index - b.index
+            );
+
+            const current = Array.from(list.children)
+                .filter(el => members.some(d => d.item === el));
+
+            const unchanged = current.length === members.length &&
+                current.every((el, i) => el === members[i].item);
+
+            if (!unchanged) {
+                members.forEach(d => list.appendChild(d.item));
+            }
+        });
+
+        const content = groupList.length ? groupList[0].parentNode : null;
+
+        if (!content) {
+            return;
+        }
+
+        const bestScore = group => itemData.reduce(
+            (best, d) =>
+                d.visible && group.contains(d.item)
+                    ? Math.max(best, d.score)
+                    : best,
+            0
+        );
+
+        const ordered = groupList.slice().sort((a, b) =>
+            searching
+                ? (bestScore(b) - bestScore(a)) ||
+                  (groupList.indexOf(a) - groupList.indexOf(b))
+                : groupList.indexOf(a) - groupList.indexOf(b)
+        );
+
+        const currentGroups = Array.from(content.children)
+            .filter(el => groupList.includes(el));
+
+        const same = currentGroups.length === ordered.length &&
+            currentGroups.every((el, i) => el === ordered[i]);
+
+        if (!same) {
+
+            // Keep the "no answers" message last.
+            const anchor = emptyEl && emptyEl.parentNode === content
+                ? emptyEl
+                : null;
+
+            ordered.forEach(group => content.insertBefore(group, anchor));
+        }
+    }
+
     function filterFaq(query) {
 
         const q = query.trim().toLowerCase();
 
         if (!q) {
-            itemData.forEach(d => { d.item.style.display = ""; });
+
+            itemData.forEach(d => {
+                d.visible = true;
+                d.score = 0;
+                d.item.style.display = "";
+                if (d.autoOpened) {
+                    setItemOpen(d, false);
+                    d.autoOpened = false;
+                }
+            });
+
             groups.forEach(g => { g.style.display = ""; });
+
+            reorderGroups(false);
+            applyHighlights([]);
+            showResultsUi("", 0);
             return;
         }
 
@@ -9370,18 +9826,17 @@ $$(".scripts-search-input").forEach(
         // differently-worded questions can still be found.
         let titleMatchExists = false;
 
-        if (concepts.length >= 2) {
-            itemData.forEach(d => {
-                d._titleHits = countConceptHits(
-                    concepts,
-                    term => titleHasTerm(d, term)
-                );
-                d._titleMatch = d._titleHits === concepts.length;
-                if (d._titleMatch) {
-                    titleMatchExists = true;
-                }
-            });
-        }
+        itemData.forEach(d => {
+            d._titleHits = countConceptHits(
+                concepts,
+                term => titleHasTerm(d, term)
+            );
+            d._titleMatch = concepts.length >= 2 &&
+                d._titleHits === concepts.length;
+            if (d._titleMatch) {
+                titleMatchExists = true;
+            }
+        });
 
         // Require a real majority of the query's concepts to be found
         // (as themselves, a synonym, or a close typo match) — e.g. a
@@ -9390,9 +9845,15 @@ $$(".scripts-search-input").forEach(
         // surface almost the entire FAQ.
         const needHits = Math.ceil(concepts.length * 0.6);
 
+        const matched = [];
+
         itemData.forEach(d => {
 
             const exactMatch = d.text.includes(q);
+            const wordHits = countConceptHits(
+                concepts,
+                term => textHasTerm(d, term)
+            );
             let matches;
 
             if (exactMatch) {
@@ -9400,14 +9861,23 @@ $$(".scripts-search-input").forEach(
             } else if (concepts.length >= 2 && titleMatchExists) {
                 matches = d._titleMatch;
             } else {
-                const wordHits = countConceptHits(
-                    concepts,
-                    term => textHasTerm(d, term)
-                );
                 matches = concepts.length > 0 && wordHits >= needHits;
             }
 
+            d.visible = matches;
             d.item.style.display = matches ? "" : "none";
+
+            // Relevance: the question being about the search beats
+            // the answer merely mentioning it.
+            d.score =
+                (d.titleText.includes(q) ? 100 : 0) +
+                (exactMatch ? 40 : 0) +
+                d._titleHits * 10 +
+                wordHits;
+
+            if (matches) {
+                matched.push(d);
+            }
         });
 
         groups.forEach(group => {
@@ -9421,6 +9891,53 @@ $$(".scripts-search-input").forEach(
 
             group.style.display = hasVisible ? "" : "none";
         });
+
+        // Best matches first within each section.
+        reorderGroups(true);
+
+        // A short list of results opens by itself; anything opened
+        // this way closes again when the search changes or is cleared
+        // (answers the person opened themselves are never touched).
+        const autoOpen = new Set(
+            matched.length > 0 && matched.length <= AUTO_OPEN_MAX
+                ? matched
+                : []
+        );
+
+        itemData.forEach(d => {
+            if (d.autoOpened && !autoOpen.has(d)) {
+                setItemOpen(d, false);
+                d.autoOpened = false;
+            }
+        });
+
+        autoOpen.forEach(d => {
+            if (!d.item.classList.contains("open")) {
+                setItemOpen(d, true);
+                d.autoOpened = true;
+            }
+        });
+
+        // Highlight whatever made the questions match.
+        const terms = new Set();
+
+        concepts.forEach(variants => {
+            variants.forEach(v => {
+                if (v.length >= 2) {
+                    terms.add(v);
+                }
+            });
+        });
+
+        if (q.length >= 2) {
+            terms.add(q);
+        }
+
+        applyHighlights(
+            Array.from(terms).sort((a, b) => b.length - a.length)
+        );
+
+        showResultsUi(query.trim(), matched.length);
     }
 
     function closeFaqSearch(clear) {
@@ -9434,6 +9951,17 @@ $$(".scripts-search-input").forEach(
 
         box.classList.remove("open");
     }
+
+    // Opening or closing an answer by hand takes it out of the
+    // search's hands for good.
+    itemData.forEach(d => {
+        const q = d.item.querySelector(".faq-q");
+        if (q) {
+            q.addEventListener("click", function () {
+                d.autoOpened = false;
+            });
+        }
+    });
 
     toggle.addEventListener("click", function () {
 
@@ -9455,8 +9983,51 @@ $$(".scripts-search-input").forEach(
         if (event.key === "Escape") {
             closeFaqSearch(true);
             toggle.blur();
+            return;
+        }
+
+        // Enter jumps to the best match and opens it.
+        if (event.key === "Enter" && input.value.trim()) {
+
+            const top = itemData
+                .filter(d => d.visible)
+                .sort((a, b) => (b.score - a.score) || (a.index - b.index))[0];
+
+            if (top) {
+
+                event.preventDefault();
+
+                if (!top.item.classList.contains("open")) {
+                    setItemOpen(top, true);
+                }
+
+                top.item.scrollIntoView({
+                    block: "center",
+                    behavior:
+                        document.documentElement.getAttribute("data-reduce-motion") === "true"
+                            ? "auto"
+                            : "smooth"
+                });
+            }
         }
     });
+
+    if (emptySuggestBtn) {
+        emptySuggestBtn.addEventListener("click", function () {
+
+            const suggestion = emptySuggestBtn.dataset.query;
+
+            if (!suggestion) {
+                return;
+            }
+
+            input.value = suggestion;
+            input.dispatchEvent(
+                new Event("input", { bubbles: true })
+            );
+            input.focus();
+        });
+    }
 
     document.addEventListener("click", function (event) {
 
@@ -10475,7 +11046,7 @@ document.addEventListener(
 let modalNewId = null;
 let modelDraft = null;   // { id, image, color }
 
-const MODEL_PHOTO_PX = 192;           // saved thumbnail size (square)
+const MODEL_PHOTO_PX = 448;           // saved photo size (square)
 const MODEL_PHOTO_MAX_FILE_MB = 15;   // refuse absurdly large files
 
 
@@ -10492,7 +11063,7 @@ function getModelImage(modelId) {
 
 
 // Centre-crop to a square, shrink, and re-encode as JPEG so a phone
-// photo becomes a ~10–15 KB thumbnail that is cheap to store and sync.
+// photo becomes a ~30–50 KB image that is still cheap to store and sync.
 function readModelPhoto(file) {
 
     return new Promise(function (resolve, reject) {
@@ -10541,7 +11112,7 @@ function readModelPhoto(file) {
                     out
                 );
 
-                resolve(canvas.toDataURL("image/jpeg", 0.85));
+                resolve(canvas.toDataURL("image/jpeg", 0.82));
             };
 
             img.src = reader.result;
@@ -11505,51 +12076,157 @@ async function deleteItem(
    SOUND EFFECTS
    ===================================================== */
 
-const kachingSound = new Audio("kaching.wav");
-kachingSound.volume = 0.6;
+// Plain <audio> elements only (no Web Audio). The sound file is fetched
+// once into memory, and a small pool of elements is kept ready: each one is
+// rewound as soon as it finishes, so playing is just "play()" with no seek
+// and no waiting. Rapid sales use the next free element, so they overlap
+// instead of cutting each other off.
+//
+// After a long quiet spell (e.g. you were chatting in another window),
+// Safari can leave old audio elements attached to an output that no longer
+// makes sound -- the tab still shows the speaker icon, but nothing is
+// heard. So after a quiet spell, the first click or key press throws the
+// old elements away and builds brand new ones, before the sale is added.
+const KACHING_VOLUME = 0.6;
+const KACHING_POOL_SIZE = 3;
+const KACHING_STALE_MS = 2 * 60 * 1000;   // quiet this long -> fresh elements
 
-// An <audio> element has to seek and restart every time it plays, which
-// can cost a visible hitch right as a sale is added (worst in Safari and
-// on phones). Web Audio decodes the sound once up front, so playing it
-// is just "start this buffer". The <audio> element above stays as the
-// fallback if Web Audio or the fetch isn't available.
-let kachingCtx = null;
-let kachingBuffer = null;
+let kachingSrc = "kaching.wav";
+let kachingPool = [];
+let kachingNext = 0;
+let kachingPrimer = null;
+let kachingLastOutput = Date.now();
+
+function makeKachingEl() {
+    const el = new Audio();
+    el.preload = "auto";
+    el.volume = KACHING_VOLUME;
+    el.src = kachingSrc;
+    el.addEventListener("ended", function () {
+        try { el.currentTime = 0; } catch {}   // ready for next time
+    });
+    try { el.load(); } catch {}
+    return el;
+}
+
+function discardKachingEl(el) {
+    try {
+        el.pause();
+        el.removeAttribute("src");
+        el.load();
+    } catch {}
+}
+
+function buildKachingPool() {
+    const oldPool = kachingPool;
+    const oldPrimer = kachingPrimer;
+
+    kachingPool = [];
+    for (let i = 0; i < KACHING_POOL_SIZE; i++) {
+        kachingPool.push(makeKachingEl());
+    }
+    kachingNext = 0;
+    kachingPrimer = makeKachingEl();
+
+    oldPool.forEach(discardKachingEl);
+    if (oldPrimer) discardKachingEl(oldPrimer);
+}
 
 (function prepareKaching() {
+    buildKachingPool();   // usable straight away, straight from the file
+
+    // Then swap to an in-memory copy so playing never waits on the network.
     try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        kachingCtx = new AC();
         fetch("kaching.wav")
-            .then(r => r.arrayBuffer())
-            .then(buf => new Promise((resolve, reject) =>
-                kachingCtx.decodeAudioData(buf, resolve, reject)))
-            .then(decoded => { kachingBuffer = decoded; })
-            .catch(() => { kachingBuffer = null; });
+            .then(r => r.blob())
+            .then(function (blob) {
+                if (!blob.type) blob = new Blob([blob], { type: "audio/wav" });
+                kachingSrc = URL.createObjectURL(blob);
+                buildKachingPool();
+            })
+            .catch(() => {});
     } catch {}
 })();
 
-function playKaching() {
+// Wake the computer's audio output with a split second of silence, so the
+// real sound that follows isn't swallowed while it wakes up. Also called
+// when the Quick sale window opens.
+function primeKaching() {
+    const el = kachingPrimer;
+    if (!el || !el.paused) return;
     try {
-        if (kachingCtx && kachingBuffer) {
-            if (kachingCtx.state === "suspended") {
-                kachingCtx.resume();
-            }
-            const src = kachingCtx.createBufferSource();
-            const gain = kachingCtx.createGain();
-            gain.gain.value = 0.6;
-            src.buffer = kachingBuffer;
-            src.connect(gain);
-            gain.connect(kachingCtx.destination);
-            src.start(0);
-            return;
+        el.volume = 0;
+        el.currentTime = 0;
+        const finish = function () {
+            try { el.pause(); el.currentTime = 0; } catch {}
+        };
+        const p = el.play();
+        if (p && p.then) {
+            p.then(function () { setTimeout(finish, 60); }).catch(() => {});
+        } else {
+            setTimeout(finish, 60);
         }
     } catch {}
+}
 
+// Quiet for a while? Start over with fresh elements.
+function refreshKaching() {
+    if (Date.now() - kachingLastOutput < KACHING_STALE_MS) return;
+    kachingLastOutput = Date.now();
+    buildKachingPool();
+    primeKaching();
+}
+
+// Safari only lets audio start from a real click or key press, so the
+// refresh happens on your first one (typing the amount counts), which is
+// always before the sale itself.
+["pointerdown", "mousedown", "click", "touchend", "keydown"].forEach(function (type) {
+    document.addEventListener(type, refreshKaching, { capture: true, passive: true });
+});
+
+// Coming back from the back/forward cache or switching audio devices
+// (headphones in/out) also means the old elements can't be trusted.
+window.addEventListener("pageshow", function (e) {
+    if (e.persisted) {
+        kachingLastOutput = 0;
+    }
+});
+
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener("devicechange", function () {
+        kachingLastOutput = 0;
+    });
+}
+
+function playKaching() {
     try {
-        kachingSound.currentTime = 0; // rewind so back-to-back sales retrigger it
-        kachingSound.play().catch(() => {}); // ignore autoplay-block errors
+        // Safety net in case the sale is the very first thing you touch.
+        refreshKaching();
+
+        let el = null;
+
+        for (let i = 0; i < kachingPool.length; i++) {
+            const idx = (kachingNext + i) % kachingPool.length;
+            const candidate = kachingPool[idx];
+            if (candidate.paused || candidate.ended) {
+                el = candidate;
+                kachingNext = (idx + 1) % kachingPool.length;
+                break;
+            }
+        }
+
+        // All busy (very fast sales): restart the next one in line.
+        if (!el) {
+            el = kachingPool[kachingNext];
+            kachingNext = (kachingNext + 1) % kachingPool.length;
+        }
+
+        kachingLastOutput = Date.now();
+        el.volume = KACHING_VOLUME;
+        if (el.currentTime > 0) el.currentTime = 0;
+
+        const p = el.play();
+        if (p && p.catch) p.catch(() => {});
     } catch {}
 }
 
