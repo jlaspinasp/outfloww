@@ -4184,6 +4184,935 @@ $("#saleForm").addEventListener(
 
 
 /* =====================================================
+   QUICK SALE (floating button + popover, every tab except Sales)
+   -----------------------------------------------------
+   Logs a sale from any tab without leaving it. The sale itself is
+   built exactly like the Sales page form builds one (same fields,
+   same tag handling, sound, history/progress refresh, save + sync);
+   the only difference is that the model comes from the popover, so
+   the model selected on the Sales page is never changed.
+   The popover remembers the last model you used on this device.
+   ===================================================== */
+
+(function () {
+
+    const fab = $("#quickAddFab");
+    const panel = $("#quickAddPanel");
+    const backdrop = $("#quickAddBackdrop");
+    const form = $("#quickAddForm");
+    const closeBtn = $("#quickAddClose");
+    const modelsBox = $("#quickAddModels");
+    const noModels = $("#quickAddNoModels");
+    const amountInput = $("#quickAddAmount");
+    const tagBtn = $("#quickAddTagBtn");
+    const tagDrawer = $("#quickAddTag");
+    const tagWrap = $("#quickAddTagWrap");
+    const tagField = $("#quickAddTagField");
+    const tagClear = $("#quickAddTagClear");
+    const submitBtn = $("#quickAddSubmit");
+    const recentList = $("#quickAddRecentList");
+    const recentEmpty = $("#quickAddRecentEmpty");
+    const recentCount = $("#quickAddRecentCount");
+    const footLabel = $("#quickAddFootLabel");
+    const footFig = $("#quickAddFootFig");
+    const track = $("#quickAddTrack");
+    const fill = $("#quickAddFill");
+    const segBtns = Array.from(panel ? panel.querySelectorAll(".qa-seg-btn") : []);
+    const salesPage = $("#sales");
+    const authGate = $("#authGate");
+
+    if (!fab || !panel || !backdrop || !form || !amountInput || !submitBtn) {
+        return;
+    }
+
+    const MODEL_KEY = "chatterTool_quickAddModel";
+
+    let modelId = null;
+    let isOpen = false;
+    let tagType = "tip";
+    let salesNeedsRefit = false;
+    let doneTimer = null;
+    let recentTimer = null;
+
+    try {
+        modelId = localStorage.getItem(MODEL_KEY) || null;
+    } catch (err) {}
+
+    function isTouch() {
+        return window.matchMedia("(pointer: coarse)").matches;
+    }
+
+
+    /* ---------- Model chips ---------- */
+
+    function renderChips() {
+
+        const models = data.models || [];
+
+        modelsBox.hidden = models.length === 0;
+        noModels.hidden = models.length > 0;
+
+        modelsBox.innerHTML = models.map(function (model) {
+
+            const color = getAvatarColor(model.id);
+            const ink = getRowInk(color);
+            const on = model.id === modelId;
+
+            return `<button type="button" class="qa-chip${on ? " selected" : ""}" data-model="${model.id}" aria-pressed="${on}" style="--chip-color:${color};--chip-ink:${ink.strong}" title="${escapeHTML(model.title)}">${getModelAvatarHTML("sm", model.id)}<span class="qa-chip-name">${escapeHTML(model.title)}</span></button>`;
+
+        }).join("");
+    }
+
+    function setModel(id, focusAmount) {
+
+        modelId = id;
+
+        try {
+            localStorage.setItem(MODEL_KEY, id);
+        } catch (err) {}
+
+        modelsBox.querySelectorAll(".qa-chip").forEach(function (chip) {
+            const on = chip.dataset.model === id;
+            chip.classList.toggle("selected", on);
+            chip.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+
+        syncControls();
+
+        if (focusAmount && !amountInput.disabled) {
+            amountInput.focus({ preventScroll: true });
+        }
+    }
+
+    modelsBox.addEventListener("click", function (event) {
+
+        const chip = event.target.closest(".qa-chip");
+
+        if (chip) {
+            setModel(chip.dataset.model, true);
+        }
+    });
+
+
+    /* ---------- Locked until a model is chosen; today's net ---------- */
+
+    function currentModel() {
+        return modelId ? getModelById(modelId) : null;
+    }
+
+    function syncControls() {
+
+        const model = currentModel();
+        const on = !!model;
+
+        amountInput.disabled = !on;
+        amountInput.placeholder = on ? "0.00" : "Select a model first";
+
+        if (!on) {
+            amountInput.value = "";
+        }
+
+        tagBtn.disabled = !on;
+        submitBtn.disabled = !on;
+        submitBtn.classList.toggle("model-themed", on);
+
+        if (on) {
+            panel.style.setProperty(
+                "--model-deep",
+                getModelDeepColor(getAvatarColor(model.id))
+            );
+        } else {
+            panel.style.removeProperty("--model-deep");
+            setTagOpen(false);
+        }
+
+        updateSummary();
+        renderRecent(false);
+    }
+
+    function updateSummary() {
+
+        const model = currentModel();
+
+        if (!model) {
+            footLabel.textContent = "Net today";
+            footFig.textContent = "—";
+            track.classList.add("is-off");
+            fill.style.width = "0%";
+            fill.classList.remove("hit");
+            return;
+        }
+
+        // Same numbers the model rows on the Sales page show.
+        const todayKey = getDateKey();
+
+        const sales = getTodaySales().filter(function (sale) {
+            return sale.modelId === model.id && !isSaleClosed(todayKey, sale);
+        });
+
+        const net = getTotal(sales) * NET_RATE;
+        const target = (data.modelTargets && data.modelTargets[model.id]) || 0;
+        const percent = target > 0 ? Math.round((net / target) * 100) : null;
+
+        footLabel.textContent = model.title + " · net today";
+
+        footFig.textContent =
+            target > 0
+                ? `${money(net)} / ${money(target)}`
+                : `${money(net)} net`;
+
+        track.classList.toggle("is-off", target <= 0);
+        fill.style.width = (percent === null ? 0 : Math.min(percent, 100)) + "%";
+        fill.classList.toggle("hit", percent !== null && percent >= 100);
+    }
+
+
+    /* ---------- Recent sales (chosen model, latest first, today only) ---------- */
+
+    const RECENT_MAX = 4;
+
+    function whenLabel(time) {
+
+        const minutes = Math.floor((Date.now() - time) / 60000);
+
+        if (minutes < 1) {
+            return "Just now";
+        }
+
+        if (minutes < 60) {
+            return minutes + "m ago";
+        }
+
+        const d = new Date(time);
+
+        return formatShiftTime(
+            d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0")
+        );
+    }
+
+    function renderRecent(animateNew) {
+
+        const model = currentModel();
+        const todayKey = getDateKey();
+
+        // Same rule as Today's sales: sales already settled in a saved
+        // shift are not listed.
+        const all = model
+            ? getTodaySales().filter(function (sale) {
+                return sale.modelId === model.id && !isSaleClosed(todayKey, sale);
+            })
+            : [];
+
+        const latest = all
+            .slice()
+            .sort(function (a, b) { return b.time - a.time; })
+            .slice(0, RECENT_MAX);
+
+        recentCount.textContent = all.length ? all.length + " today" : "";
+
+        recentEmpty.hidden = all.length > 0;
+        recentList.hidden = all.length === 0;
+
+        if (!all.length) {
+            recentEmpty.textContent = model
+                ? "No sales for " + model.title + " yet today."
+                : "Select a model to see its recent sales.";
+        }
+
+        recentList.innerHTML = latest.map(function (sale, i) {
+
+            const tag = escapeHTML(sale.buyerUsername || "");
+
+            const badge =
+                sale.tip
+                    ? `<span class="sale-tag-badge tip" title="Tip — ${tag}">${ICONS.heart}Tip</span>`
+                    : sale.outsideShift
+                        ? `<span class="sale-tag-badge outside" title="Outside shift — ${tag}">${ICONS.clock}Outside</span>`
+                        : "";
+
+            return `<li class="qa-sale${animateNew && i === 0 ? " is-new" : ""}" data-time="${sale.time}"><span class="qa-sale-time">${whenLabel(sale.time)}</span>${badge}<span class="qa-sale-amount">${money(sale.amount)}</span><button type="button" class="delete" title="Remove this sale" aria-label="Remove ${money(sale.amount)} sale">${ICONS.x}</button></li>`;
+
+        }).join("");
+    }
+
+    // Removing a sale does exactly what the Sales page's delete button does.
+    function removeSale(time, row) {
+
+        const model = currentModel();
+
+        if (!model) {
+            return;
+        }
+
+        const dateKey = getDateKey();
+        const sales = data.sales[dateKey] || [];
+
+        const index = sales.findIndex(function (sale) {
+            return sale.time === time && sale.modelId === model.id;
+        });
+
+        if (index === -1) {
+            renderRecent(false);
+            return;
+        }
+
+        const removed = sales.splice(index, 1)[0];
+
+        updateHistory();
+
+        saveData();
+
+        pushSaleRemoved(dateKey, removed);
+
+        toast(`${money(removed.amount)} sale removed`, "delete");
+
+        preserveScroll(() => renderSales({ patchBreakdown: true }));
+
+        salesNeedsRefit = true;
+
+        updateSummary();
+
+        if (row && !reduceMotion()) {
+
+            row.classList.add("is-out");
+
+            setTimeout(function () {
+                renderRecent(false);
+            }, 200);
+
+        } else {
+            renderRecent(false);
+        }
+    }
+
+    recentList.addEventListener("click", function (event) {
+
+        const btn = event.target.closest(".delete");
+        const row = btn ? btn.closest(".qa-sale") : null;
+
+        if (!btn || !row || row.classList.contains("is-out")) {
+            return;
+        }
+
+        removeSale(Number(row.dataset.time), row);
+    });
+
+
+    /* ---------- Username tag (shares the Sales page's armed tag) ---------- */
+
+    function setTagOpen(open) {
+        tagDrawer.classList.toggle("open", open);
+        tagBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function syncTagButton() {
+
+        const armed = Boolean(armedUsername);
+
+        tagBtn.classList.toggle("active", armed);
+        tagBtn.classList.toggle("armed-outside", armed && armedUsernameType === "outside");
+        tagBtn.setAttribute("aria-pressed", armed ? "true" : "false");
+
+        tagBtn.title = armed
+            ? `${usernameTypeLabel(armedUsernameType)} — ${armedUsername} (next sale — click to change)`
+            : "Tag the next sale with a username";
+    }
+
+    function syncTagUI() {
+
+        tagType = armedUsernameType || "tip";
+        tagField.value = armedUsername || "";
+        tagWrap.classList.toggle("has-value", !!tagField.value);
+
+        segBtns.forEach(function (btn) {
+            const on = btn.dataset.type === tagType;
+            btn.classList.toggle("active", on);
+            btn.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+
+        setTagOpen(Boolean(armedUsername));
+        syncTagButton();
+    }
+
+    // The tag is live: whatever is typed is what the next sale carries.
+    function applyTag() {
+        setArmedUsername(tagField.value.trim(), tagType);
+        tagWrap.classList.toggle("has-value", !!tagField.value);
+        syncTagButton();
+    }
+
+    tagBtn.addEventListener("click", function () {
+
+        const opening = !tagDrawer.classList.contains("open");
+
+        setTagOpen(opening);
+
+        if (opening) {
+            tagField.focus({ preventScroll: true });
+        }
+    });
+
+    segBtns.forEach(function (btn) {
+
+        btn.addEventListener("click", function () {
+
+            tagType = btn.dataset.type;
+
+            segBtns.forEach(function (other) {
+                const on = other === btn;
+                other.classList.toggle("active", on);
+                other.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+
+            applyTag();
+            tagField.focus({ preventScroll: true });
+        });
+    });
+
+    tagField.addEventListener("input", applyTag);
+
+    tagField.addEventListener("keydown", function (event) {
+
+        // Enter here means "done with the username", not "add the sale".
+        if (event.key === "Enter") {
+            event.preventDefault();
+            amountInput.focus({ preventScroll: true });
+        }
+    });
+
+    tagClear.addEventListener("click", function () {
+        tagField.value = "";
+        applyTag();
+        tagField.focus({ preventScroll: true });
+    });
+
+
+    /* ---------- Add the sale ---------- */
+
+    form.addEventListener("submit", function (event) {
+
+        event.preventDefault();
+
+        const model = currentModel();
+
+        if (!model) {
+            toast("Select a model first.");
+            return;
+        }
+
+        const amount = Number(amountInput.value);
+
+        if (!amount || amount <= 0) {
+            amountInput.focus({ preventScroll: true });
+            return;
+        }
+
+        if (amount > 200) {
+
+            toast(
+                "The maximum amount for a single sale is $200.",
+                "error"
+            );
+
+            return;
+        }
+
+        const dateKey = getDateKey();
+
+        if (!data.sales[dateKey]) {
+            data.sales[dateKey] = [];
+        }
+
+        const sale = {
+            amount: amount,
+            time: Date.now(),
+            modelId: model.id
+        };
+
+        if (armedUsername) {
+
+            sale.buyerUsername = armedUsername;
+
+            if (armedUsernameType === "outside") {
+                sale.outsideShift = true;
+            } else {
+                sale.tip = true;
+            }
+        }
+
+        data.sales[dateKey].push(sale);
+
+        amountInput.value = "";
+
+        // The tag is for exactly one sale.
+        setArmedUsername(null);
+        syncTagUI();
+
+        playKaching();
+
+        updateHistory();
+
+        // Only the numbers changed, so patch the model rows in place.
+        preserveScroll(() => renderSales({ patchBreakdown: true }));
+
+        toast("Sale added for " + model.title, "success");
+
+        // The Sales page was hidden while this happened: have it re-fit
+        // its model names the next time it is shown.
+        salesNeedsRefit = true;
+
+        updateSummary();
+        renderRecent(true);
+
+        submitBtn.classList.add("done");
+        clearTimeout(doneTimer);
+        doneTimer = setTimeout(function () {
+            submitBtn.classList.remove("done");
+        }, 1000);
+
+        // Ready for the next amount (phones keep the keyboard as it is).
+        if (!isTouch()) {
+            amountInput.focus({ preventScroll: true });
+        }
+
+        requestAnimationFrame(function () {
+            setTimeout(function () {
+                saveData();
+                pushSaleAdded(dateKey, sale);
+            }, 0);
+        });
+    });
+
+
+    /* ---------- Movable button: drag anywhere, stays where you drop it ---------- */
+
+    const FAB_SIZE = 44;
+    const POS_KEY = "chatterTool_quickAddPos";
+    const PHONE_QUERY = "(max-width: 700px)";
+
+    // Where the button is, as fractions (0 to 1) of the room it can move in,
+    // so it lands in the same spot on any screen size. 1 / 1 = bottom-right.
+    let place = { x: 1, y: 1 };
+    let cur = { x: 0, y: 0 };
+    let drag = null;
+    let suppressClick = false;
+
+    try {
+
+        const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+
+        if (saved && typeof saved.y === "number") {
+
+            // (Older saves stored a left/right edge instead of an x.)
+            const savedX =
+                typeof saved.x === "number"
+                    ? saved.x
+                    : (saved.edge === "left" ? 0 : 1);
+
+            place = {
+                x: Math.min(1, Math.max(0, savedX)),
+                y: Math.min(1, Math.max(0, saved.y))
+            };
+        }
+
+    } catch (err) {}
+
+    // Reads the phone's notch / home-bar insets as real pixels.
+    const probe = document.createElement("div");
+
+    probe.style.cssText =
+        "position:fixed;left:-9999px;top:0;visibility:hidden;pointer-events:none;" +
+        "padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";
+
+    document.body.appendChild(probe);
+
+    function metrics() {
+
+        const vw = document.documentElement.clientWidth || window.innerWidth;
+        const vh = window.innerHeight;
+        const cs = getComputedStyle(probe);
+        const safeT = parseFloat(cs.paddingTop) || 0;
+        const safeB = parseFloat(cs.paddingBottom) || 0;
+        const phone = window.matchMedia(PHONE_QUERY).matches;
+        const m = phone ? 16 : 24;
+
+        const minY = m + safeT;
+        const maxY = Math.max(minY, vh - FAB_SIZE - m - safeB - (phone ? 64 : 0));
+
+        return {
+            vw: vw,
+            vh: vh,
+            phone: phone,
+            m: m,
+            minX: m,
+            maxX: Math.max(m, vw - FAB_SIZE - m),
+            minY: minY,
+            maxY: maxY
+        };
+    }
+
+    function clamp(n, lo, hi) {
+        return Math.min(hi, Math.max(lo, n));
+    }
+
+    function applyPosition() {
+
+        const k = metrics();
+
+        cur = {
+            x: k.minX + place.x * (k.maxX - k.minX),
+            y: k.minY + place.y * (k.maxY - k.minY)
+        };
+
+        fab.style.left = cur.x + "px";
+        fab.style.top = cur.y + "px";
+        fab.style.right = "auto";
+        fab.style.bottom = "auto";
+    }
+
+    // Puts the popover next to the button: above it when the button is in
+    // the lower half of the screen, below it otherwise. Phones use the
+    // bottom sheet from the stylesheet instead.
+    function placePanel() {
+
+        const k = metrics();
+
+        if (k.phone) {
+
+            ["left", "right", "top", "bottom", "maxHeight", "transformOrigin"].forEach(function (prop) {
+                panel.style[prop] = "";
+            });
+
+            panel.style.removeProperty("--qa-shift");
+            return;
+        }
+
+        const gap = 10;
+        const width = panel.offsetWidth || 352;
+        const fromLeft = cur.x + FAB_SIZE / 2 < k.vw / 2;
+
+        const left = clamp(
+            fromLeft ? cur.x : cur.x + FAB_SIZE - width,
+            k.m,
+            Math.max(k.m, k.vw - width - k.m)
+        );
+
+        const above = cur.y + FAB_SIZE / 2 > k.vh / 2;
+
+        panel.style.left = left + "px";
+        panel.style.right = "auto";
+
+        if (above) {
+
+            panel.style.top = "auto";
+            panel.style.bottom = (k.vh - cur.y + gap) + "px";
+            panel.style.maxHeight = clamp(cur.y - gap - k.m, 220, 640) + "px";
+            panel.style.transformOrigin = "bottom " + (fromLeft ? "left" : "right");
+            panel.style.setProperty("--qa-shift", "10px");
+
+        } else {
+
+            panel.style.bottom = "auto";
+            panel.style.top = (cur.y + FAB_SIZE + gap) + "px";
+            panel.style.maxHeight = clamp(k.vh - cur.y - FAB_SIZE - gap - k.m, 220, 640) + "px";
+            panel.style.transformOrigin = "top " + (fromLeft ? "left" : "right");
+            panel.style.setProperty("--qa-shift", "-10px");
+        }
+    }
+
+    function savePosition() {
+
+        try {
+            localStorage.setItem(POS_KEY, JSON.stringify(place));
+        } catch (err) {}
+    }
+
+    fab.addEventListener("pointerdown", function (event) {
+
+        if (event.pointerType === "mouse" && event.button !== 0) {
+            return;
+        }
+
+        const rect = fab.getBoundingClientRect();
+
+        drag = {
+            id: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            offX: event.clientX - rect.left,
+            offY: event.clientY - rect.top,
+            moved: false
+        };
+
+        try {
+            fab.setPointerCapture(event.pointerId);
+        } catch (err) {}
+    });
+
+    fab.addEventListener("pointermove", function (event) {
+
+        if (!drag || event.pointerId !== drag.id) {
+            return;
+        }
+
+        if (!drag.moved) {
+
+            // A small wobble while tapping is still a tap.
+            if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) {
+                return;
+            }
+
+            drag.moved = true;
+
+            fab.classList.add("dragging");
+
+            if (isOpen) {
+                closePanel(false);
+            }
+        }
+
+        const k = metrics();
+
+        fab.style.left = clamp(event.clientX - drag.offX, k.minX, k.maxX) + "px";
+        fab.style.top = clamp(event.clientY - drag.offY, k.minY, k.maxY) + "px";
+    });
+
+    function endDrag(event) {
+
+        if (!drag || event.pointerId !== drag.id) {
+            return;
+        }
+
+        const moved = drag.moved;
+
+        drag = null;
+
+        try {
+            fab.releasePointerCapture(event.pointerId);
+        } catch (err) {}
+
+        if (!moved) {
+            return;
+        }
+
+        // The browser still sends a click after a drag: ignore that one.
+        suppressClick = true;
+
+        setTimeout(function () {
+            suppressClick = false;
+        }, 60);
+
+        const rect = fab.getBoundingClientRect();
+        const k = metrics();
+
+        place = {
+            x: k.maxX > k.minX ? clamp((rect.left - k.minX) / (k.maxX - k.minX), 0, 1) : 1,
+            y: k.maxY > k.minY ? clamp((rect.top - k.minY) / (k.maxY - k.minY), 0, 1) : 1
+        };
+
+        savePosition();
+
+        fab.classList.remove("dragging");
+
+        applyPosition();
+    }
+
+    fab.addEventListener("pointerup", endDrag);
+    fab.addEventListener("pointercancel", endDrag);
+
+    window.addEventListener("resize", function () {
+
+        applyPosition();
+
+        if (isOpen) {
+            placePanel();
+        }
+    });
+
+    applyPosition();
+
+
+    /* ---------- Open / close ---------- */
+
+    function openPanel() {
+
+        if (isOpen) {
+            return;
+        }
+
+        isOpen = true;
+
+        const models = data.models || [];
+
+        // Which model: last used, else the one picked on the Sales page,
+        // else the only model there is.
+        if (!modelId || !getModelById(modelId)) {
+
+            if (currentModelFilter && getModelById(currentModelFilter)) {
+                modelId = currentModelFilter;
+            } else if (models.length === 1) {
+                modelId = models[0].id;
+            } else {
+                modelId = null;
+            }
+        }
+
+        renderChips();
+        syncControls();
+        syncTagUI();
+
+        placePanel();
+        renderRecent(false);
+
+        clearInterval(recentTimer);
+        recentTimer = setInterval(function () {
+            renderRecent(false);
+        }, 15000);
+
+        panel.classList.add("open");
+        backdrop.classList.add("open");
+        fab.classList.add("open");
+        fab.setAttribute("aria-expanded", "true");
+
+        requestAnimationFrame(function () {
+
+            if (!amountInput.disabled) {
+                amountInput.focus({ preventScroll: true });
+                return;
+            }
+
+            const first = modelsBox.querySelector(".qa-chip");
+
+            if (first) {
+                first.focus({ preventScroll: true });
+            }
+        });
+    }
+
+    function closePanel(restoreFocus) {
+
+        if (!isOpen) {
+            return;
+        }
+
+        isOpen = false;
+
+        clearInterval(recentTimer);
+
+        panel.classList.remove("open");
+        backdrop.classList.remove("open");
+        fab.classList.remove("open");
+        fab.setAttribute("aria-expanded", "false");
+
+        if (restoreFocus) {
+            fab.focus({ preventScroll: true });
+        }
+    }
+
+    fab.addEventListener("click", function () {
+
+        if (suppressClick) {
+            suppressClick = false;
+            return;
+        }
+
+        if (isOpen) {
+            closePanel(true);
+        } else {
+            openPanel();
+        }
+    });
+
+    closeBtn.addEventListener("click", function () {
+        closePanel(true);
+    });
+
+    backdrop.addEventListener("click", function () {
+        closePanel(false);
+    });
+
+    document.addEventListener("keydown", function (event) {
+
+        if (isOpen && event.key === "Escape") {
+            closePanel(true);
+        }
+    });
+
+
+    /* ---------- Only on tabs other than Sales ---------- */
+
+    function refitSalesPage() {
+
+        try {
+            fitTargetBreakdownTitles();
+        } catch (err) {}
+
+        try {
+            fitTodaySalesName();
+        } catch (err) {}
+    }
+
+    function syncVisibility() {
+
+        const onSales =
+            !!salesPage &&
+            salesPage.classList.contains("active") &&
+            !salesPage.classList.contains("leaving");
+
+        const signedOut =
+            !!authGate && !authGate.classList.contains("hidden");
+
+        const show = !onSales && !signedOut;
+
+        fab.classList.toggle("is-hidden", !show);
+
+        if (!show && isOpen) {
+            closePanel(false);
+        }
+
+        if (onSales && salesNeedsRefit) {
+            salesNeedsRefit = false;
+            setTimeout(refitSalesPage, 80);
+        }
+    }
+
+    const watcher = new MutationObserver(syncVisibility);
+
+    if (salesPage) {
+        watcher.observe(salesPage, { attributes: true, attributeFilter: ["class"] });
+    }
+
+    if (authGate) {
+        watcher.observe(authGate, { attributes: true, attributeFilter: ["class"] });
+    }
+
+    syncVisibility();
+
+
+    /* ---------- Phones: keep the sheet above the on-screen keyboard ---------- */
+
+    if (window.visualViewport) {
+
+        const vv = window.visualViewport;
+
+        const placeAboveKeyboard = function () {
+
+            const covered = Math.max(
+                0,
+                window.innerHeight - vv.height - vv.offsetTop
+            );
+
+            panel.style.setProperty("--qa-kb", covered + "px");
+        };
+
+        vv.addEventListener("resize", placeAboveKeyboard);
+        vv.addEventListener("scroll", placeAboveKeyboard);
+    }
+
+})();
+
+
+/* =====================================================
    DELETE SALE
    ===================================================== */
 
