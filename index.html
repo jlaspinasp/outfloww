@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#1e1f22">
+    <meta name="theme-color" content="#f3f2ef">
     <title>Outfloww</title>
     <link rel="icon" href="images/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
@@ -14,12 +14,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=43">
+    <link rel="stylesheet" href="css/style.css?v=44">
 
     <script>
         (function () {
+            // Light is the default; only an explicit "dark" choice stays dark.
             var t = localStorage.getItem("chatterTool_theme");
-            if (t === "light") {
+            if (t !== "dark") {
                 document.documentElement.setAttribute("data-theme", "light");
             }
             if (localStorage.getItem("chatterTool_reduceMotion") === "true") {
@@ -48,44 +49,61 @@
 
         <div class="splash-rule" aria-hidden="true"></div>
 
-        <p class="splash-tag" aria-hidden="true">By Castor 演ス</p>
-
     </div>
 
 </div>
 
 <script>
-    /* Splash controller. Plays the intro, then lifts once app.js
-       reports that sign-in state is known (window.hideSplash).
-       Stays up at least MIN_VISIBLE so the intro always finishes,
-       and gives up after MAX_VISIBLE so a failed script can never
-       leave the app covered. */
+    /* Splash controller. The splash is only for people who open the site
+       and are NOT signed in. Someone already signed in never sees it,
+       whether reduce motion is on or off.
+
+       Firebase takes a moment to report who is signed in, so app.js
+       leaves a hint in localStorage (chatterTool_lastUid) while someone
+       is signed in. If that hint is there, the splash stays hidden from
+       the very first paint. If the hint turns out to be stale (the
+       session ended), the splash appears after all and plays normally.
+
+       Plays at least MIN_VISIBLE so the intro always finishes, and gives
+       up after MAX_VISIBLE so a failed script can never leave the app
+       covered. */
     (function () {
 
         var splash = document.getElementById("splash");
         if (!splash) return;
 
-        // Reduced motion (OS setting or the in-app toggle): a signed-in
-        // person gets no intro; the splash is just a plain cover that
-        // goes away the moment sign-in state is known. Someone who is
-        // NOT signed in still gets the full animated splash.
+        // Reduced motion (OS setting or the in-app toggle) only matters
+        // for people who are shown the splash; the intro is exempted from
+        // the reduce-motion CSS (see .splash--intro in style.css).
         var reduced = (window.matchMedia &&
             window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
             document.documentElement.getAttribute("data-reduce-motion") === "true";
 
-        var MIN_VISIBLE = reduced ? 0 : 1900;   // raised to 1900 for the signed-out intro
+        var hintedSignedIn = false;
+        try {
+            hintedSignedIn = !!localStorage.getItem("chatterTool_lastUid");
+        } catch (e) {}
+
+        var MIN_VISIBLE = 1900;
         var MAX_VISIBLE = 8000;
 
         var shownAt = 0;
         var requested = false;
         var scheduled = false;
 
+        // Probably signed in: keep the splash out of sight right away.
+        if (hintedSignedIn) {
+            splash.style.display = "none";
+        }
+
+        function remove() {
+            if (splash.parentNode) splash.parentNode.removeChild(splash);
+        }
+
         function leave() {
             splash.classList.add("is-leaving");
             splash.setAttribute("aria-hidden", "true");
-            setTimeout(function () {
-                if (splash.parentNode) splash.parentNode.removeChild(splash);
-            }, 1000);
+            setTimeout(remove, 1000);
         }
 
         function maybeLeave() {
@@ -107,8 +125,28 @@
         // the give-up timer at the bottom.
         window.hideSplash = function (signedIn) {
 
+            // Signed in: no splash. If it is already showing (no hint was
+            // stored), lift it straight away instead of finishing the intro.
+            if (signedIn === true) {
+                if (!shownAt) {
+                    remove();
+                    return;
+                }
+                MIN_VISIBLE = 0;
+                requested = true;
+                maybeLeave();
+                return;
+            }
+
+            // The hint was stale: nobody is signed in, so show the splash.
+            if (hintedSignedIn) {
+                hintedSignedIn = false;
+                splash.style.display = "";
+                if (!reduced) fontsReady.then(play, play);
+            }
+
+            // Not signed in: play the intro (also with reduced motion).
             if (reduced && signedIn === false && !shownAt) {
-                MIN_VISIBLE = 1900;
                 splash.classList.add("splash--intro");
                 requested = true;
                 fontsReady.then(play, play);
@@ -116,9 +154,6 @@
             }
 
             requested = true;
-
-            // Reduced motion, signed in: plain cover, leave right away.
-            if (reduced && !shownAt) shownAt = Date.now();
 
             maybeLeave();
         };
@@ -135,13 +170,19 @@
                 new Promise(function (r) { setTimeout(r, 600); })
             ]);
         }
-        // With reduced motion the intro only plays if hideSplash(false)
-        // asks for it (nobody signed in); see above.
-        if (!reduced) {
+
+        // Normal motion: start the intro as soon as the fonts are ready
+        // (unless the hint says signed in). With reduced motion it starts
+        // from hideSplash(false) instead, so it carries the exemption class.
+        if (!reduced && !hintedSignedIn) {
             fontsReady.then(play, play);
         }
 
         setTimeout(function () {
+            if (hintedSignedIn) {
+                remove();
+                return;
+            }
             play();
             window.hideSplash();
         }, MAX_VISIBLE);
@@ -477,7 +518,7 @@
                         <h1>Models</h1>
 
                         <p class="sub">
-                            Info, preferences and notes for each model.
+                            Your roster, daily targets and monthly progress.
                         </p>
                     </div>
 
@@ -504,9 +545,19 @@
 
             <div
                 id="modelsEmpty"
-                class="empty"
+                class="empty models-empty"
             >
-                No models yet. Add your first one.
+                <span class="models-empty-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>
+                </span>
+                <h2>No models yet</h2>
+                <p>Add a model to keep a photo and daily target in one place, and to start logging sales.</p>
+                <button
+                    class="btn primary add-content"
+                    data-type="models"
+                >
+                    New Model
+                </button>
             </div>
 
         </section>
@@ -1013,7 +1064,7 @@
                                 <span>How do I switch between light and dark mode?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open your profile menu in the sidebar and click "Dark mode" / "Light mode" to flip it — on a phone, use the theme button at the top of the screen. Your choice is remembered the next time you open the app.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu in the sidebar and click "Dark mode" / "Light mode" to flip it — on a phone, use the theme button at the top of the screen. Your choice is remembered the next time you open the app and follows you to your other devices when you are signed in.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1147,7 +1198,39 @@
                                 <span>How do I log a sale?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>First select a model by tapping its pill at the top of the Add a sale card — the amount box and the Add Sale button stay locked ("Select a model first") until you do. Then type the amount and click "+ Add Sale" (or hit Enter). A single sale can be anywhere from $0.01 up to $200. You'll hear a little cha-ching, see a "Sale added!" toast, and the new sale slides into Today's sales.</p></div></div>
+                            <div class="faq-a"><div><p>First select a model by tapping its pill at the top of the Add a sale card — the amount box and the Add Sale button stay locked ("Select a model first") until you do. Then type the amount and click "+ Add Sale" (or hit Enter). A single sale can be anywhere from $0.01 up to $200. You'll hear a little cha-ching, see a "Sale added!" toast, and the new sale slides into Today's sales. On any other page, the floating Quick sale button lets you log one without coming back here.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What is the Quick sale (quick add) button and how do I use it?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>It's the round floating + button that appears on every page except Sales (the Sales page already has the full Add a sale card), and it's hidden while you're signed out. Tap it to open the Quick sale window — a small popover on desktop, a bottom sheet on phones — so you can log a sale without leaving the page you're on. Pick a model, type the amount, then click "+ Add Sale" (or hit Enter). It follows the same rules as the Sales page: $0.01 up to $200, the same cha-ching and toast, and the sale lands in Today's sales like any other. The model you choose here never changes the one selected on the Sales page, and the window remembers the last model you used on this device. With no models yet, it asks you to add one on the Models tab first.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I move the Quick sale button?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Press and drag it anywhere on the screen — a tiny wobble while tapping still counts as a tap, and the window closes while you drag. Where you drop it is remembered: it stays there until you move it again, even after you close or reload the app. When you're signed in, the spot is saved to your account, so your other devices pick it up too. It's remembered by distance from the nearest edges, so a button parked in a corner stays in that corner on a bigger or smaller screen. On a very small screen it's nudged back into view, and returns to your exact spot when there's room again.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I tag a quick sale with a username?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Select a model first — the amount box and the tag button next to it stay locked until you do. Tap the tag button, choose Tip or Outside, and type the @username (the × clears it). The tag is attached to the next sale only, then it resets. It works the same way as on the Sales page — see the Tips and Outside Shift question for what the tags do.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What are the Recent sales list and the net-today bar in the Quick sale window?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Under the Add Sale button, Recent sales shows the latest four sales for the chosen model today (with a count like "6 today"); sales already settled in a saved shift aren't listed. The delete button on a row removes that sale instantly, with no confirmation and no Undo — exactly like deleting it from Today's sales. At the bottom, the footer shows that model's net for today, and if the model has a daily target, a progress bar toward it that fills as you add sales.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -2413,7 +2496,6 @@
         <div class="auth-lockup" aria-hidden="true">
             <div class="auth-word"><span>OUT</span>FLOWW</div>
             <div class="auth-rule"></div>
-            <p class="auth-tag">By Castor 演ス</p>
         </div>
 
         <ul class="auth-features">
@@ -2626,7 +2708,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=29"></script>
+<script src="js/app.js?v=30"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
