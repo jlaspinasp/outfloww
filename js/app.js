@@ -69,6 +69,28 @@ const defaultData = {
 
 
 // Load saved data
+function normalizeQuickAddPos(p) {
+
+    if (!p || typeof p !== "object") {
+        return null;
+    }
+
+    const dx = Number(p.dx);
+    const dy = Number(p.dy);
+
+    if (!isFinite(dx) || !isFinite(dy)) {
+        return null;
+    }
+
+    return {
+        h: p.h === "l" ? "l" : "r",
+        dx: Math.min(5000, Math.max(0, dx)),
+        v: p.v === "t" ? "t" : "b",
+        dy: Math.min(5000, Math.max(0, dy))
+    };
+}
+
+
 function normalizeData(obj) {
 
     obj = obj || {};
@@ -109,6 +131,13 @@ function normalizeData(obj) {
 
     // Model photos (see defaultData).
     obj.modelImages = obj.modelImages || {};
+
+    // Theme choice, synced across devices ("light" | "dark" | null = not chosen yet).
+    obj.theme = (obj.theme === "light" || obj.theme === "dark") ? obj.theme : null;
+
+    // Quick sale button position, synced across devices:
+    // { h: "l"|"r", dx: px from that side, v: "t"|"b", dy: px from that edge }
+    obj.quickAddPos = normalizeQuickAddPos(obj.quickAddPos);
 
     // Shift time + cover flag, used only by the "Copy for logout" text.
     const TIME_RE = /^\d{1,2}:\d{2}$/;
@@ -274,7 +303,8 @@ function applyTheme(theme) {
 
 function initTheme() {
 
-    const saved = localStorage.getItem(THEME_KEY) || "dark";
+    const stored = localStorage.getItem(THEME_KEY);
+    const saved = stored === "dark" ? "dark" : "light";
 
     applyTheme(saved);
 
@@ -400,6 +430,10 @@ function toggleTheme() {
     localStorage.setItem(THEME_KEY, next);
 
     applyTheme(next);
+
+    // Saved with the rest of the account data so every device follows.
+    data.theme = next;
+    saveData();
 
     // Re-render so the model-name accent color (dark in light mode,
     // bright in dark mode) updates immediately for the new theme.
@@ -1003,6 +1037,12 @@ function startCloudSync(uid) {
             if (!snapshot.exists) {
                 // First sign-in on any device: seed the cloud
                 // with whatever is currently stored on this one.
+                const seedTheme = localStorage.getItem(THEME_KEY);
+
+                if (!data.theme && (seedTheme === "light" || seedTheme === "dark")) {
+                    data.theme = seedTheme;
+                }
+
                 cloudDocRef.set(data).then(function () {
                     rememberPushed();
                     setSyncStatus("synced");
@@ -1024,6 +1064,19 @@ function startCloudSync(uid) {
 
             data = normalizeData(remote);
 
+            // Theme: the account's choice wins. If the account has none yet
+            // but this device has an explicit one, share it with the account.
+            let shareTheme = false;
+            const localTheme = localStorage.getItem(THEME_KEY);
+
+            if (data.theme) {
+                localStorage.setItem(THEME_KEY, data.theme);
+                applyTheme(data.theme);
+            } else if (localTheme === "light" || localTheme === "dark") {
+                data.theme = localTheme;
+                shareTheme = true;
+            }
+
             localStorage.setItem(
                 STORAGE_KEY,
                 JSON.stringify(data)
@@ -1033,6 +1086,12 @@ function startCloudSync(uid) {
 
             isApplyingRemoteData = false;
             lastPushedJSON = remoteJSON;
+
+            if (shareTheme) {
+                saveData();
+            }
+
+            document.dispatchEvent(new CustomEvent("quickAddPosSync"));
 
             setSyncStatus("synced");
 
@@ -1212,6 +1271,11 @@ function initAuthGate() {
                 // data if this happens to be a first sign-in here.
                 resetLocalData();
 
+                // New to this device: start from the light default until the
+                // account's own saved theme (if any) arrives.
+                localStorage.removeItem(THEME_KEY);
+                applyTheme("light");
+
                 localStorage.setItem(LAST_UID_KEY, user.uid);
 
             }
@@ -1231,6 +1295,12 @@ function initAuthGate() {
             stopCloudSync();
             resetLocalData();
             localStorage.removeItem(LAST_UID_KEY);
+
+            // Dark mode belongs to the account that chose it. Anyone not
+            // signed in (signing out, or opening the app signed out) gets
+            // the light default.
+            localStorage.removeItem(THEME_KEY);
+            applyTheme("light");
 
             authGate.classList.remove("hidden");
             signOutBtn.classList.add("hidden");
@@ -4686,13 +4756,18 @@ $("#saleForm").addEventListener(
 
     /* ---------- Movable button: drag anywhere, stays where you drop it ---------- */
 
-    const FAB_SIZE = 44;
+    const FAB_SIZE = 52;
     const POS_KEY = "chatterTool_quickAddPos";
     const PHONE_QUERY = "(max-width: 700px)";
 
-    // Where the button is, as fractions (0 to 1) of the room it can move in,
-    // so it lands in the same spot on any screen size. 1 / 1 = bottom-right.
-    let place = { x: 1, y: 1 };
+    // Where the button is, remembered as pixel distances from the nearest
+    // side and the nearest top/bottom edge (h: "l" or "r", v: "t" or "b").
+    // Screen resizes (phone address bar, rotating, window resizing) never
+    // change this; the button only gets nudged on screen if it would
+    // otherwise fall off. Default = bottom-right corner.
+    let place = { h: "r", dx: 0, v: "b", dy: 0 };
+    let legacy = null;
+    let localPlaced = false;
     let cur = { x: 0, y: 0 };
     let drag = null;
     let suppressClick = false;
@@ -4701,21 +4776,37 @@ $("#saleForm").addEventListener(
 
         const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
 
-        if (saved && typeof saved.y === "number") {
+        if (saved) {
+            localPlaced = true;
+        }
 
-            // (Older saves stored a left/right edge instead of an x.)
-            const savedX =
-                typeof saved.x === "number"
-                    ? saved.x
-                    : (saved.edge === "left" ? 0 : 1);
+        if (saved && saved.h && saved.v &&
+            typeof saved.dx === "number" && typeof saved.dy === "number") {
 
             place = {
-                x: Math.min(1, Math.max(0, savedX)),
-                y: Math.min(1, Math.max(0, saved.y))
+                h: saved.h === "l" ? "l" : "r",
+                dx: Math.max(0, saved.dx),
+                v: saved.v === "t" ? "t" : "b",
+                dy: Math.max(0, saved.dy)
+            };
+
+        } else if (saved && typeof saved.y === "number") {
+
+            // Older saves: fractions (or a left/right edge). Converted to
+            // the new format right after metrics() exists.
+            legacy = {
+                x: typeof saved.x === "number" ? saved.x : (saved.edge === "left" ? 0 : 1),
+                y: saved.y
             };
         }
 
     } catch (err) {}
+
+    // The account's synced position (if any) wins over this device's copy.
+    if (typeof data !== "undefined" && data && data.quickAddPos) {
+        place = Object.assign({}, data.quickAddPos);
+        legacy = null;
+    }
 
     // Reads the phone's notch / home-bar insets as real pixels.
     const probe = document.createElement("div");
@@ -4759,9 +4850,32 @@ $("#saleForm").addEventListener(
 
         const k = metrics();
 
+        if (legacy) {
+
+            const fx = clamp(legacy.x, 0, 1);
+            const fy = clamp(legacy.y, 0, 1);
+            const lx = fx * (k.maxX - k.minX);
+            const ly = fy * (k.maxY - k.minY);
+
+            place = {
+                h: fx < 0.5 ? "l" : "r",
+                dx: fx < 0.5 ? lx : (k.maxX - k.minX) - lx,
+                v: fy < 0.5 ? "t" : "b",
+                dy: fy < 0.5 ? ly : (k.maxY - k.minY) - ly
+            };
+
+            legacy = null;
+            savePosition(false);
+        }
+
+        const x = place.h === "l" ? k.minX + place.dx : k.maxX - place.dx;
+        const y = place.v === "t" ? k.minY + place.dy : k.maxY - place.dy;
+
+        // Clamped only for display; the saved spot is left untouched so it
+        // returns to exactly where you left it when there's room again.
         cur = {
-            x: k.minX + place.x * (k.maxX - k.minX),
-            y: k.minY + place.y * (k.maxY - k.minY)
+            x: clamp(x, k.minX, k.maxX),
+            y: clamp(y, k.minY, k.maxY)
         };
 
         fab.style.left = cur.x + "px";
@@ -4820,12 +4934,55 @@ $("#saleForm").addEventListener(
         }
     }
 
-    function savePosition() {
+    // toCloud = false for quiet local-only saves (old-format conversion).
+    function savePosition(toCloud) {
 
         try {
             localStorage.setItem(POS_KEY, JSON.stringify(place));
         } catch (err) {}
+
+        localPlaced = true;
+
+        if (toCloud !== false) {
+
+            data.quickAddPos = Object.assign({}, place);
+            saveData();
+        }
     }
+
+    // Another device moved the button (or this account's saved spot just
+    // arrived): follow it. If the account has none yet but this device
+    // does, share this device's spot with the account.
+    function syncFromData() {
+
+        if (drag) {
+            return;
+        }
+
+        if (data && data.quickAddPos) {
+
+            place = Object.assign({}, data.quickAddPos);
+            legacy = null;
+
+            try {
+                localStorage.setItem(POS_KEY, JSON.stringify(place));
+            } catch (err) {}
+
+            localPlaced = true;
+            applyPosition();
+
+            if (isOpen) {
+                placePanel();
+            }
+
+        } else if (localPlaced && !legacy) {
+
+            data.quickAddPos = Object.assign({}, place);
+            saveData();
+        }
+    }
+
+    document.addEventListener("quickAddPosSync", syncFromData);
 
     fab.addEventListener("pointerdown", function (event) {
 
@@ -4905,9 +5062,16 @@ $("#saleForm").addEventListener(
         const rect = fab.getBoundingClientRect();
         const k = metrics();
 
+        const toLeft = Math.max(0, rect.left - k.minX);
+        const toRight = Math.max(0, k.maxX - rect.left);
+        const toTop = Math.max(0, rect.top - k.minY);
+        const toBottom = Math.max(0, k.maxY - rect.top);
+
         place = {
-            x: k.maxX > k.minX ? clamp((rect.left - k.minX) / (k.maxX - k.minX), 0, 1) : 1,
-            y: k.maxY > k.minY ? clamp((rect.top - k.minY) / (k.maxY - k.minY), 0, 1) : 1
+            h: toLeft <= toRight ? "l" : "r",
+            dx: Math.min(toLeft, toRight),
+            v: toTop <= toBottom ? "t" : "b",
+            dy: Math.min(toTop, toBottom)
         };
 
         savePosition();
@@ -7612,6 +7776,180 @@ async function removeCategory(type, category) {
    ===================================================== */
 
 
+/* =====================================================
+   MODEL CARD (Models tab)
+   Models get their own roster layout: photo first, then
+   name, daily target and month-to-date target progress. The wrapper
+   keeps the same classes/attributes as every other content
+   card, so drag-to-reorder, long-press select and the open /
+   edit buttons all keep working unchanged.
+   ===================================================== */
+
+function formatModelTarget(target) {
+
+    const n = Number(target) || 0;
+
+    if (n <= 0) {
+        return "";
+    }
+
+    return Number.isInteger(n) ? moneyShort(n) : money(n);
+}
+
+
+/* Month-to-date figures for a model card. The monthly target is the
+   daily target x the days in this month (same rule the Monthly trend
+   uses), and progress is net earnings, like every other target. */
+function getModelMonthStats(modelId) {
+
+    const today = getDateKey();
+    const monthKey = getPeriodKey(today, "month");
+    const dailyTarget = Number(data.modelTargets && data.modelTargets[modelId]) || 0;
+    const target = dailyTarget * daysInMonthKey(monthKey);
+
+    let monthNet = 0;
+    let todayNet = 0;
+
+    computeModelDailyRows(modelId, false).forEach(row => {
+
+        if (row.date.slice(0, 7) === monthKey) {
+            monthNet += row.net;
+        }
+
+        if (row.date === today) {
+            todayNet += row.net;
+        }
+    });
+
+    return {
+        monthNet,
+        todayNet,
+        target,
+        percent: target > 0 ? Math.round((monthNet / target) * 100) : null
+    };
+}
+
+
+function renderModelMonthBlock(stats) {
+
+    const monthName = new Date().toLocaleDateString(undefined, { month: "long" });
+
+    const today = `
+        <div class="mc-month-meta">
+            <span>Today <strong>${money(stats.todayNet)}</strong></span>
+        </div>`;
+
+    if (stats.percent === null) {
+        return `
+            <div class="mc-month is-none">
+                <div class="mc-month-meta">
+                    <span>${monthName} <strong>${money(stats.monthNet)}</strong></span>
+                    <span>No target</span>
+                </div>
+                ${today}
+            </div>`;
+    }
+
+    const fill = Math.max(0, Math.min(100, stats.percent));
+
+    return `
+        <div class="mc-month${stats.percent >= 100 ? " is-hit" : ""}">
+            <div class="mc-month-head">
+                <span class="mc-month-label">${monthName} target</span>
+                <span class="mc-month-pct">${stats.percent}%</span>
+            </div>
+            <div class="mc-month-bar" role="progressbar"
+                 aria-label="${monthName} target progress"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}">
+                <span style="width: ${fill}%"></span>
+            </div>
+            <div class="mc-month-meta">
+                <span><strong>${money(stats.monthNet)}</strong> of ${money(stats.target)}</span>
+            </div>
+            ${today}
+        </div>`;
+}
+
+
+function renderModelCard(item, selected, inSelectMode) {
+
+    const color = getAvatarColor(item.id);
+    const deep = getModelDeepColor(color);
+    const photo = getModelImage(item.id);
+    const target = formatModelTarget(data.modelTargets && data.modelTargets[item.id]);
+
+    const monthly = getModelMonthStats(item.id);
+
+    const picture = photo
+        ? `<img src="${photo}" alt="" draggable="false" loading="lazy">`
+        : MODEL_SILHOUETTE_SVG;
+
+    return `
+
+        <article
+            class="card content-card static-card model-card${selected ? " selected" : ""}"
+            style="--m-color: ${color}; --m-deep: ${deep};"
+            draggable="${inSelectMode ? "false" : "true"}"
+            tabindex="0"
+            data-id="${item.id}"
+            onclick="handleCardClick('models', '${item.id}', event)"
+        >
+
+            <div class="card-select-circle" aria-hidden="true"></div>
+
+            <div class="mc-photo${photo ? "" : " is-empty"}">
+
+                ${picture}
+
+                <div class="card-actions-top">
+                    <button
+                        class="card-icon-btn card-open-btn"
+                        type="button"
+                        title="Open"
+                        aria-label="Open"
+                        onclick="
+                            event.stopPropagation();
+                            openViewModal('models', '${item.id}')
+                        "
+                    >
+                        ${ICON_OPEN}
+                    </button>
+                    <button
+                        class="card-icon-btn card-edit-btn"
+                        type="button"
+                        title="Edit"
+                        aria-label="Edit"
+                        onclick="
+                            event.stopPropagation();
+                            editItem('models', '${item.id}')
+                        "
+                    >
+                        ${ICON_EDIT}
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="mc-body">
+
+                <h3>${escapeHTML(item.title)}</h3>
+
+                <div class="mc-target${target ? "" : " is-none"}">
+                    ${target
+                        ? `<span class="mc-target-fig">${target}</span><span class="mc-target-unit">daily target</span>`
+                        : `<span class="mc-target-unit">No daily target</span>`}
+                </div>
+
+                ${renderModelMonthBlock(monthly)}
+
+            </div>
+
+        </article>
+
+    `;
+}
+
+
 function renderContent(type) {
 
     const list =
@@ -7681,6 +8019,25 @@ function renderContent(type) {
 
 
     const isScripts = type === "scripts";
+
+    if (type === "models") {
+
+        container.innerHTML =
+            filtered.map(
+                item => renderModelCard(
+                    item,
+                    selectedIds[type].has(item.id),
+                    inSelectMode
+                )
+            ).join("");
+
+        $("#modelsEmpty").style.display =
+            filtered.length ? "none" : "flex";
+
+        updateSelectToolbar();
+
+        return;
+    }
 
     container.innerHTML =
         filtered.map(
@@ -8832,6 +9189,7 @@ $$(".scripts-search-input").forEach(
         ["model", "models", "creator", "creators"],
         ["photo", "photos", "picture", "pictures", "image", "avatar", "pic", "profile picture"],
         ["fire", "flames", "flame", "on fire", "inferno", "blaze", "embers", "ember", "sparkle", "sparkles", "spark", "sparks", "glow", "burning", "heat", "shine"],
+        ["quick sale", "quick add", "floating button", "plus button", "shortcut"],
         ["gross", "before fees"],
         ["net", "after fees", "take home"],
     ];
