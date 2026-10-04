@@ -8743,3 +8743,293 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
         overflow: hidden;
     }
 }
+
+/* =====================================================
+   MODELS TAB: roster cards
+   Photo-led portrait cards instead of the text cards the
+   Scripts tab uses. Each card carries its model's own colour
+   (--m-color / --m-deep, set inline): it tints the picture
+   when there is no photo and draws the stripe under it, so a
+   model is recognisable at a glance. Same wrapper classes as
+   every content card, so drag-to-reorder, long-press select
+   and the Open / Edit buttons are untouched.
+   ===================================================== */
+
+#modelsList.content-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 216px), 1fr));
+    gap: var(--sp-5);
+}
+
+.content-card.model-card {
+    height: auto;
+    padding: 0;
+    border-radius: var(--radius-xl);
+}
+
+/* ---------- Picture ---------- */
+
+.model-card .mc-photo {
+    position: relative;
+    aspect-ratio: 5 / 6;
+    overflow: hidden;
+    /* Only the top corners round: the card itself is not clipped, so the
+       select circle can still straddle its corner. */
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    background: var(--bg-secondary);
+    border-bottom: 3px solid var(--m-color);
+}
+
+.model-card .mc-photo > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    -webkit-user-drag: none;
+}
+
+/* No photo: the model's colour, with a large soft silhouette standing
+   in the lower part of the frame like a portrait. */
+.model-card .mc-photo.is-empty {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background:
+        radial-gradient(120% 90% at 50% 0%,
+            color-mix(in srgb, white 22%, transparent),
+            transparent 62%),
+        var(--m-color);
+}
+
+.model-card .mc-photo.is-empty > svg {
+    width: 72%;
+    height: 72%;
+    margin-bottom: -6%;
+    fill: var(--m-deep);
+    opacity: 0.42;
+}
+
+/* Dark theme: a full-strength pastel is too loud next to dark
+   surfaces, so the tint is pulled toward the card colour. */
+:root:not([data-theme="light"]) .model-card .mc-photo.is-empty {
+    background:
+        radial-gradient(120% 90% at 50% 0%,
+            color-mix(in srgb, white 10%, transparent),
+            transparent 62%),
+        color-mix(in srgb, var(--m-color) 58%, var(--bg-card));
+}
+
+:root:not([data-theme="light"]) .model-card .mc-photo.is-empty > svg {
+    fill: var(--m-color);
+    opacity: 0.5;
+}
+
+/* ---------- Open / Edit over the picture ---------- */
+
+.model-card .card-actions-top {
+    top: var(--sp-2);
+    right: var(--sp-2);
+    gap: 4px;
+}
+
+.model-card .card-actions-top .card-icon-btn {
+    width: 32px;
+    height: 32px;
+    background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+    border-radius: 50%;
+    color: var(--text-primary);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.model-card .card-actions-top .card-icon-btn:hover {
+    background: var(--bg-card);
+}
+
+.model-card .card-actions-top .card-icon-btn:active {
+    background: var(--bg-raised);
+}
+
+/* ---------- Text ---------- */
+
+.model-card .mc-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    min-width: 0;
+    padding: var(--sp-4) var(--sp-4) var(--sp-4);
+}
+
+/* The name: the same italic display face the Sales page uses for models. */
+.content-card.static-card.model-card h3 {
+    margin: 0;
+    padding-right: 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+}
+
+.model-card .mc-target {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.model-card .mc-target-fig {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+.model-card .mc-target.is-none .mc-target-unit {
+    font-style: italic;
+    color: var(--text-disabled);
+}
+
+/* Month-to-date progress toward the monthly target. */
+.model-card .mc-month {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.model-card .mc-month-head,
+.model-card .mc-month-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    min-width: 0;
+}
+
+.model-card .mc-month-pct {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+.model-card .mc-month-meta strong {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+}
+
+.model-card .mc-month-bar {
+    height: 6px;
+    overflow: hidden;
+    background: var(--progress-track);
+    border-radius: 999px;
+}
+
+.model-card .mc-month-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+}
+
+.model-card .mc-month.is-hit .mc-month-bar > span {
+    background: var(--success, var(--accent));
+}
+
+.model-card .mc-month.is-none .mc-month-meta:first-child span:last-child {
+    font-style: italic;
+    color: var(--text-disabled);
+}
+
+/* ---------- Select mode ---------- */
+
+.content-grid.select-mode .model-card .mc-photo > img,
+.content-grid.select-mode .model-card .mc-photo.is-empty > svg {
+    pointer-events: none;
+}
+
+.content-card.model-card.selected .mc-body {
+    background: transparent;
+}
+
+.content-card.model-card.selected .mc-photo {
+    border-bottom-color: var(--accent);
+}
+
+/* ---------- Empty state ---------- */
+
+.models-empty {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+    max-width: 420px;
+    margin: var(--sp-10) auto 0;
+    padding: var(--sp-8) var(--sp-6);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-xl);
+}
+
+.models-empty-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: var(--sp-1);
+    background: var(--accent-soft);
+    border-radius: 50%;
+    color: var(--accent-text);
+}
+
+.models-empty-mark svg {
+    width: 34px;
+    height: 34px;
+    fill: currentColor;
+}
+
+.models-empty h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.models-empty p {
+    max-width: 34ch;
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-base);
+    line-height: 1.55;
+    color: var(--text-secondary);
+}
+
+/* ---------- Phones: two across ---------- */
+
+@media (max-width: 560px) {
+
+    #modelsList.content-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--sp-3);
+    }
+
+    .model-card .mc-body {
+        padding: var(--sp-3);
+    }
+
+    .content-card.static-card.model-card h3 {
+        font-size: var(--fs-lg);
+    }
+
+}
