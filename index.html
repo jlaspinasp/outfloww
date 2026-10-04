@@ -663,7 +663,8 @@
                                 type="submit"
                                 form="saleForm"
                             >
-                                + Add Sale
+                                <span class="sale-submit-idle">+ Add Sale</span>
+                                <span class="sale-submit-done" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Added</span>
                             </button>
 
                             <div class="outside-shift-picker">
@@ -1045,6 +1046,8 @@
 
             <div class="faq-content">
 
+                <p class="faq-results" id="faqResults" aria-live="polite" hidden></p>
+
                 <div class="faq-group" id="faq-general">
 
                     <h2 class="faq-group-title">General</h2>
@@ -1057,6 +1060,22 @@
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div class="faq-a"><div><p>Outfloww is your personal chatter tool. It keeps your models, your daily sales, and your reusable scripts in one place so you can track earnings and work faster during a shift.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I get around the app?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Use the sidebar to switch between Models, Sales and Scripts. The FAQ button is in the sidebar, in the footer at the bottom of every page, and in the header at the top of the screen on a phone. Your profile picture (bottom of the sidebar, or top right on a phone) opens the profile menu: light/dark mode, Reduce motion, Logout title, Export data, Import data and Sign out. The footer also links to About, Terms, Privacy and Contact.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I collapse the sidebar?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>On larger screens, click the slim line on the sidebar's edge to collapse or expand it, or drag it across the border: left to collapse, right to expand. Outfloww remembers your choice on this device.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1080,7 +1099,7 @@
                                 <span>Can I undo a delete?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Usually, yes. Deleting a model or a script asks you to confirm first, then shows an "Undo" button on the toast for a few seconds — click it to bring the item straight back (a restored model keeps its photo, color and daily target). Clearing your sales history works the same way. The exception is removing a single sale from Today's sales: that happens instantly, with no confirmation and no Undo.</p></div></div>
+                            <div class="faq-a"><div><p>Usually, yes. Deleting a model or a script asks you to confirm first, then shows an "Undo" button on the toast for a few seconds — click it to bring the item straight back (a restored model keeps its photo, color and daily target). Removing a script category and clearing your sales history work the same way. The exception is removing a single sale from Today's sales: that happens instantly, with no confirmation and no Undo.</p></div></div>
                         </div>
 
                     </div>
@@ -1099,7 +1118,7 @@
                                 <span>How do I add a model?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Go to Models and click "New Model". The form lets you upload a photo, enter the model's name, pick a color, set an optional daily target, and write info &amp; notes (preferences, boundaries, rates, birthday — anything worth remembering). The name and notes are required; the photo, color and target are optional. Click Save and the model shows up right away on the Sales page, ready for you to log sales.</p></div></div>
+                            <div class="faq-a"><div><p>Go to Models and click "New Model". The form lets you upload a photo, enter the model's name, pick a color, set an optional daily target, and write info &amp; notes (preferences, boundaries, rates, birthday — anything worth remembering). The name and notes are required; the photo, color and target are optional. Notes aren't shown on the card itself — click the open icon on the card whenever you want to read them. Click Save and the model shows up right away on the Sales page, ready for you to log sales.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1123,7 +1142,7 @@
                                 <span>How do I view a model's notes?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Click the open icon on a model's card to read its full notes — if the model has a photo, it shows up in the window's header. The same info icon also appears on that model's row in the Target Breakdown on the Sales page, so you can jump straight to its notes without leaving your shift.</p></div></div>
+                            <div class="faq-a"><div><p>Click the open icon on a model's card to read its full notes — if the model has a photo, it shows up in the window's header. The card itself only shows the photo, name, targets and progress, so the open icon is the way to get to the notes. The same info icon also appears on that model's row in the Target Breakdown on the Sales page, so you can jump straight to its notes without leaving your shift.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1131,7 +1150,23 @@
                                 <span>How do I set a model's daily target?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open the model's Edit Model form (pencil icon) and type an amount into "Daily target". It's based on net earnings, so it's measured against your 80% cut, not gross. Leave it blank for no target, or enter anything above $0 — the form won't save a zero or negative target. Once a target is set, the model's bar in the Target Breakdown fills as sales come in.</p></div></div>
+                            <div class="faq-a"><div><p>Open the model's Edit Model form (pencil icon) and type an amount into "Daily target". It's based on net earnings, so it's measured against your 80% cut, not gross. Leave it blank for no target, or enter anything above $0 — the form won't save a zero or negative target. Once a target is set, the model's bar in the Target Breakdown fills as sales come in, and its card on the Models tab starts showing progress toward a monthly target (the daily target × the days in the month).</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What is the monthly target percentage on a model's card?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Under a model's daily target, its card on the Models tab shows how far along you are this month. The monthly target is the daily target × the number of days in the current month (for example $350 × 31 days = $10,850), and progress is your net earnings for the month so far — the same net your daily targets use. The card shows the percentage and a progress bar, "$ earned of $ target" underneath, and today's net below that. It updates as you log sales, including today's, and the bar turns green at 100% while the percentage keeps counting past it. It starts again from 0% each new month, and clearing Sales History removes those days from the total. A model with no daily target shows just the month's net and "No target" — add a daily target in Edit Model to turn the monthly progress on.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What does a model's card show?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>On the Models tab each card shows the model's photo (or its color with a silhouette if there's no photo), the name, the daily target, and this month's target progress. The open icon on the photo shows the full notes and the pencil edits the model. Drag a card to reorder your models, or press and hold one to start select mode for deleting several at once.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1206,7 +1241,7 @@
                                 <span>What is the Quick sale (quick add) button and how do I use it?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>It's the round floating + button that appears on every page except Sales (the Sales page already has the full Add a sale card), and it's hidden while you're signed out. Tap it to open the Quick sale window — a small popover on desktop, a bottom sheet on phones — so you can log a sale without leaving the page you're on. Pick a model, type the amount, then click "+ Add Sale" (or hit Enter). It follows the same rules as the Sales page: $0.01 up to $200, the same cha-ching and toast, and the sale lands in Today's sales like any other. The model you choose here never changes the one selected on the Sales page, and the window remembers the last model you used on this device. With no models yet, it asks you to add one on the Models tab first.</p></div></div>
+                            <div class="faq-a"><div><p>It's the round floating + button that appears on every page except Sales (the Sales page already has the full Add a sale card), and it's hidden while you're signed out. Tap it to open the Quick sale window — a small popover on desktop, a bottom sheet on phones — so you can log a sale without leaving the page you're on. Pick a model, type the amount, then click "+ Add Sale" (or hit Enter). It follows the same rules as the Sales page: $0.01 up to $200, the same cha-ching and toast, and the sale lands in Today's sales like any other. Model selection works exactly like the Sales page and is shared with it: tap a model to select it, tap it again to un-select it, and whatever is selected here is selected on the Sales page too (and the other way round). Nothing is pre-selected for you. With no models yet, it asks you to add one on the Models tab first.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1222,7 +1257,7 @@
                                 <span>How do I tag a quick sale with a username?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Select a model first — the amount box and the tag button next to it stay locked until you do. Tap the tag button, choose Tip or Outside, and type the @username (the × clears it). The tag is attached to the next sale only, then it resets. It works the same way as on the Sales page — see the Tips and Outside Shift question for what the tags do.</p></div></div>
+                            <div class="faq-a"><div><p>Select a model first — the amount box and the tag button next to it stay locked until you do. The tag button sits between the amount box and Add Sale, exactly like on the Sales page, and opens the same popover: choose Tips or Outside Shift, type the @username, then click Set (or press Enter). The button lights up while a tag is waiting, and the tag is attached to the next sale only, then it resets. The tag is shared with the Sales page. See the Tips and Outside Shift question for what the tags do.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1310,7 +1345,23 @@
                                 <span>What's the difference between the Daily and Monthly overview?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>The toggle above the Overview chart switches its bars between a day-by-day view of the current week and a month-by-month view, so you can spot trends at either scale.</p></div></div>
+                            <div class="faq-a"><div><p>The toggle above the Overview chart switches between seven bars for the last seven days (ending today) and seven bars for the last seven months (ending this month), so you can spot trends at either scale. The summary line above the bars shows the net for the current day or month and how it compares with the previous one (▲ or ▼ with a percentage), and the line below shows your average and best across the periods on screen. Like the totals, the Overview follows the model you have selected — with none selected it asks you to select a model.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I read the bars, percentages and dashed line on the Overview?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Each bar is the selected model's net for that day or month, with the amount above it. If the model has a daily target, a percentage appears beside the amount (a ✓ once the target is hit), and the bar changes color when it hits. In the Daily view a dashed line marks the daily target; in the Monthly view each month is measured against the daily target × that month's days. Hover a bar for its date, net, number of sales and % of target, and click a day that has sales to jump straight to it in Sales History. Today only opens once some of it has been saved with Shift Report.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How does Sales History work?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Open it with the history icon at the top right of the Overview card. Previous days are listed newest first and each one expands to show its sales; a day worked in more than one shift has a row for every saved shift. With a model selected, the list shows only that model's days with its name at the top; with none selected it shows every model together. Long histories load 30 entries at a time with a "Load more" row. The footer has Copy for logout (for the day or shift you have expanded) and Clear history.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1346,6 +1397,14 @@
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div class="faq-a"><div><p>They filter your scripts by category — click one to show only that category's scripts. Drag chips to reorder them.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I add or remove a category?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Click the "+ Add category" chip at the end of the chips, type a name (up to 30 characters, with the emoji button if you want one) and click Add category. To remove a category, drag its chip onto "Drop to delete" at the bottom of the sidebar and confirm. Scripts already using that category keep it, but it stops appearing as a filter, and an Undo button shows right afterward. Press and hold a chip to rename it.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1404,7 +1463,7 @@
                                 <span>How do I back up my data?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open your profile menu and click "Export data" to download a file with everything — models (including their photos, colors and daily targets), sales, history and scripts — so you always have a copy of your own.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and click "Export data" to download a file named chatter-tool-backup with today's date. It contains everything — models (including their photos, colors, daily targets and notes), sales, history, saved shifts, scripts, categories and your logout title — so you always have a copy of your own.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1412,7 +1471,7 @@
                                 <span>How do I restore a backup?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open your profile menu and click "Import data", then choose a file you previously exported. This replaces what's currently in the app with the backup, so use it carefully.</p></div></div>
+                            <div class="faq-a"><div><p>Open your profile menu and click "Import data", then choose a file you previously exported. If the file isn't a valid backup you'll get a message and nothing changes. Otherwise you're asked to confirm, because importing replaces your current sales, history, models and scripts with the backup's contents and can't be undone — export a fresh backup first if you're not sure.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1421,6 +1480,30 @@
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div class="faq-a"><div><p>Sign in with Google when prompted. Your data is then kept in sync automatically — sign in with the same account on another device and everything picks up right where you left off, model photos included.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>How do I sign in?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>After the splash screen, the sign-in page asks you to continue with Google — pick your Google account in the pop-up and you're in. You stay signed in on that device and browser until you sign out. Use the same Google account on every device to see the same data.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>What if I'm offline or syncing fails?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Every change is saved on your device first. If it can't reach the cloud (for example you're offline), Outfloww shows a single message saying the sync failed and that your changes are saved on this device. Keep an eye on that before you sign out: the sign-out confirmation warns you when the latest changes only exist on this device.</p></div></div>
+                        </div>
+
+                        <div class="faq-item">
+                            <button type="button" class="faq-q" aria-expanded="false">
+                                <span>Who can see my data?</span>
+                                <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="faq-a"><div><p>Only you. Your models, notes, sales and scripts are stored in one private record tied to your Google account, and aren't sold, shared for advertising or used for analytics. The Privacy link in the footer has the full details, including how to have your account and data deleted.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -1449,6 +1532,12 @@
 
                     </div>
 
+                </div>
+
+                <div class="faq-empty" id="faqEmpty" hidden>
+                    <p class="faq-empty-title">No answers match &ldquo;<span id="faqEmptyQuery"></span>&rdquo;</p>
+                    <p class="faq-empty-hint">Try fewer or different words &mdash; for example &ldquo;delete model&rdquo;, &ldquo;sync&rdquo; or &ldquo;monthly target&rdquo;.</p>
+                    <button type="button" class="btn faq-empty-suggest" id="faqEmptySuggest" hidden></button>
                 </div>
 
             </div>
@@ -2603,9 +2692,8 @@
 
         <div class="qa-field">
             <label class="qa-label qa-sr" for="quickAddAmount">Amount</label>
-
-            <div class="qa-amount-row">
-
+            <!-- Same row as the Sales page's Add a sale card: amount > Add Sale > username tag. -->
+            <div class="qa-sale-row">
                 <div class="qa-amount">
                     <span class="qa-currency" aria-hidden="true">$</span>
                     <input
@@ -2619,62 +2707,56 @@
                         disabled
                     >
                 </div>
-
-                <button
-                    type="button"
-                    class="qa-tag-btn"
-                    id="quickAddTagBtn"
-                    title="Tag the next sale with a username"
-                    aria-label="Tag the next sale with a username"
-                    aria-pressed="false"
-                    aria-expanded="false"
-                    aria-controls="quickAddTag"
-                    disabled
-                >
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <button class="btn primary qa-submit" id="quickAddSubmit" type="submit" disabled>
+                    <span class="qa-submit-idle">+ Add Sale</span>
+                    <span class="qa-submit-done" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Added</span>
                 </button>
-
-            </div>
-
-            <div class="qa-tag" id="quickAddTag" title="Attached to the next sale only">
-                <div class="qa-tag-inner">
-                    <div class="qa-tag-row">
-
-                        <div class="qa-seg" role="group" aria-label="Username type">
-                            <button type="button" class="qa-seg-btn active" data-type="tip" aria-pressed="true">Tip</button>
-                            <button type="button" class="qa-seg-btn" data-type="outside" aria-pressed="false">Outside</button>
+                <div class="outside-shift-picker">
+                    <button
+                        class="outside-shift-btn"
+                        id="quickAddTagBtn"
+                        type="button"
+                        title="Tag the next sale with a username"
+                        aria-label="Add username"
+                        aria-pressed="false"
+                        aria-expanded="false"
+                        aria-controls="quickAddUsernamePopover"
+                        disabled
+                    >
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </button>
+                    <div id="quickAddUsernamePopover" class="outside-shift-popover hidden">
+                        <div class="username-type-row" role="group" aria-label="Username type">
+                            <button type="button" class="username-type-btn active" data-username-type="tip" aria-pressed="true">Tips</button>
+                            <button type="button" class="username-type-btn" data-username-type="outside" aria-pressed="false">Outside Shift</button>
                         </div>
-
-                        <div class="qa-tag-field" id="quickAddTagWrap">
-                            <input
-                                type="text"
-                                id="quickAddTagField"
-                                name="quick-sale-tag"
-                                placeholder="@username"
-                                maxlength="40"
-                                autocomplete="off"
-                                autocorrect="off"
-                                autocapitalize="off"
-                                spellcheck="false"
-                                data-lpignore="true"
-                                data-1p-ignore="true"
-                                data-form-type="other"
-                            >
-                            <button type="button" class="qa-tag-clear" id="quickAddTagClear" aria-label="Clear username">
-                                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                            </button>
+                        <!-- A div, not a form: this whole window already sits inside the sale form. -->
+                        <div class="tag-form" id="quickAddUsernameForm">
+                            <div class="tag-field" id="quickAddTagWrap">
+                                <input
+                                    type="text"
+                                    id="quickAddTagField"
+                                    name="quick-sale-tag"
+                                    placeholder="e.g. @u1234567"
+                                    maxlength="40"
+                                    autocomplete="off"
+                                    autocorrect="off"
+                                    autocapitalize="off"
+                                    spellcheck="false"
+                                    data-lpignore="true"
+                                    data-1p-ignore="true"
+                                    data-form-type="other"
+                                >
+                                <button type="button" class="tag-field-clear" id="quickAddTagClear" aria-label="Clear username">
+                                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </div>
+                            <button class="btn primary" id="quickAddTagSet" type="button">Set</button>
                         </div>
-
                     </div>
                 </div>
             </div>
         </div>
-
-        <button class="btn primary qa-submit" id="quickAddSubmit" type="submit" disabled>
-            <span class="qa-submit-idle">+ Add Sale</span>
-            <span class="qa-submit-done" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Added</span>
-        </button>
-
         <div class="qa-recent" id="quickAddRecent">
 
             <div class="qa-recent-head">
