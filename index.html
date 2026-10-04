@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=35">
+    <link rel="stylesheet" href="css/style.css?v=43">
 
     <script>
         (function () {
@@ -568,7 +568,7 @@
 
                 <div class="sales-layout-left">
 
-                    <div class="card target-card">
+                    <div class="card target-card sales-unified">
 
                         <!-- Top bar: the card title on the left, the model switcher (pills)
                              on the right. The switcher is the only way to pick which model a
@@ -587,6 +587,12 @@
 
                         </div>
 
+
+                        <!-- Body: sale entry + model rows on the left, Today's sales
+                             list on the right, all inside this one card. -->
+                        <div class="sales-unified-body">
+
+                        <div class="sales-unified-main">
 
                         <div class="sale-box">
 
@@ -741,40 +747,45 @@
 
                         </div>
 
+                        </div><!-- /.sales-unified-main -->
+
+
+                        <!-- TODAY'S SALES (right side of the same card) -->
+
+                        <aside class="sales-side" id="todaySalesCard" aria-label="Today's sales">
+
+                            <div class="section-head sales-side-head">
+                                <h2>Today's sales</h2>
+                                <span
+                                    id="todaySalesModelName"
+                                    class="today-sales-model-name hidden"
+                                ></span>
+                            </div>
+
+                            <div class="sales-list-wrap">
+
+                                <div
+                                    id="salesList"
+                                    class="sales-list"
+                                ></div>
+
+                                <div
+                                    id="emptySales"
+                                    class="empty"
+                                >
+                                    No sales added today.
+                                </div>
+
+                            </div>
+
+                        </aside>
+
+                        </div><!-- /.sales-unified-body -->
+
                     </div>
 
                 </div>
 
-
-                <!-- TODAY'S SALES -->
-
-                <div class="card sales-layout-right" id="todaySalesCard">
-
-                    <div class="section-head">
-                        <h2>Today's sales</h2>
-                        <span
-                            id="todaySalesModelName"
-                            class="today-sales-model-name hidden"
-                        ></span>
-                    </div>
-
-                    <div class="sales-list-wrap">
-
-                        <div
-                            id="salesList"
-                            class="sales-list"
-                        ></div>
-
-                        <div
-                            id="emptySales"
-                            class="empty"
-                        >
-                            No sales added today.
-                        </div>
-
-                    </div>
-
-                </div>
 
             </div>
 
@@ -2470,11 +2481,152 @@
 </div>
 
 
+<!-- QUICK SALE: draggable floating + button and popover. Shown on every tab except Sales
+     (the Sales page already has the full Add a sale card). Sits before the
+     scripts so app.js can find it when it loads. -->
+
+<button
+    type="button"
+    class="qa-fab is-hidden"
+    id="quickAddFab"
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    aria-controls="quickAddPanel"
+    aria-label="Quick sale"
+    title="Quick sale — drag to move"
+>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+</button>
+
+<div class="qa-backdrop" id="quickAddBackdrop"></div>
+
+<section class="qa-panel" id="quickAddPanel" role="dialog" aria-label="Quick sale">
+
+    <div class="qa-grab" aria-hidden="true"></div>
+
+    <div class="qa-head">
+        <h2>Quick sale</h2>
+        <button type="button" class="icon-btn" id="quickAddClose" aria-label="Close quick sale" title="Close">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+    </div>
+
+    <form class="qa-body" id="quickAddForm" autocomplete="off" novalidate>
+
+        <div class="qa-field">
+            <span class="qa-label qa-sr" id="quickAddModelLabel">Model</span>
+            <div class="qa-models" id="quickAddModels" role="group" aria-labelledby="quickAddModelLabel"></div>
+            <p class="qa-note" id="quickAddNoModels" hidden>Add a model on the Models tab to start logging sales.</p>
+        </div>
+
+        <div class="qa-field">
+            <label class="qa-label qa-sr" for="quickAddAmount">Amount</label>
+
+            <div class="qa-amount-row">
+
+                <div class="qa-amount">
+                    <span class="qa-currency" aria-hidden="true">$</span>
+                    <input
+                        id="quickAddAmount"
+                        type="number"
+                        inputmode="decimal"
+                        min="0.01"
+                        max="200"
+                        step="0.01"
+                        placeholder="0.00"
+                        disabled
+                    >
+                </div>
+
+                <button
+                    type="button"
+                    class="qa-tag-btn"
+                    id="quickAddTagBtn"
+                    title="Tag the next sale with a username"
+                    aria-label="Tag the next sale with a username"
+                    aria-pressed="false"
+                    aria-expanded="false"
+                    aria-controls="quickAddTag"
+                    disabled
+                >
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </button>
+
+            </div>
+
+            <div class="qa-tag" id="quickAddTag" title="Attached to the next sale only">
+                <div class="qa-tag-inner">
+                    <div class="qa-tag-row">
+
+                        <div class="qa-seg" role="group" aria-label="Username type">
+                            <button type="button" class="qa-seg-btn active" data-type="tip" aria-pressed="true">Tip</button>
+                            <button type="button" class="qa-seg-btn" data-type="outside" aria-pressed="false">Outside</button>
+                        </div>
+
+                        <div class="qa-tag-field" id="quickAddTagWrap">
+                            <input
+                                type="text"
+                                id="quickAddTagField"
+                                name="quick-sale-tag"
+                                placeholder="@username"
+                                maxlength="40"
+                                autocomplete="off"
+                                autocorrect="off"
+                                autocapitalize="off"
+                                spellcheck="false"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                data-form-type="other"
+                            >
+                            <button type="button" class="qa-tag-clear" id="quickAddTagClear" aria-label="Clear username">
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn primary qa-submit" id="quickAddSubmit" type="submit" disabled>
+            <span class="qa-submit-idle">+ Add Sale</span>
+            <span class="qa-submit-done" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Added</span>
+        </button>
+
+        <div class="qa-recent" id="quickAddRecent">
+
+            <div class="qa-recent-head">
+                <span class="qa-label">Recent sales</span>
+                <span class="qa-recent-count" id="quickAddRecentCount"></span>
+            </div>
+
+            <!-- Fixed height: always room for 4 rows, so the popover never changes size. -->
+            <div class="qa-recent-box">
+                <ul class="qa-recent-list" id="quickAddRecentList"></ul>
+                <p class="qa-recent-empty" id="quickAddRecentEmpty" hidden></p>
+            </div>
+
+        </div>
+
+    </form>
+
+    <div class="qa-foot">
+        <div class="qa-foot-top">
+            <span class="qa-foot-label" id="quickAddFootLabel">Net today</span>
+            <span class="qa-foot-fig" id="quickAddFootFig">—</span>
+        </div>
+        <div class="progress-track qa-track is-off" id="quickAddTrack">
+            <div class="progress-fill" id="quickAddFill"></div>
+        </div>
+    </div>
+
+</section>
+
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=22"></script>
+<script src="js/app.js?v=29"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
