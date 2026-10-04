@@ -7828,58 +7828,135 @@ function formatModelTarget(target) {
 
 /* Month-to-date figures for a model card. The monthly target is the
    daily target x the days in this month (same rule the Monthly trend
-   uses), and progress is net earnings, like every other target. */
+   uses), and progress is net earnings, like every other target.
+   Also returns the last 7 days (oldest first, today last) and the
+   month-end pace: net so far / days gone x days in the month, compared
+   with where the target says she should be by today. */
 function getModelMonthStats(modelId) {
 
     const today = getDateKey();
     const monthKey = getPeriodKey(today, "month");
+    const monthDays = daysInMonthKey(monthKey);
+    const dayOfMonth = Number(today.slice(8, 10));
     const dailyTarget = Number(data.modelTargets && data.modelTargets[modelId]) || 0;
-    const target = dailyTarget * daysInMonthKey(monthKey);
+    const target = dailyTarget * monthDays;
 
+    const netByDate = {};
     let monthNet = 0;
-    let todayNet = 0;
 
     computeModelDailyRows(modelId, false).forEach(row => {
+
+        netByDate[row.date] = (netByDate[row.date] || 0) + row.net;
 
         if (row.date.slice(0, 7) === monthKey) {
             monthNet += row.net;
         }
-
-        if (row.date === today) {
-            todayNet += row.net;
-        }
     });
+
+    const week = [];
+
+    for (let i = 6; i >= 0; i--) {
+        const key = addPeriod(today, "day", -i);
+        week.push({ key, net: netByDate[key] || 0, isToday: i === 0 });
+    }
+
+    const weekNet = week.reduce((sum, day) => sum + day.net, 0);
+
+    // A pace from the first day or two is mostly noise, so wait for day 3.
+    let projected = null;
+    let paceDelta = null;
+    let expectedNet = null;
+
+    if (monthNet > 0 && dayOfMonth >= 3) {
+        projected = (monthNet / dayOfMonth) * monthDays;
+    }
+
+    if (target > 0) {
+        expectedNet = target * (dayOfMonth / monthDays);
+        paceDelta = monthNet - expectedNet;
+    }
 
     return {
         monthNet,
-        todayNet,
+        todayNet: netByDate[today] || 0,
         target,
-        percent: target > 0 ? Math.round((monthNet / target) * 100) : null
+        dailyTarget,
+        percent: target > 0 ? Math.round((monthNet / target) * 100) : null,
+        dayOfMonth,
+        monthDays,
+        projected,
+        paceDelta,
+        expectedNet,
+        week,
+        weekNet
     };
+}
+
+
+// "On pace for $8,400" plus, when there is a target, how far ahead of or
+// behind the target pace she is. Always one row, so cards line up.
+function renderModelPace(stats) {
+
+    if (stats.monthNet <= 0) {
+        return `<div class="mc-pace is-idle"><span>No sales yet</span></div>`;
+    }
+
+    if (stats.projected === null) {
+        return `<div class="mc-pace is-idle"><span>Pace from day 3</span></div>`;
+    }
+
+    let chip = "";
+
+    if (stats.paceDelta !== null) {
+
+        const gap = Math.round(Math.abs(stats.paceDelta));
+
+        if (gap < 1) {
+            chip = `<span class="mc-pace-chip is-ahead" title="Right on target pace">On target</span>`;
+        } else if (stats.paceDelta > 0) {
+            chip = `<span class="mc-pace-chip is-ahead" title="Ahead of target pace by ${moneyShort(gap)}"><span class="mc-long">${moneyShort(gap)} ahead</span><span class="mc-short">+${moneyShort(gap)}</span></span>`;
+        } else {
+            chip = `<span class="mc-pace-chip is-behind" title="Behind target pace by ${moneyShort(gap)}"><span class="mc-long">${moneyShort(gap)} behind</span><span class="mc-short">\u2212${moneyShort(gap)}</span></span>`;
+        }
+    }
+
+    // With a target the pill is the useful part, so show only it (the
+    // projected total stays in the hover title). Without a target there is
+    // no pill, so fall back to the "Pace $X" text.
+    const projTitle = `Projected month-end total: ${moneyShort(stats.projected)}, from this month's average per day so far`;
+
+    if (chip) {
+        return `
+        <div class="mc-pace is-chip-only" title="${projTitle}">
+            <span class="mc-pace-text">Pace</span>
+            ${chip}
+        </div>`;
+    }
+
+    return `
+        <div class="mc-pace" title="${projTitle}">
+            <span class="mc-pace-text">Pace <strong>${moneyShort(stats.projected)}</strong></span>
+        </div>`;
 }
 
 
 function renderModelMonthBlock(stats) {
 
-    const monthName = new Date().toLocaleDateString(undefined, { month: "long" });
-
-    const today = `
-        <div class="mc-month-meta">
-            <span>Today <strong>${money(stats.todayNet)}</strong></span>
-        </div>`;
+    const monthName = new Date().toLocaleDateString(undefined, { month: "short" });
 
     if (stats.percent === null) {
         return `
             <div class="mc-month is-none">
-                <div class="mc-month-meta">
-                    <span>${monthName} <strong>${money(stats.monthNet)}</strong></span>
-                    <span>No target</span>
+                <div class="mc-month-head">
+                    <span class="mc-month-label">${monthName}</span>
+                    <span class="mc-month-pct">${money(stats.monthNet)}</span>
                 </div>
-                ${today}
+                ${renderModelPace(stats)}
             </div>`;
     }
 
     const fill = Math.max(0, Math.min(100, stats.percent));
+    const expected = Math.max(0, Math.min(100, (stats.dayOfMonth / stats.monthDays) * 100));
 
     return `
         <div class="mc-month${stats.percent >= 100 ? " is-hit" : ""}">
@@ -7891,11 +7968,65 @@ function renderModelMonthBlock(stats) {
                  aria-label="${monthName} target progress"
                  aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}">
                 <span style="width: ${fill}%"></span>
+                <i class="mc-month-tick" style="left: ${expected.toFixed(1)}%"
+                   title="Target pace for today: ${money(stats.expectedNet)}"></i>
             </div>
             <div class="mc-month-meta">
-                <span><strong>${money(stats.monthNet)}</strong> of ${money(stats.target)}</span>
+                <span><strong>${moneyShort(stats.monthNet)}</strong> of ${moneyShort(stats.target)}</span>
             </div>
-            ${today}
+            ${renderModelPace(stats)}
+        </div>`;
+}
+
+
+// Net per day for the last 7 days, in the model's own colour. The dashed
+// line is her daily target, so a bar that reaches it hit the target.
+// Today's bar is lighter because the day isn't finished.
+function renderModelWeekBlock(stats) {
+
+    const week = stats.week;
+    const maxNet = Math.max.apply(null, week.map(day => day.net));
+    const scale = Math.max(maxNet, stats.dailyTarget) || 1;
+
+    const longDay = key => new Date(key + "T00:00:00")
+        .toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+    const narrowDay = key => new Date(key + "T00:00:00")
+        .toLocaleDateString(undefined, { weekday: "narrow" });
+
+    const bars = week.map(day => {
+
+        const ratio = day.net > 0 ? Math.min(1, day.net / scale) : 0;
+
+        return `<span class="mc-bar${day.net > 0 ? "" : " is-empty"}${day.isToday ? " is-today" : ""}"
+                      style="--r: ${ratio.toFixed(4)}"
+                      title="${longDay(day.key)} · ${money(day.net)}${day.isToday ? " so far" : ""}"></span>`;
+    }).join("");
+
+    const labels = week.map(day =>
+        `<span${day.isToday ? ` class="is-today"` : ""}>${narrowDay(day.key)}</span>`
+    ).join("");
+
+    const targetLine = stats.dailyTarget > 0
+        ? `<i class="mc-chart-target" style="--r: ${Math.min(1, stats.dailyTarget / scale).toFixed(4)}"
+              title="Daily target ${money(stats.dailyTarget)}"></i>`
+        : "";
+
+    const summary = week
+        .map(day => `${longDay(day.key)} ${money(day.net)}`)
+        .join(", ");
+
+    return `
+        <div class="mc-week">
+            <div class="mc-week-head">
+                <span>Last 7 days</span>
+                <span class="mc-week-total">${moneyShort(stats.weekNet)}</span>
+            </div>
+            <div class="mc-chart" role="img" aria-label="Net sales per day, last 7 days: ${summary}">
+                ${targetLine}
+                ${bars}
+            </div>
+            <div class="mc-days" aria-hidden="true">${labels}</div>
         </div>`;
 }
 
@@ -7970,6 +8101,8 @@ function renderModelCard(item, selected, inSelectMode) {
                 </div>
 
                 ${renderModelMonthBlock(monthly)}
+
+                ${renderModelWeekBlock(monthly)}
 
             </div>
 
