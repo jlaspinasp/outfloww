@@ -1696,7 +1696,8 @@ label {
 
 .sales-layout {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* One merged card now, so it spans the full row. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sp-4);
     align-items: stretch;
 }
@@ -2459,19 +2460,48 @@ label {
 
 /* ---------- Today's sales ---------- */
 
-.sales-layout-right {
-    /* Fixed height: it no longer grows when the Add a sale card gets
-       taller (more models). Extra sales scroll inside the list. Change
-       this one value to make the card taller or shorter. */
+/* Today's sales now lives INSIDE the Add a sale card (one card, two
+   panes). The left pane is the sale entry + model rows; this right pane
+   is a quiet, slightly inset "ledger" that bleeds to the card's edges and
+   is separated by a hairline. Extra sales scroll inside the list. */
+
+.sales-unified {
     --today-sales-height: 440px;
+    min-height: var(--today-sales-height);
+}
+
+.sales-unified-body {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+}
+
+.sales-unified-main {
     display: flex;
     flex-direction: column;
-    align-self: start;
-    height: var(--today-sales-height);
-    min-height: 440px;
-    max-height: 720px;
     min-width: 0;
-    transition: border-color var(--ease), box-shadow var(--ease);
+    padding-right: var(--card-pad);
+}
+
+.sales-side {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* Bleed up to the top bar's divider and out to the card's right and
+       bottom edges so the pane reads as part of the card's frame. */
+    margin: calc((var(--card-pad) - 6px) * -1) calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
+    padding: calc(var(--card-pad) - 6px) var(--card-pad) var(--card-pad);
+    background: var(--bg-secondary);
+    background: color-mix(in srgb, var(--bg-secondary) 55%, var(--bg-card));
+    border-left: 1px solid var(--border-subtle);
+    border-bottom-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+/* Header lines up with the amount row on the left (both 40px tall). */
+.sales-side-head {
+    min-height: 40px;
+    margin-bottom: var(--sp-2);
 }
 
 /* Logging for a model: previously the card border + ring took that
@@ -2530,7 +2560,7 @@ label {
     overflow-y: auto;
 }
 
-.sales-layout-right #emptySales {
+.sales-side #emptySales {
     position: absolute;
     inset: 0;
     align-items: flex-start;
@@ -4317,14 +4347,28 @@ label {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .sales-layout-right {
-        align-self: auto;
-        height: auto;
+    .sales-unified {
         min-height: 0;
-        max-height: none;
     }
 
-    .sales-layout-right .sales-list-wrap {
+    .sales-unified-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sales-unified-main {
+        padding-right: 0;
+    }
+
+    /* Stacked: the list drops under the sale entry, divided by a hairline. */
+    .sales-side {
+        margin: var(--card-pad) calc(var(--card-pad) * -1) calc(var(--card-pad) * -1);
+        padding: var(--card-pad);
+        border-left: 0;
+        border-top: 1px solid var(--border-subtle);
+        border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+    }
+
+    .sales-side .sales-list-wrap {
         flex: 0 0 auto;
         height: 320px;
     }
@@ -7878,5 +7922,824 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
         transition: max-height 0.18s ease, opacity 0.12s ease,
                     padding 0.18s ease, margin 0.18s ease,
                     border-top-width 0.18s ease, visibility 0s linear 0.18s;
+    }
+}
+
+/* =====================================================
+   QUICK SALE — floating button + popover (every tab but Sales)
+   -----------------------------------------------------
+   A small round + button you can drag anywhere. It opens a compact
+   popover (a bottom sheet on phones) sized so everything fits with
+   no scrolling. All colours come from the app's tokens, so light /
+   dark and the selected model's colour just work.
+   Stacking: button 30 (46 while open on desktop), backdrop 44,
+   popover 45 (modals are 50, sign-in 100, toasts 9999).
+   ===================================================== */
+
+.qa-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+
+/* ---------- Floating + button (draggable) ---------- */
+/* app.js sets left/top while it is dragged and remembers where you drop
+   it. right/bottom are only the starting spot before that. */
+
+.qa-fab {
+    position: fixed;
+    right: var(--sp-6);
+    bottom: var(--sp-6);
+    z-index: 30;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+    border: 0;
+    border-radius: 50%;
+    color: var(--text-on-accent);
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow:
+        0 6px 16px color-mix(in srgb, var(--accent) 34%, transparent),
+        0 1px 4px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transition:
+        transform 0.22s var(--fx-in),
+        box-shadow 0.2s ease-out,
+        filter 0.15s ease-out,
+        opacity 0.22s ease-out,
+        visibility 0s;
+}
+
+.qa-fab .icon {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2.3;
+    pointer-events: none;
+    transition: transform 0.28s var(--fx-in);
+}
+
+.qa-fab:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow:
+        0 9px 22px color-mix(in srgb, var(--accent) 42%, transparent),
+        0 2px 6px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.qa-fab:active {
+    transform: scale(0.95);
+    filter: brightness(0.97);
+}
+
+.qa-fab:focus-visible {
+    outline-offset: 3px;
+}
+
+/* Open: the + turns into an x. */
+.qa-fab.open .icon {
+    transform: rotate(135deg);
+}
+
+/* Desktop: while the popover is open the button stays above the click-away
+   layer, so it can still be clicked (closes) or dragged (moves). On phones
+   the bottom sheet covers it instead. */
+@media (min-width: 701px) {
+    .qa-fab.open {
+        z-index: 46;
+    }
+}
+
+/* Being dragged: follows the pointer with no easing, lifted a little. */
+.qa-fab.dragging {
+    cursor: grabbing;
+    transition: box-shadow 0.15s ease-out, filter 0.15s ease-out, opacity 0.22s ease-out, visibility 0s;
+    transform: scale(1.1);
+    filter: brightness(1.04);
+    box-shadow:
+        0 14px 30px color-mix(in srgb, var(--accent) 44%, transparent),
+        0 4px 10px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.qa-fab.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(10px) scale(0.92);
+    transition:
+        opacity 0.18s ease-in,
+        transform 0.18s ease-in,
+        visibility 0s linear 0.18s;
+}
+
+
+/* ---------- Backdrop (click-away; dimmed on phones) ---------- */
+
+.qa-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: transparent;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease-out, visibility 0s linear 0.2s;
+}
+
+.qa-backdrop.open {
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.2s ease-out, visibility 0s;
+}
+
+
+/* ---------- Popover ---------- */
+
+.qa-panel {
+    position: fixed;
+    right: var(--sp-6);
+    bottom: calc(var(--sp-6) + 44px + 10px);
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    width: 352px;
+    max-width: calc(100vw - 32px);
+    max-height: min(640px, calc(100dvh - 96px));
+    overflow: hidden;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    transform-origin: bottom right;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(var(--qa-shift, 10px)) scale(0.97);
+    transition:
+        opacity 0.14s var(--fx-out),
+        transform 0.14s var(--fx-out),
+        visibility 0s linear 0.14s;
+}
+
+.qa-panel.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition:
+        opacity 0.18s ease-out,
+        transform 0.24s var(--fx-in),
+        visibility 0s;
+}
+
+.qa-panel [hidden] {
+    display: none !important;
+}
+
+.qa-grab {
+    display: none;
+}
+
+.qa-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    min-height: 42px;
+    padding: 4px 6px 4px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.qa-head h2 {
+    margin: 0;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.qa-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    padding: 12px 14px;
+    /* Everything is sized to fit; this only kicks in on a very short
+       window or with a very long list of models. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.qa-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.qa-label {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.qa-note {
+    margin: 0;
+    padding: 4px 0;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+}
+
+
+/* ---------- Model chips (same look as the Sales page pills) ---------- */
+
+.qa-models {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.qa-chip {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    height: 32px;
+    padding: 0 12px 0 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s;
+}
+
+.qa-chip:hover:not(.selected) {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+.qa-chip:active {
+    transform: scale(0.97);
+}
+
+.qa-chip.selected {
+    background: color-mix(in srgb, var(--chip-color) 45%, var(--bg-card));
+    border-color: color-mix(in srgb, var(--chip-color), #000 14%);
+    color: var(--text-primary);
+}
+
+.qa-chip:focus-visible {
+    outline-offset: 1px;
+}
+
+.qa-chip .model-avatar {
+    --avatar-size: 22px;
+    --avatar-bg: var(--chip-color);
+    --avatar-fg: color-mix(in srgb, var(--chip-ink) 55%, transparent);
+}
+
+.qa-chip-name {
+    min-width: 0;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+/* ---------- Amount + tag button ---------- */
+
+.qa-amount-row {
+    display: flex;
+    gap: 6px;
+}
+
+.qa-amount {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.qa-currency {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 17px;
+    font-weight: 500;
+    pointer-events: none;
+}
+
+.qa-amount input {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px 0 30px;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.qa-amount input::-webkit-inner-spin-button,
+.qa-amount input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.qa-amount input:disabled {
+    padding-left: 14px;
+}
+
+.qa-amount input:disabled::placeholder {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.qa-amount:has(input:disabled) .qa-currency {
+    display: none;
+}
+
+.qa-tag-btn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+
+.qa-tag-btn:hover:not(:disabled) {
+    background: var(--btn-bg-hover);
+    color: var(--text-primary);
+}
+
+.qa-tag-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.qa-tag-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Armed: a username is waiting to be attached to the next sale. */
+.qa-tag-btn.active {
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+}
+
+.qa-tag-btn.active.armed-outside {
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+    color: var(--warning);
+}
+
+
+/* ---------- Tag drawer: type switch + username on one row ---------- */
+
+.qa-tag {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.24s var(--fx-in);
+}
+
+.qa-tag.open {
+    grid-template-rows: 1fr;
+}
+
+.qa-tag-inner {
+    min-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: visibility 0s linear 0.24s;
+}
+
+.qa-tag.open .qa-tag-inner {
+    visibility: visible;
+    transition: visibility 0s;
+}
+
+.qa-tag-row {
+    display: flex;
+    gap: 6px;
+    padding-top: 2px;
+}
+
+.qa-seg {
+    display: grid;
+    flex: none;
+    grid-auto-flow: column;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 9px;
+}
+
+.qa-seg-btn {
+    height: 30px;
+    padding: 0 11px;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.qa-seg-btn:hover:not(.active) {
+    color: var(--text-primary);
+}
+
+.qa-seg-btn.active {
+    background: var(--bg-raised);
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm), 0 0 0 1px var(--border-color);
+}
+
+.qa-tag-field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.qa-tag-field input {
+    width: 100%;
+    height: 36px;
+    padding: 0 32px 0 10px;
+    border-radius: 9px;
+    font-size: var(--fs-sm);
+}
+
+.qa-tag-clear {
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.qa-tag-clear:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.qa-tag-clear .icon {
+    width: 14px;
+    height: 14px;
+}
+
+.qa-tag-field.has-value .qa-tag-clear {
+    display: inline-flex;
+}
+
+
+/* ---------- Add Sale button ---------- */
+
+.qa-submit {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    font-size: var(--fs-base);
+    letter-spacing: 0.01em;
+}
+
+.qa-submit > span {
+    grid-area: 1 / 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.18s ease, transform 0.2s var(--fx-in);
+}
+
+.qa-submit-done {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.qa-submit.done .qa-submit-idle {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+.qa-submit.done .qa-submit-done {
+    opacity: 1;
+    transform: none;
+}
+
+.qa-submit-done .icon {
+    width: 17px;
+    height: 17px;
+    stroke-width: 2.4;
+}
+
+/* While a model is chosen, the button wears a deeper shade of its colour
+   (same idea as the Add Sale button on the Sales page). */
+.qa-submit.model-themed:not(:disabled) {
+    background: var(--model-deep);
+    border-color: var(--model-deep);
+    color: #fff;
+}
+
+.qa-submit.model-themed:not(:disabled):hover {
+    filter: brightness(1.12);
+}
+
+.qa-submit:active:not(:disabled) {
+    transform: scale(0.985);
+}
+
+
+/* ---------- Recent sales (chosen model, fixed height: 4 rows) ---------- */
+
+.qa-recent {
+    --qa-row-h: 34px;
+    --qa-row-gap: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.qa-recent-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-3);
+}
+
+.qa-recent-count {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Always the height of four rows, whether there are 0 or 4 sales. */
+.qa-recent-box {
+    position: relative;
+    height: calc(var(--qa-row-h) * 4 + var(--qa-row-gap) * 3);
+}
+
+.qa-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qa-row-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.qa-recent-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0 var(--sp-4);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    text-align: center;
+}
+
+.qa-sale {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--qa-row-h);
+    padding: 0 4px 0 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.qa-sale-time {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qa-sale .sale-tag-badge {
+    height: 20px;
+    padding: 0 7px;
+    font-size: 11px;
+}
+
+.qa-sale .sale-tag-badge .icon {
+    width: 11px;
+    height: 11px;
+}
+
+.qa-sale-amount {
+    flex: none;
+    color: var(--text-primary);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Remove (same look as the Sales page's delete button, a little smaller). */
+.qa-sale .delete {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+}
+
+.qa-sale .delete .icon {
+    width: 14px;
+    height: 14px;
+}
+
+/* A sale you just added eases in at the top. */
+.qa-sale.is-new {
+    animation: qaSaleIn 0.38s var(--fx-in) both;
+}
+
+/* A sale being removed fades out before the list refills. */
+.qa-sale.is-out {
+    opacity: 0;
+    transform: translateX(10px);
+    pointer-events: none;
+}
+
+@keyframes qaSaleIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+
+/* ---------- Footer: today's net for the chosen model ---------- */
+
+.qa-foot {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px 14px 11px;
+    background: color-mix(in srgb, var(--bg-secondary) 55%, var(--bg-raised));
+    border-top: 1px solid var(--border-subtle);
+}
+
+.qa-foot-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    min-width: 0;
+}
+
+.qa-foot-label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.qa-foot-fig {
+    flex: none;
+    color: var(--text-primary);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.qa-track {
+    height: 5px;
+}
+
+/* No model / no target: the bar is invisible but keeps its space, so the
+   popover's height never changes. */
+.qa-track.is-off {
+    visibility: hidden;
+}
+
+
+/* ---------- Phones: bottom sheet ---------- */
+
+@media (max-width: 700px) {
+
+    /* Starting spot above the tab bar (until it is dragged somewhere else). */
+    .qa-fab {
+        right: var(--sp-4);
+        bottom: calc(64px + var(--sp-4) + env(safe-area-inset-bottom, 0px));
+    }
+
+    .qa-backdrop {
+        background: var(--overlay);
+    }
+
+    .qa-panel {
+        right: 0;
+        bottom: var(--qa-kb, 0px);
+        left: 0;
+        width: auto;
+        max-width: none;
+        max-height: min(88dvh, calc(100dvh - var(--qa-kb, 0px) - 16px));
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-radius: 20px 20px 0 0;
+        transform-origin: bottom center;
+        transform: translateY(100%);
+    }
+
+    .qa-panel.open {
+        transform: none;
+    }
+
+    .qa-grab {
+        display: block;
+        flex: none;
+        width: 36px;
+        height: 4px;
+        margin: 8px auto 0;
+        background: var(--border-strong);
+        border-radius: 999px;
+        opacity: 0.55;
+    }
+
+    .qa-head {
+        min-height: 38px;
+        padding-top: 0;
+    }
+
+    .qa-foot {
+        padding-bottom: calc(11px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Keep the page still behind the open sheet. */
+    html:has(.qa-panel.open) {
+        overflow: hidden;
     }
 }
