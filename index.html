@@ -1126,7 +1126,7 @@
                                 <span>How do I add or change a model's photo?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>Open the New Model or Edit Model form and click "Upload photo" (it becomes "Change photo" once one is set). Pick any JPG or PNG up to 15 MB — it's automatically cropped to a centered square and shrunk down, so square photos look best. Use "Remove" to go back to the default silhouette. Nothing is saved until you click Save, so closing the form discards a photo change. Photos appear on the model pills, in the Target Breakdown, and in the model's details window, and they sync and back up along with the rest of your data.</p></div></div>
+                            <div class="faq-a"><div><p>Open the New Model or Edit Model form and click "Upload photo" (it becomes "Change photo" once one is set). Pick any JPG or PNG up to 15 MB — it's cropped to the card's portrait frame (centered) and saved at up to 800 × 960 in the best quality that fits your account's storage, so portrait photos look best. If you have many models, later photos may be saved slightly smaller. Use "Remove" to go back to the default silhouette. Nothing is saved until you click Save, so closing the form discards a photo change. Photos appear on the model pills, in the Target Breakdown, and in the model's details window, and they sync and back up along with the rest of your data.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -2273,7 +2273,7 @@
                             <button type="button" class="btn" id="modelPhotoRemoveBtn">Remove</button>
                         </div>
 
-                        <p class="model-photo-hint">Square photos look best. It's resized automatically.</p>
+                        <p class="model-photo-hint">Portrait photos look best. Saved in high quality.</p>
 
                         <input type="file" id="modelPhotoInput" accept="image/*" hidden>
 
@@ -2790,7 +2790,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=30"></script>
+<script src="js/app.js?v=31"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
