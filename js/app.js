@@ -11179,8 +11179,15 @@ document.addEventListener(
 let modalNewId = null;
 let modelDraft = null;   // { id, image, color }
 
-const MODEL_PHOTO_PX = 448;           // saved photo size (square)
+const MODEL_PHOTO_W = 800;            // high-res, matches the card's 5:6 frame
+const MODEL_PHOTO_H = 960;
+const MODEL_PHOTO_MIN_W = 480;        // never shrink below this
 const MODEL_PHOTO_MAX_FILE_MB = 15;   // refuse absurdly large files
+
+// All photos live inside the one Firestore document (hard limit 1 MiB),
+// so each new photo is encoded to fit the room that is left.
+const MODEL_PHOTO_MAX_CHARS = 150000;   // ~110 KB per photo at most
+const MODEL_DOC_BUDGET_CHARS = 940000;  // leave headroom under 1,048,576
 
 
 // The stored photo for a model, or "" (also rejects anything that isn't
@@ -11195,63 +11202,126 @@ function getModelImage(modelId) {
 }
 
 
-// Centre-crop to a square, shrink, and re-encode as JPEG so a phone
-// photo becomes a ~30–50 KB image that is still cheap to store and sync.
-function readModelPhoto(file) {
+// WebP is ~30% smaller than JPEG at the same quality. Browsers that
+// can't encode it silently return PNG, so detect that once.
+const MODEL_PHOTO_WEBP = (function () {
+    try {
+        return document.createElement("canvas")
+            .toDataURL("image/webp").indexOf("data:image/webp") === 0;
+    } catch (e) { return false; }
+})();
+
+
+// Draws the source crop at w x h. Shrinks in halves first when the
+// source is much bigger than the target, which keeps edges crisp
+// (one big jump can look jagged or soft).
+function drawModelPhoto(img, sx, sy, sw, sh, w, h) {
+
+    let src = img, ssx = sx, ssy = sy, ssw = sw, ssh = sh;
+
+    while (ssw / w > 2) {
+
+        const nw = Math.round(ssw / 2);
+        const nh = Math.round(ssh / 2);
+        const step = document.createElement("canvas");
+
+        step.width = nw;
+        step.height = nh;
+
+        const sctx = step.getContext("2d");
+        sctx.imageSmoothingEnabled = true;
+        sctx.imageSmoothingQuality = "high";
+        sctx.drawImage(src, ssx, ssy, ssw, ssh, 0, 0, nw, nh);
+
+        src = step; ssx = 0; ssy = 0; ssw = nw; ssh = nh;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext("2d");
+
+    // PNGs with transparency would turn black as JPEG.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(src, ssx, ssy, ssw, ssh, 0, 0, w, h);
+
+    return canvas;
+}
+
+
+// Centre-crop to the card's 5:6 portrait frame and encode as the best
+// image that fits the room left in the document: start at full size and
+// high quality, then lower the quality, then the size, only as needed.
+// Rejects with Error("budget") if even the smallest version won't fit.
+function readModelPhoto(file, modelId) {
 
     return new Promise(function (resolve, reject) {
 
-        const reader = new FileReader();
+        const url = URL.createObjectURL(file);
+        const img = new Image();
 
-        reader.onerror = function () { reject(new Error("read")); };
-
-        reader.onload = function () {
-
-            const img = new Image();
-
-            img.onerror = function () { reject(new Error("decode")); };
-
-            img.onload = function () {
-
-                const side = Math.min(img.naturalWidth, img.naturalHeight);
-
-                if (!side) {
-                    reject(new Error("empty"));
-                    return;
-                }
-
-                const out = Math.min(MODEL_PHOTO_PX, side);
-                const canvas = document.createElement("canvas");
-
-                canvas.width = out;
-                canvas.height = out;
-
-                const ctx = canvas.getContext("2d");
-
-                // PNGs with transparency would turn black as JPEG.
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, out, out);
-                ctx.imageSmoothingQuality = "high";
-
-                ctx.drawImage(
-                    img,
-                    (img.naturalWidth - side) / 2,
-                    (img.naturalHeight - side) / 2,
-                    side,
-                    side,
-                    0,
-                    0,
-                    out,
-                    out
-                );
-
-                resolve(canvas.toDataURL("image/jpeg", 0.82));
-            };
-
-            img.src = reader.result;
+        img.onerror = function () {
+            URL.revokeObjectURL(url);
+            reject(new Error("decode"));
         };
 
-        reader.readAsDataURL(file);
+        img.onload = function () {
+
+            URL.revokeObjectURL(url);
+
+            const nw = img.naturalWidth, nh = img.naturalHeight;
+
+            if (!nw || !nh) {
+                reject(new Error("empty"));
+                return;
+            }
+
+            // Room left in the document, not counting this model's current photo.
+            const current = (data.modelImages && data.modelImages[modelId]) || "";
+            const used = JSON.stringify(data).length - current.length;
+            const budget = Math.min(MODEL_PHOTO_MAX_CHARS, MODEL_DOC_BUDGET_CHARS - used);
+
+            const ratio = MODEL_PHOTO_W / MODEL_PHOTO_H;
+
+            let sw = nw, sh = nw / ratio;
+            if (sh > nh) { sh = nh; sw = nh * ratio; }
+
+            const sx = (nw - sw) / 2, sy = (nh - sh) / 2;
+
+            const mime = MODEL_PHOTO_WEBP ? "image/webp" : "image/jpeg";
+            const qualities = [0.86, 0.8, 0.74, 0.68, 0.62, 0.56];
+
+            // Never upscale a small source.
+            let w = Math.min(MODEL_PHOTO_W, Math.round(sw));
+
+            while (w >= MODEL_PHOTO_MIN_W || w === Math.round(sw)) {
+
+                const h = Math.round(w / ratio);
+                const canvas = drawModelPhoto(img, sx, sy, sw, sh, w, h);
+
+                for (let i = 0; i < qualities.length; i++) {
+
+                    const out = canvas.toDataURL(mime, qualities[i]);
+
+                    if (out.length <= budget) {
+                        resolve(out);
+                        return;
+                    }
+                }
+
+                if (w <= MODEL_PHOTO_MIN_W) break;
+
+                w = Math.max(MODEL_PHOTO_MIN_W, Math.round(w * 0.88));
+            }
+
+            reject(new Error("budget"));
+        };
+
+        img.src = url;
     });
 }
 
@@ -11503,7 +11573,7 @@ $("#modelPhotoInput").addEventListener(
 
         try {
 
-            const src = await readModelPhoto(file);
+            const src = await readModelPhoto(file, draftAtStart.id);
 
             // The form may have been closed while the photo loaded.
             if (modelDraft !== draftAtStart) {
@@ -11515,7 +11585,11 @@ $("#modelPhotoInput").addEventListener(
 
         } catch (error) {
 
-            toast("Couldn't read that image. Try a JPG or PNG.", "error");
+            if (error && error.message === "budget") {
+                toast("Not enough room for another photo. Remove or shrink another model's photo first.", "error");
+            } else {
+                toast("Couldn't read that image. Try a JPG or PNG.", "error");
+            }
         }
     }
 );
