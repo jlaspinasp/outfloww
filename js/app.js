@@ -64,7 +64,9 @@ const defaultData = {
     // Shift used only in the "Copy for logout" text (24h "HH:MM")
     logoutShift: { start: "16:00", end: "00:00", cover: false },
     // Custom first line of the logout text ("" = use the default)
-    logoutTitle: ""
+    logoutTitle: "",
+    // Show the floating quick add (+) button (Settings), synced per account
+    showQuickAdd: true
 };
 
 
@@ -138,6 +140,9 @@ function normalizeData(obj) {
     // Quick sale button position, synced across devices:
     // { h: "l"|"r", dx: px from that side, v: "t"|"b", dy: px from that edge }
     obj.quickAddPos = normalizeQuickAddPos(obj.quickAddPos);
+
+    // Floating quick add button on/off (Settings). Default on.
+    obj.showQuickAdd = obj.showQuickAdd !== false;
 
     // Shift time + cover flag, used only by the "Copy for logout" text.
     const TIME_RE = /^\d{1,2}:\d{2}$/;
@@ -373,6 +378,53 @@ function toggleReduceMotion() {
     }
 
     applyReduceMotionSetting(next);
+
+}
+
+
+/* =====================================================
+   QUICK ADD BUTTON (Settings)
+   Shows or hides the floating quick add (+) button. On by default.
+   Saved in the account's data (data.showQuickAdd), so it syncs across
+   devices. Only Reduce motion stays in local storage.
+   ===================================================== */
+
+function isQuickAddEnabled() {
+
+    return !data || data.showQuickAdd !== false;
+
+}
+
+
+function applyQuickAddSetting() {
+
+    const on = isQuickAddEnabled();
+
+    ["#quickAddToggle", "#mobileQuickAddToggle"].forEach(
+        function (selector) {
+
+            const btn = $(selector);
+
+            if (btn) {
+                btn.setAttribute("aria-checked", String(on));
+            }
+
+        }
+    );
+
+    // The quick add code decides whether the button is on screen.
+    document.dispatchEvent(new CustomEvent("quickAddVisibilitySync"));
+
+}
+
+
+function toggleQuickAddSetting() {
+
+    data.showQuickAdd = !isQuickAddEnabled();
+
+    saveData();
+
+    applyQuickAddSetting();
 
 }
 
@@ -1144,6 +1196,8 @@ function startCloudSync(uid) {
 
             document.dispatchEvent(new CustomEvent("quickAddPosSync"));
 
+            applyQuickAddSetting();
+
             setSyncStatus("synced");
 
         },
@@ -1184,6 +1238,8 @@ function resetLocalData() {
     );
 
     preserveScroll(renderAll);
+
+    applyQuickAddSetting();
 
 }
 
@@ -5338,7 +5394,7 @@ $("#saleForm").addEventListener(
         const signedOut =
             !!authGate && !authGate.classList.contains("hidden");
 
-        const show = !onSales && !signedOut;
+        const show = !onSales && !signedOut && isQuickAddEnabled();
 
         fab.classList.toggle("is-hidden", !show);
 
@@ -5353,6 +5409,8 @@ $("#saleForm").addEventListener(
     }
 
     const watcher = new MutationObserver(syncVisibility);
+
+    document.addEventListener("quickAddVisibilitySync", syncVisibility);
 
     if (salesPage) {
         watcher.observe(salesPage, { attributes: true, attributeFilter: ["class"] });
@@ -7640,15 +7698,8 @@ function renderChips(type) {
             .join("");
 
 
+    // No "All" chip: with nothing selected the list shows everything.
     $("#" + type + "Chips").innerHTML =
-        `
-            <button
-                class="chip ${active === "All" ? "active" : ""}"
-                data-category="All"
-            >
-                All
-            </button>
-        ` +
         defaultChips +
         customChips +
         `
@@ -8195,6 +8246,32 @@ function renderModelCard(item, selected, inSelectMode) {
 }
 
 
+/* =====================================================
+   SCRIPT CARDS: only fade the preview when it is actually cut off.
+   Short scripts get no fade at all. A ResizeObserver also covers the
+   Scripts tab being hidden at render time (size 0) and window resizes.
+   ===================================================== */
+
+const scriptFadeObserver =
+    typeof ResizeObserver === "function"
+        ? new ResizeObserver(entries =>
+              entries.forEach(entry => flagClippedScript(entry.target)))
+        : null;
+
+function flagClippedScript(el) {
+    el.classList.toggle("is-clipped", el.scrollHeight > el.clientHeight + 1);
+}
+
+function watchScriptFades() {
+    document
+        .querySelectorAll("#scriptsList .content-text-inner")
+        .forEach(el => {
+            if (scriptFadeObserver) scriptFadeObserver.observe(el);
+            else flagClippedScript(el);
+        });
+}
+
+
 function renderContent(type) {
 
     const list =
@@ -8345,7 +8422,11 @@ function renderContent(type) {
                             : ""
                     }
 
-                    <div class="content-text">${escapeHTML(item.text)}</div>
+                    ${
+                        isScripts
+                            ? `<div class="content-text"><div class="content-text-inner">${escapeHTML(item.text)}</div></div>`
+                            : `<div class="content-text">${escapeHTML(item.text)}</div>`
+                    }
 
                     ${
                         isScripts
@@ -8392,6 +8473,8 @@ function renderContent(type) {
         filtered.length
             ? "none"
             : (type === "scripts" ? "flex" : "block");
+
+    if (type === "scripts") watchScriptFades();
 
     updateSelectToolbar();
 
@@ -10310,6 +10393,13 @@ $$(".chips").forEach(
                 const outgoingCategory =
                     currentCategory[type];
 
+                // Clicking the selected chip again unselects it, which
+                // shows everything (there is no separate "All" chip).
+                const incomingCategory =
+                    chip.dataset.category === outgoingCategory
+                        ? "All"
+                        : chip.dataset.category;
+
                 const grid = $("#" + type + "List");
 
                 // Clicking through chips quickly: the category we're
@@ -10341,13 +10431,11 @@ $$(".chips").forEach(
                     );
 
 
-                chip.classList.add(
-                    "active"
-                );
-
-
-                const incomingCategory =
-                    chip.dataset.category;
+                if (incomingCategory !== "All") {
+                    chip.classList.add(
+                        "active"
+                    );
+                }
 
                 currentCategory[type] =
                     incomingCategory;
@@ -12129,26 +12217,9 @@ $("#contentForm").addEventListener(
         }
 
 
-        // If the item was saved under a category that
-        // isn't the one currently being filtered on,
-        // the item would be hidden from view until the
-        // page reloaded (which resets the filter). Snap
-        // the filter back to "All" so new/edited items
-        // are always visible right away.
-        if (
-            usesCategories &&
-            currentCategory[modalType] !== "All" &&
-            currentCategory[modalType] !== item.category
-        ) {
-
-            currentCategory[modalType] =
-                "All";
-
-            preserveScroll(function () {
-                renderChips(modalType);
-            });
-
-        }
+        // Saving never changes the category filter: you stay on the
+        // screen you're on. (If the script moved to another category it
+        // simply drops out of this view.)
 
 
         // Photo, colour and target chosen in the form.
@@ -12915,6 +12986,18 @@ $("#mobileReduceMotionToggle").addEventListener(
 );
 
 
+$("#quickAddToggle").addEventListener(
+    "click",
+    toggleQuickAddSetting
+);
+
+
+$("#mobileQuickAddToggle").addEventListener(
+    "click",
+    toggleQuickAddSetting
+);
+
+
 /* The collapse control is a slim line on the sidebar's edge. Click it,
    or drag it across the border: drag left to collapse, right to expand. */
 (function initSidebarEdgeHandle() {
@@ -13117,6 +13200,8 @@ function importData(file) {
         );
 
         pushFullDataToCloud();
+
+        applyQuickAddSetting();
 
         currentCategory.scripts = "All";
         categoryScrollPositions.scripts = {};
@@ -13580,6 +13665,7 @@ document.addEventListener(
 initTheme();
 
 initReduceMotion();
+applyQuickAddSetting();
 
 initSidebarCollapse();
 
