@@ -378,6 +378,8 @@ function toggleReduceMotion() {
 
 
 const SIDEBAR_KEY = "chatterTool_sidebarCollapsed";
+const SIDEBAR_ANIM_MS = 180;   // matches the sidebar's CSS width transition
+let mainSlideAnim = null;
 
 
 function applySidebarCollapsed(collapsed) {
@@ -408,12 +410,61 @@ function initSidebarCollapse() {
 function toggleSidebarCollapse() {
 
     const app = $(".app");
+    const main = $(".main");
 
     const next = !app.classList.contains("sidebar-collapsed");
 
     localStorage.setItem(SIDEBAR_KEY, String(next));
 
+    // Desktop only (the phone has a bottom tab bar, no collapsing), and
+    // not when the person has asked for reduced motion.
+    const canAnimate =
+        main &&
+        typeof main.animate === "function" &&
+        window.matchMedia("(min-width: 701px)").matches &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
+        document.documentElement.getAttribute("data-reduce-motion") !== "true";
+
+    if (!canAnimate) {
+        applySidebarCollapsed(next);
+        return;
+    }
+
+    // FLIP: the page gets its FINAL layout in one go (the sidebar is out
+    // of the flow, see "SIDEBAR: OUT OF FLOW" in style.css), so text and
+    // cards reflow once instead of on every frame of a width animation.
+    // Then .main is slid from where it was to where it is, using a
+    // transform, which the browser runs on the compositor.
+    //   First: where .main visually is right now (mid-slide included)
+    const first = main.getBoundingClientRect().left;
+
+    if (mainSlideAnim) {
+        mainSlideAnim.cancel();
+        mainSlideAnim = null;
+    }
+
+    //   Last: apply the new state; reading the position lays out once
     applySidebarCollapsed(next);
+
+    const last = main.getBoundingClientRect().left;
+    const delta = first - last;
+
+    //   Invert + Play
+    if (delta !== 0) {
+
+        mainSlideAnim = main.animate(
+            [
+                { transform: "translateX(" + delta + "px)" },
+                { transform: "translateX(0)" }
+            ],
+            { duration: SIDEBAR_ANIM_MS, easing: "ease" }
+        );
+
+        mainSlideAnim.onfinish = mainSlideAnim.oncancel = function () {
+            mainSlideAnim = null;
+        };
+
+    }
 
 }
 
@@ -3356,8 +3407,6 @@ function renderTargetBreakdown(options) {
                 }
             }
             const fireClass = fireTier ? ` on-fire on-fire-${fireTier}` : "";
-            // Emoji badge removed: the name's own fire effect is enough.
-            const fireBadge = "";
 
             const rowColor = getAvatarColor(model.id);
             const ink = getRowInk(rowColor);
@@ -3371,7 +3420,7 @@ function renderTargetBreakdown(options) {
 
                         <div class="target-breakdown-head">
                             <span class="target-breakdown-name">
-                                <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}${fireFxHTML(fireTier)}</span>${fireBadge}
+                                <span class="target-breakdown-title${fireClass}">${escapeHTML(model.title)}${fireFxHTML(fireTier)}</span>
                             </span>
                             ${percent === null || hit
                                 ? `<span class="target-breakdown-status">${percent === null ? "No target" : "🎉 Hit"}</span>`
@@ -3718,9 +3767,33 @@ function sizeModelRows() {
     return before !== height + "px";
 }
 
+// Names are shrunk to fit the card (fitTargetBreakdownTitles), so when the
+// card's WIDTH changes (sidebar collapsed / expanded, window resized) they
+// have to be fitted again, or they stay too small / get cut off with "...".
+let lastModelWrapWidth = 0;
+let modelRefitFrame = 0;
+
 if (window.ResizeObserver && $("#targetBreakdownWrap")) {
-    new ResizeObserver(function () {
+    new ResizeObserver(function (entries) {
+
         requestAnimationFrame(sizeModelRows);
+
+        const entry = entries[entries.length - 1];
+        const width = Math.round(entry.contentRect.width);
+
+        // 0 = the Sales tab is hidden; the refit on show handles that.
+        if (width > 0 && width !== lastModelWrapWidth) {
+
+            lastModelWrapWidth = width;
+
+            cancelAnimationFrame(modelRefitFrame);
+            modelRefitFrame = requestAnimationFrame(function () {
+                try {
+                    fitTargetBreakdownTitles();
+                } catch (err) {}
+            });
+        }
+
     }).observe($("#targetBreakdownWrap"));
 }
 
@@ -4914,6 +4987,7 @@ $("#saleForm").addEventListener(
             y: clamp(y, k.minY, k.maxY)
         };
 
+        fab.style.translate = "";   // clears a drag offset (see pointermove)
         fab.style.left = cur.x + "px";
         fab.style.top = cur.y + "px";
         fab.style.right = "auto";
@@ -5066,8 +5140,14 @@ $("#saleForm").addEventListener(
 
         const k = metrics();
 
-        fab.style.left = clamp(event.clientX - drag.offX, k.minX, k.maxX) + "px";
-        fab.style.top = clamp(event.clientY - drag.offY, k.minY, k.maxY) + "px";
+        // Moved with the `translate` property (compositor-friendly, no
+        // layout per pointer move) relative to the committed spot (`cur`).
+        // left/top are only written once, when the drag ends. `translate`
+        // is separate from `transform`, so the hover / drag scale is intact.
+        drag.x = clamp(event.clientX - drag.offX, k.minX, k.maxX);
+        drag.y = clamp(event.clientY - drag.offY, k.minY, k.maxY);
+
+        fab.style.translate = (drag.x - cur.x) + "px " + (drag.y - cur.y) + "px";
     });
 
     function endDrag(event) {
@@ -5077,6 +5157,8 @@ $("#saleForm").addEventListener(
         }
 
         const moved = drag.moved;
+        const dropX = drag.x;
+        const dropY = drag.y;
 
         drag = null;
 
@@ -5095,13 +5177,14 @@ $("#saleForm").addEventListener(
             suppressClick = false;
         }, 60);
 
-        const rect = fab.getBoundingClientRect();
+        // Where it was dropped (tracked exactly, instead of reading the
+        // rect, which includes the drag scale and so was a few px off).
         const k = metrics();
 
-        const toLeft = Math.max(0, rect.left - k.minX);
-        const toRight = Math.max(0, k.maxX - rect.left);
-        const toTop = Math.max(0, rect.top - k.minY);
-        const toBottom = Math.max(0, k.maxY - rect.top);
+        const toLeft = Math.max(0, dropX - k.minX);
+        const toRight = Math.max(0, k.maxX - dropX);
+        const toTop = Math.max(0, dropY - k.minY);
+        const toBottom = Math.max(0, k.maxY - dropY);
 
         place = {
             h: toLeft <= toRight ? "l" : "r",
@@ -8300,11 +8383,15 @@ function renderContent(type) {
         ).join("");
 
 
-    $("#" + type + "Empty")
-        .style.display =
-            filtered.length
-                ? "none"
-                : "block";
+    const emptyEl = $("#" + type + "Empty");
+
+    // Something is saved but nothing matches the search/category.
+    emptyEl.classList.toggle("is-filtered", list.length > 0);
+
+    emptyEl.style.display =
+        filtered.length
+            ? "none"
+            : (type === "scripts" ? "flex" : "block");
 
     updateSelectToolbar();
 
