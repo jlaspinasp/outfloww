@@ -3042,7 +3042,9 @@ label {
     background: var(--accent-soft);
     box-shadow: inset 0 0 0 1px var(--accent-border);
     color: var(--accent-text);
-    font-weight: 600;
+    /* Same weight as the idle chip: bolder text is wider, which made the
+       chip grow and shove its neighbours every time it was toggled. */
+    font-weight: 500;
 }
 
 .chip.add-chip {
@@ -9118,9 +9120,12 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     color: var(--text-muted);
 }
 
-/* Message-bubble preview with a soft fade at the bottom */
+/* Message-bubble preview. The bubble is just the box; the text lives in
+   an inner element so the fade can be a mask on the TEXT ONLY. The old
+   overlay painted a colour band over the bubble, which looked muddy and
+   showed half-cut lines through it. */
 #scriptsList .content-text {
-    position: relative;
+    display: flex;
     padding: 12px 14px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
@@ -9130,13 +9135,18 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     color: var(--text-secondary);
 }
 
-#scriptsList .content-text::after {
-    content: "";
-    position: absolute;
-    inset: auto 0 0 0;
-    height: 40px;
-    background: linear-gradient(to bottom, transparent, var(--bg-secondary));
-    pointer-events: none;
+#scriptsList .content-text-inner {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Only when the text really is cut off (set from app.js). The fade ends
+   fully transparent right at the clip edge, so a half-cut line can never
+   show its tops. */
+#scriptsList .content-text-inner.is-clipped {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent 100%);
 }
 
 /* Copy bar: quiet until hovered, then tinted with the accent */
