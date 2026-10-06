@@ -299,6 +299,21 @@
                     </button>
 
                     <button
+                        class="theme-toggle reduce-motion-toggle quickadd-toggle"
+                        id="quickAddToggle"
+                        type="button"
+                        role="switch"
+                        aria-checked="true"
+                        title="Show or hide the floating quick add (+) button"
+                    >
+                        <span>
+                            <span class="theme-toggle-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
+                            <span>Quick add button</span>
+                        </span>
+                        <span class="motion-switch" aria-hidden="true"></span>
+                    </button>
+
+                    <button
                         class="theme-toggle"
                         id="logoutTitleBtn"
                         type="button"
@@ -444,6 +459,19 @@
                         >
                             <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.513 4.856 13.12 2.17a.5.5 0 0 1 .86.46l-1.377 4.317"/><path d="M15.656 10H20a1 1 0 0 1 .78 1.63l-1.72 1.773"/><path d="M16.273 16.273 10.88 21.83a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4a1 1 0 0 1-.78-1.63l4.507-4.643"/><path d="m2 2 20 20"/></svg></span>
                             <span>Reduce motion</span>
+                            <span class="motion-switch" aria-hidden="true"></span>
+                        </button>
+
+                        <button
+                            class="backup-btn reduce-motion-toggle quickadd-toggle"
+                            id="mobileQuickAddToggle"
+                            type="button"
+                            role="switch"
+                            aria-checked="true"
+                            title="Show or hide the floating quick add (+) button"
+                        >
+                            <span class="backup-btn-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
+                            <span>Quick add button</span>
                             <span class="motion-switch" aria-hidden="true"></span>
                         </button>
 
@@ -1403,7 +1431,7 @@
                                 <span>What are the category chips for?</span>
                                 <svg class="icon faq-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div class="faq-a"><div><p>They filter your scripts by category — click one to show only that category's scripts. Drag chips to reorder them.</p></div></div>
+                            <div class="faq-a"><div><p>They filter your scripts by category — click one to show only that category's scripts, and click it again to unselect it. With none selected, all your scripts show. Drag chips to reorder them.</p></div></div>
                         </div>
 
                         <div class="faq-item">
@@ -2554,7 +2582,6 @@
                 <div class="cat-preview" aria-hidden="true">
                     <span class="cat-preview-label">Preview</span>
                     <div class="cat-preview-bar">
-                        <span class="chip">All</span>
                         <span class="chip active cat-preview-chip is-empty" id="categoryPreviewChip">Category name</span>
                     </div>
                 </div>
