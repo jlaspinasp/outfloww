@@ -1117,17 +1117,6 @@ h2 {
     display: none;
 }
 
-@keyframes slide-in-left {
-    from {
-        opacity: 0;
-        transform: translateX(-6px);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-
 @keyframes pop-in {
     from {
         opacity: 0;
@@ -2118,31 +2107,6 @@ label {
     100% { transform: rotate(0deg); }
 }
 
-/* Same "on fire" combo issue as the selected state (see below): the
-   base .on-fire-X rule owns the `animation` property for tiers with
-   their own flicker/pulse, so deselecting on one of those needs to
-   restate that animation alongside the settle, or the fire effect
-   would just stop for the duration of the revert. */
-.target-breakdown-row.deselecting .target-breakdown-title.on-fire-1 {
-    animation: model-deselect-settle 0.35s ease-in-out forwards,
-                fire-pulse-1 1.6s ease-in-out infinite;
-}
-
-.target-breakdown-row.deselecting .target-breakdown-title.on-fire-3 {
-    animation: model-deselect-settle 0.35s ease-in-out forwards,
-                fire-flicker 0.9s ease-in-out infinite;
-}
-
-.target-breakdown-row.deselecting .target-breakdown-title.on-fire-4 {
-    animation: model-deselect-settle 0.35s ease-in-out forwards,
-                fire-flicker 0.6s ease-in-out infinite;
-}
-
-.target-breakdown-row.deselecting .target-breakdown-title.on-fire-5 {
-    animation: model-deselect-settle 0.35s ease-in-out forwards,
-                fire-flicker-intense 0.4s ease-in-out infinite;
-}
-
 /* Continuous wiggle once selected — rotation only, kept off the name
    (parent) and onto the title itself so it doesn't fight the pop-in
    scale animation above, and delayed to start right as the pop-in
@@ -2174,49 +2138,6 @@ label {
     font-weight: 800;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     animation: model-selected-wiggle 0.9s ease-in-out 0.4s infinite;
-}
-
-/* A title can be on fire AND selected at once. Before this block, the
-   plain ".selected" rule above (3 classes of specificity) always beat
-   an on-fire tier's own color/glow (2 classes), so selecting a
-   burning model silently replaced its colored glow with the plain
-   grey "selected" shadow — the "on fire looks different when
-   selected" bug. Each combo below re-states that tier's own color and
-   glow at higher specificity so selecting a model no longer changes
-   how its fire looks, and layers the wiggle in alongside that tier's
-   own flicker/pulse animation (wiggle drives `transform`, the fire
-   ones drive `filter`, so the two never fight over one property). */
-.target-breakdown-row.selected .target-breakdown-title.on-fire-1 {
-    color: #b8860b;
-    text-shadow: 0 0 6px rgba(255, 255, 255, 0.75), 0 0 12px rgba(255, 215, 0, 0.5);
-    animation: model-selected-wiggle 0.9s ease-in-out 0.4s infinite,
-                fire-pulse-1 1.6s ease-in-out infinite;
-}
-
-.target-breakdown-row.selected .target-breakdown-title.on-fire-2 {
-    color: #d9660b;
-    text-shadow: 0 0 6px rgba(255, 140, 0, 0.55), 0 0 12px rgba(255, 90, 0, 0.3);
-}
-
-.target-breakdown-row.selected .target-breakdown-title.on-fire-3 {
-    color: #c1440e;
-    text-shadow: 0 0 8px rgba(255, 140, 0, 0.85), 0 0 16px rgba(255, 60, 0, 0.6), 0 0 24px rgba(255, 0, 0, 0.35);
-    animation: model-selected-wiggle 0.9s ease-in-out 0.4s infinite,
-                fire-flicker 0.9s ease-in-out infinite;
-}
-
-.target-breakdown-row.selected .target-breakdown-title.on-fire-4 {
-    color: #a12a00;
-    text-shadow: 0 0 10px rgba(255, 180, 0, 0.95), 0 0 20px rgba(255, 80, 0, 0.75), 0 0 32px rgba(255, 0, 0, 0.55), 0 0 46px rgba(255, 0, 0, 0.3);
-    animation: model-selected-wiggle 0.9s ease-in-out 0.4s infinite,
-                fire-flicker 0.6s ease-in-out infinite;
-}
-
-.target-breakdown-row.selected .target-breakdown-title.on-fire-5 {
-    color: #7a1d00;
-    text-shadow: 0 0 12px rgba(255, 225, 0, 1), 0 0 24px rgba(255, 120, 0, 0.9), 0 0 38px rgba(255, 40, 0, 0.75), 0 0 55px rgba(255, 0, 0, 0.55), 0 0 75px rgba(255, 0, 0, 0.35);
-    animation: model-selected-wiggle 0.9s ease-in-out 0.4s infinite,
-                fire-flicker-intense 0.4s ease-in-out infinite;
 }
 
 .target-breakdown-percent {
@@ -2303,76 +2224,6 @@ label {
 .target-breakdown-title.on-fire {
     display: inline-block;
 }
-
-.target-breakdown-title.on-fire-1 {
-    color: #b8860b;
-    text-shadow: 0 0 6px rgba(255, 255, 255, 0.75), 0 0 12px rgba(255, 215, 0, 0.5);
-    animation: fire-pulse-1 1.6s ease-in-out infinite;
-}
-
-.target-breakdown-title.on-fire-2 {
-    color: #d9660b;
-    text-shadow: 0 0 6px rgba(255, 140, 0, 0.55), 0 0 12px rgba(255, 90, 0, 0.3);
-}
-
-.target-breakdown-title.on-fire-3 {
-    color: #c1440e;
-    text-shadow: 0 0 8px rgba(255, 140, 0, 0.85), 0 0 16px rgba(255, 60, 0, 0.6), 0 0 24px rgba(255, 0, 0, 0.35);
-    animation: fire-flicker 0.9s ease-in-out infinite;
-}
-
-.target-breakdown-title.on-fire-4 {
-    color: #a12a00;
-    text-shadow: 0 0 10px rgba(255, 180, 0, 0.95), 0 0 20px rgba(255, 80, 0, 0.75), 0 0 32px rgba(255, 0, 0, 0.55), 0 0 46px rgba(255, 0, 0, 0.3);
-    animation: fire-flicker 0.6s ease-in-out infinite;
-}
-
-.target-breakdown-title.on-fire-5 {
-    color: #7a1d00;
-    text-shadow: 0 0 12px rgba(255, 225, 0, 1), 0 0 24px rgba(255, 120, 0, 0.9), 0 0 38px rgba(255, 40, 0, 0.75), 0 0 55px rgba(255, 0, 0, 0.55), 0 0 75px rgba(255, 0, 0, 0.35);
-    animation: fire-flicker-intense 0.4s ease-in-out infinite;
-}
-
-.fire-badge {
-    display: inline-block;
-    flex-shrink: 0;
-    font-size: 0.62em;
-    line-height: 1;
-    transform-origin: center;
-}
-
-.fire-badge-1 { animation: fire-pulse-1 1.6s ease-in-out infinite; }
-.fire-badge-3 { animation: fire-flicker 0.9s ease-in-out infinite; }
-.fire-badge-4 { animation: fire-flicker-intense 0.6s ease-in-out infinite; }
-.fire-badge-5 { animation: fire-flicker-intense 0.4s ease-in-out infinite, fire-badge-shake 0.4s ease-in-out infinite; }
-
-@keyframes fire-pulse-1 {
-    0%, 100% { filter: brightness(1) saturate(1); text-shadow: 0 0 6px rgba(255, 255, 255, 0.55), 0 0 12px rgba(255, 215, 0, 0.35); }
-    50% { filter: brightness(1.3) saturate(1.15); text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 215, 0, 0.85); }
-}
-
-@keyframes fire-flicker {
-    0%, 100% { filter: brightness(1) saturate(1); }
-    25% { filter: brightness(1.15) saturate(1.3); }
-    50% { filter: brightness(0.95) saturate(1.05); }
-    75% { filter: brightness(1.2) saturate(1.4); }
-}
-
-@keyframes fire-flicker-intense {
-    0%, 100% { filter: brightness(1) saturate(1); }
-    20% { filter: brightness(1.35) saturate(1.5); }
-    45% { filter: brightness(0.9) saturate(1.1); }
-    70% { filter: brightness(1.4) saturate(1.6); }
-    85% { filter: brightness(1.05) saturate(1.25); }
-}
-
-@keyframes fire-badge-shake {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    25% { transform: scale(1.12) rotate(-3deg); }
-    50% { transform: scale(0.96) rotate(2deg); }
-    75% { transform: scale(1.1) rotate(-1deg); }
-}
-
 
 /* ---------- Model colour picker (opened from the target modal) ---------- */
 
@@ -7269,7 +7120,11 @@ label {
 
 /* The info button sits in the row's top-right corner, in the flow. */
 .target-card .target-breakdown-info-btn {
-    position: static;
+    /* relative + z-index so the selected row's scaled-up name (which is
+       positioned and transformed) can't paint over this button and
+       swallow its clicks. */
+    position: relative;
+    z-index: 2;
     flex: none;
     width: 26px;
     height: 26px;
@@ -8119,6 +7974,7 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 
 /* Being dragged: follows the pointer with no easing, lifted a little. */
 .qa-fab.dragging {
+    will-change: translate;
     cursor: grabbing;
     transition: box-shadow 0.15s ease-out, filter 0.15s ease-out, opacity 0.22s ease-out, visibility 0s;
     transform: scale(1.1);
@@ -9194,4 +9050,253 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 .qa-panel:has(.outside-shift-popover:not(.hidden)),
 .qa-panel:has(.outside-shift-popover:not(.hidden)) .qa-body {
     overflow: visible;
+}
+
+/* =====================================================
+   16. SCRIPTS TAB: refined cards, category rail, empty state
+   Scripts are chat messages, so the preview is drawn as a message
+   bubble (one squared corner) that fades out instead of clipping.
+   Everything is scoped to #scripts / #scriptsList; Models are untouched.
+   ===================================================== */
+
+/* Category rail (shared with FAQ so both pages match) */
+.floating-chips {
+    padding: 4px;
+    border-radius: var(--radius-xl);
+}
+
+.floating-chips .chips {
+    gap: 2px;
+}
+
+.floating-chips .chip {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: var(--radius-md);
+}
+
+/* Cards */
+#scriptsList {
+    gap: var(--sp-5);
+}
+
+#scriptsList .content-card {
+    height: 272px;
+    border-radius: var(--radius-xl);
+}
+
+#scriptsList .content-card.static-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+}
+
+/* Title: same italic display face as model names */
+#scriptsList .content-card.static-card h3 {
+    margin-bottom: 6px;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+}
+
+/* Category: a quiet dot + name instead of a boxed tag */
+#scriptsList .content-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--sp-3);
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+/* Message-bubble preview with a soft fade at the bottom */
+#scriptsList .content-text {
+    position: relative;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+#scriptsList .content-text::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--bg-secondary));
+    pointer-events: none;
+}
+
+/* Copy bar: quiet until hovered, then tinted with the accent */
+#scriptsList .card-copy-bar {
+    height: 44px;
+    margin-top: var(--sp-3);
+    background: transparent;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    color: var(--text-secondary);
+    /* The original had a stray 0.15s delay (var(--ease) is "0.15s ease"
+       and landed in the delay slot), which made hover feel laggy. */
+    transition: background-color 0.1s ease-out, color 0.1s ease-out;
+}
+
+#scriptsList .card-copy-bar::before {
+    display: none;
+}
+
+#scriptsList .card-copy-bar:hover {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+}
+
+#scriptsList .card-copy-bar.copied {
+    background: linear-gradient(155deg, var(--accent-text), var(--accent));
+    border-top-color: transparent;
+    color: #fff;
+}
+
+/* Empty state: two variants, switched by renderContent() in app.js */
+.scripts-empty {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 72px var(--sp-5);
+    text-align: center;
+}
+
+.scripts-empty-mark {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: var(--sp-2);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    border-radius: 16px 16px 16px 4px;
+    color: var(--accent-text);
+}
+
+.scripts-empty-mark .icon {
+    width: 24px;
+    height: 24px;
+}
+
+.scripts-empty h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-style: italic;
+}
+
+.scripts-empty p {
+    max-width: 38ch;
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.scripts-empty .btn {
+    margin-top: var(--sp-3);
+}
+
+.scripts-empty .when-filtered {
+    display: none;
+}
+
+.scripts-empty.is-filtered .when-empty {
+    display: none;
+}
+
+.scripts-empty.is-filtered .when-filtered {
+    display: block;
+}
+
+
+/* =====================================================
+   17. MODELS TAB: see-through Open / Edit buttons
+   No button backing, so nothing covers the photo. The icons stay
+   solid white with a soft shadow so they read on any picture; a
+   faint dark circle only appears on hover/press as feedback.
+   ===================================================== */
+
+.model-card .card-actions-top .card-icon-btn {
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    color: #fff;
+}
+
+.model-card .card-actions-top .card-icon-btn .icon {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.model-card .card-actions-top .card-icon-btn:hover {
+    background: rgba(0, 0, 0, 0.32);
+}
+
+.model-card .card-actions-top .card-icon-btn:active {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+
+/* =====================================================
+   SIDEBAR: OUT OF FLOW (desktop)
+   -----------------------------------------------------
+   Collapsing / expanding used to animate the sidebar's width while it
+   was a flex sibling of .main, so the whole page was re-laid-out on
+   every frame (and the Sales tab's ResizeObserver measured layout on
+   top of that).
+
+   Now the sidebar is absolutely positioned: animating its width
+   changes nothing else. .main gets its final margin instantly (one
+   layout), and app.js slides it into place with a transform
+   (toggleSidebarCollapse). The sidebar panel still animates its own
+   width, which only re-lays-out the small sidebar.
+
+   Phone (<= 700px) is untouched: there the sidebar is the bottom tab bar.
+   ===================================================== */
+
+@media (min-width: 701px) {
+
+    .app {
+        position: relative;
+        /* .main is briefly wider than the window while it slides */
+        overflow-x: clip;
+    }
+
+    .sidebar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        flex: none;
+        width: var(--sidebar-w);
+        transition: width 0.18s ease, padding 0.18s ease, background-color var(--ease);
+    }
+
+    .app.sidebar-collapsed .sidebar {
+        width: var(--sidebar-w-collapsed);
+    }
+
+    /* Instant on purpose: the slide is done with a transform. */
+    .main {
+        margin-left: var(--sidebar-w);
+    }
+
+    .app.sidebar-collapsed .main {
+        margin-left: var(--sidebar-w-collapsed);
+    }
+
 }
