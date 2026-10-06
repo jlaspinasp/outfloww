@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="css/style.css?v=44">
+    <link rel="stylesheet" href="css/style.css?v=47">
 
     <script>
         (function () {
@@ -966,9 +966,16 @@
 
             <div
                 id="scriptsEmpty"
-                class="empty"
+                class="empty scripts-empty"
             >
-                No scripts yet. Add your first one.
+                <span class="scripts-empty-mark" aria-hidden="true">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
+                </span>
+                <h2 class="when-empty">No scripts yet</h2>
+                <p class="when-empty">Save the messages you send again and again, then copy them in one click.</p>
+                <button class="btn primary add-content when-empty" data-type="scripts" type="button">New Script</button>
+                <h2 class="when-filtered">No matching scripts</h2>
+                <p class="when-filtered">Try a different search, or pick another category.</p>
             </div>
 
         </section>
@@ -2790,7 +2797,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-init.js"></script>
-<script src="js/app.js?v=31"></script>
+<script src="js/app.js?v=32"></script>
 
     <div class="toast-stack" id="toastStack"></div>
 
