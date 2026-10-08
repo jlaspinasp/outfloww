@@ -14114,3 +14114,18 @@ setInterval(function () {
     });
 
 })();
+
+/* =====================================================
+   FOOTER COPYRIGHT YEAR
+   Shows the current year, so it rolls over by itself each January.
+   ===================================================== */
+
+(function updateFooterYear() {
+
+    const el = document.getElementById("footerCopy");
+
+    if (el) {
+        el.textContent =
+            `© ${new Date().getFullYear()} Outfloww. All rights reserved.`;
+    }
+})();
