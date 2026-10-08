@@ -217,6 +217,11 @@ let historyRowMeta = {};
 const HISTORY_PAGE_SIZE = 30;
 let historyVisibleCount = HISTORY_PAGE_SIZE;
 
+// Set while a sale is being removed from inside History, so the
+// redraw that follows leaves the list's scroll position alone
+// (expandHistoryRow() would otherwise scroll the open day into view).
+let holdHistoryScroll = false;
+
 // Multi-select for the Models/Scripts content grids — long-press a
 // card to turn this on (iOS Photos style), tap more cards to add to
 // the selection, then drag a selected card onto the toolbar's trash
@@ -3175,6 +3180,20 @@ function renderSales(options) {
     // Individual sales — only shown when a model is selected
     const listed = activeModel ? visible : [];
 
+    // Remember where the list was scrolled (and how many rows it had) so
+    // a removal can put it back instead of jumping to the bottom.
+    const salesListEl = $("#salesList");
+
+    const prevListScroll =
+        options && typeof options.listScroll === "number"
+            ? options.listScroll
+            : salesListEl.scrollTop;
+
+    const prevListCount =
+        lastSalesRender.modelId === currentModelFilter
+            ? lastSalesRender.count
+            : null;
+
     $("#salesList").innerHTML =
         listed.map(
             ({ sale, index }) => {
@@ -3256,10 +3275,19 @@ function renderSales(options) {
             : "flex";
 
 
-    // Always keep the list scrolled to the latest sale — whichever
-    // model's sales are currently showing.
-    $("#salesList").scrollTop =
-        $("#salesList").scrollHeight;
+    // Keep the list scrolled to the latest sale (new sale, switching
+    // model, first render) — but when a sale was just REMOVED from the
+    // model that's already showing, leave the scroll where it was. The
+    // browser clamps it if the list got shorter, so a list sitting at
+    // the bottom stays at the bottom.
+    const removedFromList =
+        prevListCount !== null &&
+        listed.length < prevListCount;
+
+    salesListEl.scrollTop =
+        removedFromList
+            ? prevListScroll
+            : salesListEl.scrollHeight;
 
 
     renderHistory();
@@ -5508,6 +5536,11 @@ function deleteSale(index, btn) {
         return;
     }
 
+    // Where the list was scrolled when the button was pressed, so the
+    // rebuild afterwards can restore it.
+    const listScrollBefore =
+        $("#salesList").scrollTop;
+
 
     const [removedSale] =
         data.sales[dateKey].splice(
@@ -5542,13 +5575,19 @@ function deleteSale(index, btn) {
 
         setTimeout(function () {
             list.classList.remove("is-busy");
-            preserveScroll(() => renderSales({ patchBreakdown: true }));
+            preserveScroll(() => renderSales({
+                patchBreakdown: true,
+                listScroll: listScrollBefore
+            }));
         }, 220);
 
         return;
     }
 
-    preserveScroll(() => renderSales({ patchBreakdown: true }));
+    preserveScroll(() => renderSales({
+        patchBreakdown: true,
+        listScroll: listScrollBefore
+    }));
 }
 
 
@@ -5636,6 +5675,15 @@ function renderHistory() {
 
     const reopenKey = expandedHistoryDate;
 
+    // A redraw (a sale arriving from another device, etc.) rebuilds
+    // the open day's sales list; keep it where it was scrolled.
+    const openList = reopenKey
+        ? document.querySelector(
+            `[data-breakdown="${reopenKey}"] .history-detail-sales-list`
+        )
+        : null;
+    const openListPos = openList ? openList.scrollTop : null;
+
     renderHistoryList();
 
     if (
@@ -5644,6 +5692,14 @@ function renderHistory() {
         $(`[data-breakdown="${reopenKey}"]`)
     ) {
         expandHistoryRow(reopenKey);
+
+        const list = document.querySelector(
+            `[data-breakdown="${reopenKey}"] .history-detail-sales-list`
+        );
+
+        if (list && openListPos !== null) {
+            list.scrollTop = openListPos;
+        }
     }
 }
 
@@ -6250,7 +6306,7 @@ function expandHistoryRow(dateKey) {
     const row =
         $(`.history-row[data-date="${dateKey}"]`);
 
-    if (row) {
+    if (row && !holdHistoryScroll) {
         row.scrollIntoView({ block: "nearest" });
     }
 }
@@ -6267,6 +6323,26 @@ function showHistoryBreakdown(el) {
     clearTimeout(el._hideTimer);
     el.classList.remove("fx-closing");
     el.classList.remove("hidden");
+}
+
+// When a date is opened (clicked, or picked from the trend bars) its
+// sales list starts scrolled all the way down, at the latest sale.
+// Called right after the breakdown is un-hidden so it has a height.
+function scrollHistorySalesToBottom(breakdown) {
+
+    const list = breakdown &&
+        breakdown.querySelector(".history-detail-sales-list");
+
+    if (!list) {
+        return;
+    }
+
+    const toBottom = () => {
+        list.scrollTop = list.scrollHeight;
+    };
+
+    toBottom();
+    requestAnimationFrame(toBottom);
 }
 
 function hideHistoryBreakdown(el) {
@@ -6372,7 +6448,42 @@ function removeHistorySale(rowKey, time) {
 
     // renderSales() redraws History, which keeps the same day open
     // (and drops it if removing that sale emptied it).
+    // The History list is its own scroller (#historyList). Rebuilding
+    // it resets its scrollTop, so pin it back to where it was. The
+    // browser clamps the value if the list got shorter.
+    const historyScroller = $("#historyList");
+    const historyScrollPos = historyScroller.scrollTop;
+
+    // The day's sales list (max-height, scrolls on its own) is rebuilt
+    // too, so remember its scroll as well and re-find it afterwards.
+    const salesListSelector =
+        `[data-breakdown="${rowKey}"] .history-detail-sales-list`;
+    const salesListEl = document.querySelector(salesListSelector);
+    const salesListPos = salesListEl ? salesListEl.scrollTop : 0;
+
+    holdHistoryScroll = true;
+
     preserveScroll(() => renderSales({ patchBreakdown: true }));
+
+    const restoreHistoryScroll = () => {
+        historyScroller.scrollTop = historyScrollPos;
+
+        const list = document.querySelector(salesListSelector);
+
+        if (list) {
+            list.scrollTop = salesListPos;
+        }
+    };
+
+    restoreHistoryScroll();
+
+    requestAnimationFrame(() => {
+        restoreHistoryScroll();
+        requestAnimationFrame(() => {
+            restoreHistoryScroll();
+            holdHistoryScroll = false;
+        });
+    });
 
     notifySalesChanged();
 }
@@ -6472,6 +6583,7 @@ function expandAllHistoryRowsForDate(calendarDate) {
         }
 
         showHistoryBreakdown(breakdown);
+        scrollHistorySalesToBottom(breakdown);
 
     });
 
@@ -6642,6 +6754,7 @@ $("#historyList").addEventListener(
             }
 
             showHistoryBreakdown(breakdown);
+            scrollHistorySalesToBottom(breakdown);
         }
 
         expandedHistoryDate = isHidden ? dateKey : null;
