@@ -9390,3 +9390,28 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     }
 
 }
+
+/* =====================================================
+   SCRIPTS: category chips stay on ONE row and scroll sideways
+   (swipe on touch, drag/trackpad/shift+wheel on desktop) instead of
+   wrapping onto extra lines. Scoped to #scriptsChips only, so the
+   FAQ chips and every chip's look/size are unchanged.
+   ===================================================== */
+
+#scriptsChips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* old Edge */
+}
+
+#scriptsChips::-webkit-scrollbar {
+    display: none;                  /* Chrome / Safari */
+}
+
+#scriptsChips .chip {
+    flex: 0 0 auto;                 /* never squash a chip to fit */
+}
