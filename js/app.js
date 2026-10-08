@@ -947,6 +947,37 @@ function setSyncStatus(state) {
 }
 
 
+// Tells parts of the app that keep their own copy of the sales numbers
+// (the quick-add (+) panel's "net today" and recent list) that sales
+// were added, removed or replaced somewhere else — on the Sales page,
+// in History, or from another device.
+function notifySalesChanged() {
+    document.dispatchEvent(new CustomEvent("salesChanged"));
+}
+
+
+// Keeps the Models page (month target, pace, last-7-days chart) live
+// whenever sales or targets change anywhere in the app. Bursts of
+// changes are batched into a single redraw.
+let modelsRefreshQueued = false;
+
+function refreshModelsList() {
+
+    if (modelsRefreshQueued) {
+        return;
+    }
+
+    modelsRefreshQueued = true;
+
+    requestAnimationFrame(function () {
+        modelsRefreshQueued = false;
+        preserveScroll(() => renderContent("models"));
+    });
+}
+
+document.addEventListener("salesChanged", refreshModelsList);
+
+
 function renderAll() {
     if (autoCloseStaleShifts()) {
         saveData();
@@ -1195,6 +1226,8 @@ function startCloudSync(uid) {
             }
 
             document.dispatchEvent(new CustomEvent("quickAddPosSync"));
+
+            notifySalesChanged();
 
             applyQuickAddSetting();
 
@@ -4069,6 +4102,8 @@ $("#targetForm").addEventListener(
 
         preserveScroll(renderSales);
 
+        refreshModelsList();
+
         closeTargetModal();
 
         toast("Target saved", "success");
@@ -4367,6 +4402,8 @@ $("#saleForm").addEventListener(
 
         // Only the numbers changed, so patch the model rows in place.
         preserveScroll(() => renderSales({ patchBreakdown: true }));
+
+        notifySalesChanged();
 
         toast("Sale added!", "success");
 
@@ -5150,6 +5187,12 @@ $("#saleForm").addEventListener(
 
     document.addEventListener("quickAddPosSync", syncFromData);
 
+    // Sales changed outside this panel: keep its numbers live too.
+    document.addEventListener("salesChanged", function () {
+        updateSummary();
+        renderRecent(false);
+    });
+
     fab.addEventListener("pointerdown", function (event) {
 
         if (event.pointerType === "mouse" && event.button !== 0) {
@@ -5480,6 +5523,7 @@ function deleteSale(index, btn) {
     if (removedSale) {
         pushSaleRemoved(dateKey, removedSale);
         toast(`${money(removedSale.amount)} sale removed`, "delete");
+        notifySalesChanged();
     }
 
     if (row && !reduceMotion()) {
@@ -5585,7 +5629,26 @@ function updateHistory() {
 }
 
 
+// History redraws on every sales change (including ones that arrive
+// from another device). Redrawing used to collapse whichever day was
+// open; this keeps it open so the list updates live in place.
 function renderHistory() {
+
+    const reopenKey = expandedHistoryDate;
+
+    renderHistoryList();
+
+    if (
+        reopenKey &&
+        !$("#historyModal").classList.contains("hidden") &&
+        $(`[data-breakdown="${reopenKey}"]`)
+    ) {
+        expandHistoryRow(reopenKey);
+    }
+}
+
+
+function renderHistoryList() {
 
     // Nobody can see this list right now, and it gets re-rendered on
     // essentially every data change (renderSales() calls this, and
@@ -5923,13 +5986,37 @@ function renderModelDayDetail(rowKey, container) {
             sale => `
                 <div class="history-detail-sale-row">
 
-                    <span>
+                    <span class="history-sale-amount">
                         ${money(sale.amount)}
+                    </span>
+
+                    <span class="history-sale-user">
+                        ${sale.buyerUsername ? escapeHTML(sale.buyerUsername) : ""}
+                    </span>
+
+                    <span class="history-sale-tag">
+                        ${
+                            sale.tip
+                                ? `<span class="sale-tag-badge tip" title="Tip${sale.buyerUsername ? " — " + escapeHTML(sale.buyerUsername) : ""}">${ICONS.heart}Tip</span>`
+                                : sale.outsideShift
+                                    ? `<span class="sale-tag-badge outside" title="Outside shift${sale.buyerUsername ? " — " + escapeHTML(sale.buyerUsername) : ""}">${ICONS.clock}Outside</span>`
+                                    : ""
+                        }
                     </span>
 
                     <span class="sale-net">
                         ${money(sale.net)} net
                     </span>
+
+                    <button
+                        type="button"
+                        class="delete history-sale-delete"
+                        data-time="${sale.time}"
+                        title="Remove sale"
+                        aria-label="Remove sale"
+                    >
+                        ${ICONS.x}
+                    </button>
 
                 </div>
             `
@@ -6209,6 +6296,135 @@ function hideAllHistoryBreakdowns() {
         .querySelectorAll(".history-model-breakdown")
         .forEach(hideHistoryBreakdown);
 }
+
+
+// Removing a saved sale from inside History. The sale is taken out of
+// the day's list (and synced like any other removal), and its time is
+// dropped from the saved shift that settled it, so the shift row,
+// totals and target % all update. A shift left with no sales
+// disappears from History.
+function removeHistorySale(rowKey, time) {
+
+    const meta = historyRowMeta[rowKey];
+
+    if (!meta || currentModelFilter === null) {
+        return;
+    }
+
+    const dateKey = meta.dateKey;
+    const modelId = currentModelFilter;
+    const sales = data.sales[dateKey] || [];
+
+    const index = sales.findIndex(
+        sale => sale.time === time && sale.modelId === modelId
+    );
+
+    if (index === -1) {
+        return;
+    }
+
+    const removed = sales.splice(index, 1)[0];
+
+    // Take the sale out of whichever saved shift covered it.
+    const byModel = (data.closedShifts || {})[dateKey];
+
+    if (byModel && Array.isArray(byModel[modelId])) {
+
+        byModel[modelId].forEach(record => {
+            record.times = (record.times || []).filter(t => t !== time);
+        });
+
+        byModel[modelId] = byModel[modelId].filter(
+            record => record.times.length > 0
+        );
+    }
+
+    // Keep the day's combined history record in step (updateHistory()
+    // only ever refreshes today's).
+    const existing = data.history.findIndex(item => item.date === dateKey);
+
+    if (existing !== -1) {
+
+        if (!sales.length) {
+
+            data.history.splice(existing, 1);
+
+        } else {
+
+            const rec = data.history[existing];
+            const gross = getTotal(sales);
+            const net = gross * NET_RATE;
+
+            rec.gross = gross;
+            rec.net = net;
+            rec.count = sales.length;
+            rec.targetPercent = getTargetPercent(net, rec.target);
+        }
+    }
+
+    updateHistory();
+
+    saveData();
+
+    pushSaleRemoved(dateKey, removed);
+
+    toast(`${money(removed.amount)} sale removed`, "delete");
+
+    // renderSales() redraws History, which keeps the same day open
+    // (and drops it if removing that sale emptied it).
+    preserveScroll(() => renderSales({ patchBreakdown: true }));
+
+    notifySalesChanged();
+}
+
+
+// Two taps to remove: the first arms the button (it turns red and
+// shows a bin), the second removes. It disarms itself after 3 seconds.
+$("#historyList").addEventListener(
+    "click",
+    event => {
+
+        const btn = event.target.closest(".history-sale-delete");
+
+        if (!btn) {
+            return;
+        }
+
+        event.stopPropagation();
+
+        if (!btn.classList.contains("confirm")) {
+
+            btn.classList.add("confirm");
+            btn.innerHTML = ICONS.trash;
+            btn.title = "Click again to remove";
+            btn.setAttribute("aria-label", "Click again to remove this sale");
+
+            clearTimeout(btn._disarmTimer);
+
+            btn._disarmTimer = setTimeout(() => {
+                btn.classList.remove("confirm");
+                btn.innerHTML = ICONS.x;
+                btn.title = "Remove sale";
+                btn.setAttribute("aria-label", "Remove sale");
+            }, 3000);
+
+            return;
+        }
+
+        clearTimeout(btn._disarmTimer);
+
+        const holder = btn.closest("[data-breakdown]");
+
+        if (!holder) {
+            return;
+        }
+
+        removeHistorySale(
+            holder.dataset.breakdown,
+            Number(btn.dataset.time)
+        );
+    }
+);
 
 
 // A trend bar represents one calendar date, but that date can have
@@ -7360,6 +7576,8 @@ $("#clearHistory").addEventListener(
 
         preserveScroll(renderSales);
 
+        notifySalesChanged();
+
         closeHistoryModal();
 
         toast(
@@ -7377,6 +7595,8 @@ $("#clearHistory").addEventListener(
                     saveData();
 
                     preserveScroll(renderSales);
+
+                    notifySalesChanged();
 
                     toast("History restored", "success");
                 }
@@ -8132,9 +8352,19 @@ function renderModelWeekBlock(stats) {
 
         const ratio = day.net > 0 ? Math.min(1, day.net / scale) : 0;
 
-        return `<span class="mc-bar${day.net > 0 ? "" : " is-empty"}${day.isToday ? " is-today" : ""}"
+        // With a target set: a finished day under it is a miss (red),
+        // and a day at or over it is a hit. Today isn't judged yet.
+        const hasTarget = stats.dailyTarget > 0;
+        const missed = hasTarget && !day.isToday && day.net < stats.dailyTarget;
+        const hit = hasTarget && day.net >= stats.dailyTarget;
+
+        const verdict = missed
+            ? " · missed target"
+            : hit ? " · hit target" : "";
+
+        return `<span class="mc-bar${day.net > 0 ? "" : " is-empty"}${day.isToday ? " is-today" : ""}${missed ? " is-miss" : ""}${hit ? " is-hit" : ""}"
                       style="--r: ${ratio.toFixed(4)}"
-                      title="${longDay(day.key)} · ${money(day.net)}${day.isToday ? " so far" : ""}"></span>`;
+                      title="${longDay(day.key)} · ${money(day.net)}${day.isToday ? " so far" : ""}${verdict}"></span>`;
     }).join("");
 
     const labels = week.map(day =>
