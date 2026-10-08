@@ -5632,7 +5632,7 @@ label {
 
 .site-footer-credit {
     justify-self: end;
-    color: var(--text-disabled);
+    color: var(--text-muted);
 }
 
 /* Narrow screens: back to the original wrapping row. */
