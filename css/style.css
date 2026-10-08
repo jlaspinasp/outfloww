@@ -2774,6 +2774,62 @@ label {
     font-variant-numeric: tabular-nums;
 }
 
+/* Sale rows in an expanded history day: fixed columns so amounts,
+   usernames, tag badges and net values line up from row to row.
+   Columns: amount | username | tip/outside badge | net */
+.history-detail-sale-row {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) 84px 84px 28px;
+    align-items: center;
+    column-gap: var(--sp-2);
+    min-height: 38px;
+}
+
+.history-sale-amount {
+    font-weight: 500;
+}
+
+.history-sale-user {
+    overflow: hidden;
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-sale-tag {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.history-detail-sale-row .history-sale-delete {
+    width: 28px;
+    height: 28px;
+    margin-right: -4px;
+    cursor: pointer;
+}
+
+.history-detail-sale-row .history-sale-delete .icon {
+    width: 14px;
+    height: 14px;
+}
+
+.history-detail-sale-row .history-sale-delete.confirm {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.history-detail-sale-row .sale-net {
+    text-align: right;
+    white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+    .history-detail-sale-row {
+        grid-template-columns: 48px minmax(0, 1fr) auto 76px 28px;
+    }
+}
+
 /* Sits bottom-left of the history modal, opposite "Clear history",
    and only appears once a day is expanded. */
 
@@ -5436,14 +5492,26 @@ label {
 
 /* ---------- Press feedback ---------- */
 
-.nav-btn,
 .icon-btn {
     transition: background-color 0.12s, color 0.12s, transform 0.12s var(--fx-in);
 }
 
-.nav-btn:active,
 .icon-btn:active {
     transform: scale(0.96);
+}
+
+/* Sidebar tabs: shrink the icon/label on press, NOT the button itself.
+   Scaling the button moves its edges out from under the pointer, so a
+   press near the edge released outside it and the click never fired
+   (tab looked pressed but the page didn't change). */
+.nav-btn .icon,
+.nav-btn span {
+    transition: transform 0.12s var(--fx-in);
+}
+
+.nav-btn:active .icon,
+.nav-btn:active span {
+    transform: scale(0.92);
 }
 
 
@@ -8911,6 +8979,16 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 /* The day isn't over yet. */
 .model-card .mc-bar.is-today:not(.is-empty) {
     opacity: 0.55;
+}
+
+/* A finished day that fell short of the daily target. */
+.model-card .mc-bar.is-miss {
+    background: var(--danger);
+}
+
+/* A missed day with no sales at all: a faint red stub. */
+.model-card .mc-bar.is-miss.is-empty {
+    background: var(--danger-border);
 }
 
 .model-card .mc-chart-target {
