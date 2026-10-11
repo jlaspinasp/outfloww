@@ -478,7 +478,7 @@ function toggleSidebarCollapse() {
     const canAnimate =
         main &&
         typeof main.animate === "function" &&
-        window.matchMedia("(min-width: 701px)").matches &&
+        window.matchMedia("(min-width: 481px), (hover: hover)").matches &&
         !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
         document.documentElement.getAttribute("data-reduce-motion") !== "true";
 
@@ -813,7 +813,7 @@ function categoryDialog(options) {
 /* What scrolls the app? On phones the document itself scrolls, so
    the browser's address bar and toolbars can tuck away. On larger
    screens the app fills the window and .main scrolls inside it. */
-const phoneScrollQuery = window.matchMedia("(max-width: 700px)");
+const phoneScrollQuery = window.matchMedia("(max-width: 480px) and (hover: none)");
 
 function getScroller() {
     return phoneScrollQuery.matches
@@ -3844,7 +3844,7 @@ function sizeModelRows() {
 
     // Stacked layout (narrow screens): the card isn't stretched to match
     // anything, so rows just use their natural height.
-    if (window.matchMedia("(max-width: 980px)").matches) {
+    if (window.matchMedia("(max-width: 700px)").matches) {
         box.style.removeProperty("--model-row-h");
         return;
     }
@@ -4988,7 +4988,7 @@ $("#saleForm").addEventListener(
 
     const FAB_SIZE = 52;
     const POS_KEY = "chatterTool_quickAddPos";
-    const PHONE_QUERY = "(max-width: 700px)";
+    const PHONE_QUERY = "(max-width: 480px) and (hover: none)";
 
     // Where the button is, remembered as pixel distances from the nearest
     // side and the nearest top/bottom edge (h: "l" or "r", v: "t" or "b").
@@ -13689,7 +13689,7 @@ document.addEventListener(
         return;
     }
 
-    const phoneQuery = window.matchMedia("(max-width: 700px)");
+    const phoneQuery = window.matchMedia("(max-width: 480px) and (hover: none)");
 
     // Don't hide until we're this far from the top of the page.
     const HIDE_AFTER = 48;
@@ -13796,7 +13796,7 @@ document.addEventListener(
         return;
     }
 
-    const phoneQuery = window.matchMedia("(max-width: 700px)");
+    const phoneQuery = window.matchMedia("(max-width: 480px) and (hover: none)");
 
     const THRESHOLD = 64;   // pull distance (after resistance) that triggers a reload
     const MAX_PULL = 96;
