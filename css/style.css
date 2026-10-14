@@ -8440,7 +8440,13 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     white-space: nowrap;
 }
 
+/* Fixed-width badge column: "Tip" and "Outside" are the same width and
+   centred, so the badges line up in a straight column on every row
+   regardless of which type it is. */
 .qa-sale .sale-tag-badge {
+    justify-content: center;
+    box-sizing: border-box;
+    width: 78px;
     height: 20px;
     padding: 0 7px;
     font-size: 11px;
@@ -8453,6 +8459,10 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 
 .qa-sale-amount {
     flex: none;
+    /* Fixed, right-aligned amount column (fits up to $200.00) so the
+       badge in front of it never shifts with the number's width. */
+    min-width: 62px;
+    text-align: right;
     color: var(--text-primary);
     font-size: var(--fs-base);
     font-weight: 600;
@@ -9172,33 +9182,39 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
     box-shadow: var(--shadow-md);
 }
 
-/* Title: upright Playfair Display in bold. Keeps the stylish serif
-   look but drops the thin italic strokes that were hard to read. */
+/* Title: upright Playfair Display bold with slightly tightened
+   tracking and optical kerning, for a refined editorial look. The
+   category sits right under it as a small tracked caps label, so the pair reads like a magazine headline + kicker. */
 #scriptsList .content-card.static-card h3 {
-    margin-bottom: 6px;
+    margin-bottom: 5px;
     font-family: var(--font-display);
-    font-size: 19px;
+    font-size: 21px;
     font-style: normal;
     font-weight: 700;
-    line-height: 1.3;
-    letter-spacing: 0;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    font-kerning: normal;
+    font-feature-settings: "kern" 1, "liga" 1;
+    text-rendering: optimizeLegibility;
     color: var(--text-primary);
     -webkit-line-clamp: 1;
     line-clamp: 1;
 }
 
-/* Category: a quiet dot + name instead of a boxed tag */
+/* Category: small tracked caps */
 #scriptsList .content-meta {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0;
     margin-bottom: var(--sp-3);
     padding: 0;
     background: none;
     border: 0;
     border-radius: 0;
-    font-size: var(--fs-xs);
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
     color: var(--text-muted);
 }
 
@@ -9580,4 +9596,311 @@ html:not([data-theme="light"]) .target-card .target-breakdown-row {
 
 .history-row-main .history-date {
     min-width: 6.8em;
+}
+
+
+/* =====================================================
+   LIST ALIGNMENT
+   -----------------------------------------------------
+   Every piece of a row sits in its own fixed column, so values line
+   up from row to row: badges get a fixed width (centred text), money
+   and dates use tabular figures, and the "$x net" text in Today's
+   sales is right-aligned in a fixed-width column.
+   ===================================================== */
+
+/* History rows (a model's own days, and the all-models day list) */
+.history-row .history-target-badge {
+    flex: none;
+    min-width: 84px;
+    margin-left: 0;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* "2/2 targets hit" on the all-models day rows needs a bit more room */
+.history-row .history-target-badge.history-day-badge {
+    min-width: 120px;
+}
+
+.history-date {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Today's sales: the net column keeps one width and right edge */
+.sales-list .sale-net {
+    min-width: 84px;
+    text-align: right;
+}
+
+/* Today's sales: the Tip / Outside pill sits at the right, just before
+   the net column, in a fixed-width column so every pill lines up in a
+   straight vertical line whichever type it is. */
+.sales-list .sale-left {
+    justify-content: flex-start;
+}
+
+.sales-list .sale-left .sale-tag-badge {
+    justify-content: center;
+    box-sizing: border-box;
+    width: 84px;
+    margin-left: auto;
+}
+
+
+/* =====================================================
+   SOFTER DEPTH: fewer borders, gentler shadows
+   -----------------------------------------------------
+   Cards lean on a soft two-layer shadow instead of a hard outline,
+   so the border drops to the faintest tone. Rows that already have a
+   fill (history rows, the expanded day) lose their outline entirely;
+   the accent border still appears on hover. Inputs and buttons keep
+   their borders, since controls need them to be seen.
+   ===================================================== */
+
+:root {
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme="light"] {
+    --shadow-card: 0 1px 2px rgba(27, 26, 24, 0.04), 0 6px 20px rgba(27, 26, 24, 0.06);
+    --shadow-card-hover: 0 2px 4px rgba(27, 26, 24, 0.05), 0 12px 28px rgba(27, 26, 24, 0.1);
+}
+
+.card {
+    border-color: var(--border-subtle);
+    box-shadow: var(--shadow-card);
+}
+
+/* Hover lifts the card a little instead of darkening its outline */
+.content-card:not(.selected):not(.drag-over):hover,
+#scriptsList .content-card.static-card:not(.selected):not(.drag-over):hover {
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-card-hover);
+}
+
+/* Filled rows: no outline at rest (hover still shows the accent one) */
+.history-row {
+    border-color: transparent;
+}
+
+.history-model-breakdown,
+.history-detail-sale-row {
+    border-color: transparent;
+}
+
+
+/* =====================================================
+   STRICTER ACCENT
+   -----------------------------------------------------
+   The crimson is kept for primary actions, the current selection and
+   active tabs. Decoration moves to neutral tones, so the accent
+   stands out when it does appear. (Green stays for "target hit".)
+   ===================================================== */
+
+/* Headings on FAQ / About: primary text instead of accent */
+.faq-group-title,
+.about-heading {
+    color: var(--text-primary);
+}
+
+.faq-item.open .faq-chev {
+    color: var(--text-primary);
+}
+
+/* Empty-state icon badges (Models, Scripts) */
+.models-empty-mark,
+.scripts-empty-mark {
+    background: var(--bg-tertiary);
+    border-color: var(--border-subtle);
+    color: var(--text-muted);
+}
+
+/* Hovering a history row is feedback, not a selection */
+.history-row[data-date]:hover {
+    border-color: var(--border-color);
+}
+
+
+/* =====================================================
+   TYPE HIERARCHY: numbers lead, labels support
+   -----------------------------------------------------
+   The key figures (gross, net, PPVs, a day's totals) get a bigger,
+   bolder size, while their labels step down to small, muted text.
+   Sizes stay compact so the Sales top bar doesn't get any thicker.
+   ===================================================== */
+
+/* Sales top bar: Gross / Net / PPVs */
+.stat-k {
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+}
+
+.stat {
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+/* Expanded history day: Gross / Net / PPVs boxes */
+.history-detail-stat-label {
+    letter-spacing: 0.02em;
+}
+
+.history-detail-stat-value {
+    margin-top: 3px;
+    font-size: var(--fs-lg);
+    letter-spacing: -0.01em;
+}
+
+
+/* =====================================================
+   CONTRAST + FOCUS
+   -----------------------------------------------------
+   The lightest greys (muted and disabled text) step one notch darker
+   so small labels and placeholders stay readable, and a few info
+   labels that were using the "disabled" grey now use the muted one.
+   Keyboard focus gets a clearer ring on rows and chips.
+   ===================================================== */
+
+:root {
+    --text-muted: #a3abb6;
+    --text-disabled: #7c838e;
+}
+
+[data-theme="light"] {
+    --text-muted: #5c5851;
+    --text-disabled: #858179;
+}
+
+/* Info text that isn't actually disabled */
+.cat-count,
+.cat-preview-label,
+.model-card .mc-target.is-none .mc-target-unit,
+.model-card .mc-month.is-none .mc-month-meta:first-child span:last-child,
+.model-card .mc-pace.is-idle span {
+    color: var(--text-muted);
+}
+
+/* Rows and chips sit inside scrolling / clipped containers, so the
+   ring is drawn just inside their edge, where it can't be cut off */
+.history-row:focus-visible,
+.sale-row:focus-visible,
+.chip:focus-visible,
+.faq-q:focus-visible {
+    outline: 2px solid var(--focus-color);
+    outline-offset: -2px;
+}
+
+.history-row:focus-visible {
+    background: var(--bg-hover);
+}
+
+
+/* =====================================================
+   LOADING SKELETONS + EMPTY-STATE ICONS
+   -----------------------------------------------------
+   First load on a device with no cached data: the empty messages are
+   hidden and soft shimmering placeholders hold the space until the
+   cloud answers (body.is-loading, set in app.js). Skeletons only show
+   where a list has nothing in it yet. The empty messages themselves
+   get a small icon above the text.
+   ===================================================== */
+
+.skel-list,
+.skel-cards {
+    display: none;
+}
+
+body.is-loading .sales-list-wrap:not(:has(.sale-row)) .skel-list {
+    display: block;
+}
+
+body.is-loading :has(> #targetBreakdown):not(:has(.target-breakdown-row)) > .skel-cards {
+    display: grid;
+}
+
+body.is-loading #emptySales,
+body.is-loading #targetBreakdownEmpty,
+body.is-loading #emptyHistory {
+    display: none !important;
+}
+
+.skel-bar,
+.skel-card {
+    display: block;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+        90deg,
+        var(--bg-tertiary) 0%,
+        color-mix(in srgb, var(--bg-tertiary) 50%, var(--bg-card)) 50%,
+        var(--bg-tertiary) 100%
+    );
+    background-size: 220% 100%;
+    animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.skel-bar {
+    height: 14px;
+}
+
+.skel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 46px;
+    padding: 6px 4px 6px var(--sp-1);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.skel-row:last-child {
+    border-bottom: 0;
+}
+
+.skel-cards {
+    gap: var(--sp-2);
+}
+
+.skel-card {
+    height: 56px;
+    border-radius: var(--radius-lg);
+}
+
+@keyframes skel-shimmer {
+    from { background-position: 120% 0; }
+    to   { background-position: -120% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skel-bar,
+    .skel-card {
+        animation: none;
+    }
+}
+
+/* Empty messages: a small quiet icon above the text */
+#emptySales::before,
+#targetBreakdownEmpty::before,
+#emptyHistory::before {
+    content: "";
+    display: block;
+    width: 30px;
+    height: 30px;
+    margin: 0 auto var(--sp-3);
+    opacity: 0.75;
+    background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a9099' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 16 12 14 15 10 15 8 12 2 12'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E");
+}
+
+
+/* Today's sales empty message is a flex row (so the text centres in
+   the card); stack it instead, so the icon sits above the text rather
+   than beside it */
+.sales-side #emptySales {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
 }
