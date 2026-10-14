@@ -1154,6 +1154,80 @@ function pushSaleRemoved(dateKey, sale) {
 }
 
 
+// First load on a device with no cached data for this account: until the
+// cloud's first answer arrives, the empty-state messages are hidden and
+// skeleton placeholders show instead (see "LOADING SKELETONS" in
+// style.css), so "No sales added today" never flashes up by mistake.
+let initialLoadTimer = null;
+
+
+// Totals in the Sales top bar count up (or down) to the new value when
+// a sale is added or removed on the model that's already showing. It
+// never runs on a model switch, a tab switch or a re-render with the
+// same value, and not at all with reduced motion turned on.
+const statLastValue = new WeakMap();
+const statTween = new WeakMap();
+let statLastModel;
+
+function setStatCount(el, value, format, animate) {
+
+    const previous = statLastValue.get(el);
+
+    cancelAnimationFrame(statTween.get(el));
+
+    const reduced =
+        document.documentElement.getAttribute("data-reduce-motion") === "true" ||
+        (window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+    if (
+        !animate ||
+        reduced ||
+        typeof value !== "number" ||
+        typeof previous !== "number" ||
+        previous === value
+    ) {
+        el.textContent = typeof value === "number" ? format(value) : value;
+        statLastValue.set(el, value);
+        return;
+    }
+
+    const start = performance.now();
+    const duration = 350;
+
+    statLastValue.set(el, value);
+
+    function step(now) {
+
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+
+        el.textContent =
+            format(t === 1 ? value : previous + (value - previous) * eased);
+
+        if (t < 1) {
+            statTween.set(el, requestAnimationFrame(step));
+        }
+    }
+
+    statTween.set(el, requestAnimationFrame(step));
+}
+
+function setInitialLoading(on) {
+
+    document.body.classList.toggle("is-loading", on);
+
+    clearTimeout(initialLoadTimer);
+
+    // Safety net: never leave the skeletons up if the answer never comes.
+    if (on) {
+        initialLoadTimer = setTimeout(function () {
+            document.body.classList.remove("is-loading");
+        }, 8000);
+    }
+}
+
+
 function startCloudSync(uid) {
 
     cloudDocRef =
@@ -1172,6 +1246,8 @@ function startCloudSync(uid) {
             if (snapshot.metadata.hasPendingWrites) {
                 return;
             }
+
+            setInitialLoading(false);
 
             if (!snapshot.exists) {
                 // First sign-in on any device: seed the cloud
@@ -1241,6 +1317,7 @@ function startCloudSync(uid) {
         },
         function (err) {
             console.error("Cloud sync error:", err);
+            setInitialLoading(false);
             setSyncStatus("offline");
         }
     );
@@ -1423,6 +1500,8 @@ function initAuthGate() {
 
                 localStorage.setItem(LAST_UID_KEY, user.uid);
 
+                setInitialLoading(true);
+
             }
 
             authGate.classList.add("hidden");
@@ -1436,6 +1515,8 @@ function initAuthGate() {
             startCloudSync(user.uid);
 
         } else {
+
+            setInitialLoading(false);
 
             stopCloudSync();
             resetLocalData();
@@ -3156,14 +3237,21 @@ function renderSales(options) {
     // dash instead of a total.
     const salesPage = $("#sales");
 
-    $("#gross").textContent =
-        activeModel ? money(gross) : "—";
+    const animateStats =
+        !!activeModel && statLastModel === currentModelFilter;
 
-    $("#net").textContent =
-        activeModel ? money(net) : "—";
+    statLastModel = activeModel ? currentModelFilter : null;
 
-    $("#saleCount").textContent =
-        activeModel ? sales.length : "—";
+    setStatCount($("#gross"), activeModel ? gross : "—", money, animateStats);
+
+    setStatCount($("#net"), activeModel ? net : "—", money, animateStats);
+
+    setStatCount(
+        $("#saleCount"),
+        activeModel ? sales.length : "—",
+        function (v) { return String(Math.round(v)); },
+        animateStats
+    );
 
     if (salesPage) {
         salesPage.classList.toggle("has-model", !!activeModel);
@@ -5872,7 +5960,7 @@ function renderHistoryList() {
                         ${formatDate(item.date)}
                     </div>
 
-                    <span class="history-target-badge ${summary.allHit ? "hit" : ""}">
+                    <span class="history-target-badge history-day-badge ${summary.allHit ? "hit" : ""}">
                         ${summary.text}
                     </span>
                 </div>
