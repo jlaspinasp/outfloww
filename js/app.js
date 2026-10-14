@@ -5835,18 +5835,51 @@ function renderHistoryList() {
     const history =
         historyFull.slice(0, historyVisibleCount);
 
+    // Right side of each date: how many of that day's models hit their
+    // target, e.g. "2/2 targets hit". Models with no target set aren't
+    // counted; if none had a target the badge says "No targets".
+    const getDayTargetSummary = dateKey => {
+
+        const withTarget =
+            getModelBreakdownForDate(dateKey)
+                .filter(row => row.targetPercent !== null);
+
+        const hit =
+            withTarget.filter(row => row.targetPercent >= 100).length;
+
+        const total =
+            withTarget.length;
+
+        if (!total) {
+            return { text: "No targets", allHit: false };
+        }
+
+        return {
+            text: `${hit}/${total} target${total === 1 ? "" : "s"} hit`,
+            allHit: hit === total
+        };
+    };
+
     const historyRowsHtml =
-        history.map(
-            item => `
+        history.map(item => {
+
+            const summary =
+                getDayTargetSummary(item.date);
+
+            return `
                 <div class="history-row" data-date="${item.date}" data-calendar-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
                     <div class="history-date">
                         ${formatDate(item.date)}
                     </div>
+
+                    <span class="history-target-badge ${summary.allHit ? "hit" : ""}">
+                        ${summary.text}
+                    </span>
                 </div>
 
                 <div class="history-model-breakdown hidden" data-breakdown="${item.date}"></div>
-            `
-        ).join("") +
+            `;
+        }).join("") +
         (
             historyFull.length > history.length
                 ? `<button type="button" class="history-load-more">Load more (${historyFull.length - history.length} left)</button>`
