@@ -5862,7 +5862,7 @@ function renderHistoryList() {
         const modelHistoryRowsHtml =
             modelHistory.map(
                 item => `
-                    <div class="history-row" data-date="${item.rowKey}" data-calendar-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
+                    <div class="history-row history-row-model" data-date="${item.rowKey}" data-calendar-date="${item.date}" role="button" tabindex="0" style="cursor:pointer">
 
                         <div class="history-row-main">
                             <div class="history-date">
@@ -5870,9 +5870,10 @@ function renderHistoryList() {
                             </div>
                             ${
                                 item.shiftText
-                                    ? `<div class="history-shift">${escapeHTML(item.shiftText)}</div>`
-                                    : ""
+                                    ? `<div class="history-shift" title="${escapeHTML(item.shiftText)}">${escapeHTML(item.shiftText)}</div>`
+                                    : `<div class="history-shift"></div>`
                             }
+                            <div class="history-net">${money(item.net)}</div>
                         </div>
 
                         <span class="history-target-badge ${item.targetPercent !== null && item.targetPercent >= 100 ? "hit" : ""}">
@@ -6185,16 +6186,6 @@ function renderModelDayDetail(rowKey, container) {
                         ${money(sale.net)} net
                     </span>
 
-                    <button
-                        type="button"
-                        class="delete history-sale-delete"
-                        data-time="${sale.time}"
-                        title="Remove sale"
-                        aria-label="Remove sale"
-                    >
-                        ${ICONS.x}
-                    </button>
-
                 </div>
             `
         ).join("") ||
@@ -6381,6 +6372,14 @@ function updateCopyLogoutButton() {
         expandedHistoryDate !== null;
 
     btn.classList.toggle("hidden", !shouldShow);
+
+    // Edit sales sits next to it and follows the same rule: only while
+    // a specific day is selected.
+    const editBtn = $("#editSalesBtn");
+
+    if (editBtn) {
+        editBtn.classList.toggle("hidden", !shouldShow);
+    }
 
     if (shouldShow) {
         btn.dataset.date = expandedHistoryDate;
@@ -6610,53 +6609,492 @@ function removeHistorySale(rowKey, time) {
 }
 
 
-// Two taps to remove: the first arms the button (it turns red and
-// shows a bin), the second removes. It disarms itself after 3 seconds.
-$("#historyList").addEventListener(
-    "click",
-    event => {
+// Adds a sale to a past day from inside History (used by the Edit sales
+// window). The sale is built like any other (amount, time, modelId, plus
+// an optional username tag) but its time is placed just after the last
+// sale of the row it was added to, and that time is written into the saved
+// shift record too — so it lands in that same shift row and the totals and
+// target % update, exactly mirroring removeHistorySale().
+function addHistorySale(rowKey, amount, tag) {
 
-        const btn = event.target.closest(".history-sale-delete");
+    const meta = historyRowMeta[rowKey];
 
-        if (!btn) {
+    if (!meta || currentModelFilter === null) {
+        return null;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+        return null;
+    }
+
+    if (amount > 200) {
+        toast("The maximum amount for a single sale is $200.", "error");
+        return null;
+    }
+
+    const dateKey = meta.dateKey;
+    const modelId = currentModelFilter;
+
+    if (!data.sales[dateKey]) {
+        data.sales[dateKey] = [];
+    }
+
+    const sales = data.sales[dateKey];
+
+    // A unique time just after this row's latest sale.
+    let time = Math.max(0, ...(meta.times || [])) + 1;
+
+    while (sales.some(sale => sale.time === time)) {
+        time += 1;
+    }
+
+    const sale = { amount: amount, time: time, modelId: modelId };
+
+    if (tag && tag.username) {
+
+        sale.buyerUsername = tag.username;
+
+        if (tag.type === "outside") {
+            sale.outsideShift = true;
+        } else {
+            sale.tip = true;
+        }
+    }
+
+    sales.push(sale);
+
+    // This row now covers it...
+    meta.times = [...(meta.times || []), time];
+
+    // ...and so does the saved shift it represents.
+    const byModel = (data.closedShifts || {})[dateKey];
+
+    if (byModel && Array.isArray(byModel[modelId])) {
+
+        const record = byModel[modelId].find(
+            rec => (rec.times || []).some(t => meta.times.includes(t))
+        );
+
+        if (record) {
+            record.times = [...(record.times || []), time];
+        }
+    }
+
+    // Keep the day's combined history record in step.
+    const existing = data.history.findIndex(item => item.date === dateKey);
+
+    if (existing !== -1) {
+
+        const rec = data.history[existing];
+        const gross = getTotal(sales);
+        const net = gross * NET_RATE;
+
+        rec.gross = gross;
+        rec.net = net;
+        rec.count = sales.length;
+        rec.targetPercent = getTargetPercent(net, rec.target);
+    }
+
+    updateHistory();
+
+    saveData();
+
+    pushSaleAdded(dateKey, sale);
+
+    playKaching();
+
+    toast("Sale added!", "success");
+
+    // Redraw History (the list rebuilds, so pin its scroll).
+    const historyScroller = $("#historyList");
+    const historyScrollPos = historyScroller.scrollTop;
+
+    holdHistoryScroll = true;
+
+    preserveScroll(() => renderSales({ patchBreakdown: true }));
+
+    historyScroller.scrollTop = historyScrollPos;
+
+    requestAnimationFrame(() => {
+        historyScroller.scrollTop = historyScrollPos;
+        requestAnimationFrame(() => {
+            historyScroller.scrollTop = historyScrollPos;
+            holdHistoryScroll = false;
+        });
+    });
+
+    notifySalesChanged();
+
+    return sale;
+}
+
+
+/* =====================================================
+   EDIT SALES (Sales History footer button)
+   -----------------------------------------------------
+   Opens for the day that is expanded in a model's history. Uses the
+   Quick sale layout: amount > Add Sale > username tag, the day's
+   sales listed underneath (each removable), and that day's net
+   against the model's target at the bottom.
+   ===================================================== */
+
+(function () {
+
+    const modal = $("#editSalesModal");
+
+    if (!modal) {
+        return;
+    }
+
+    const card = modal.querySelector(".qa-edit-card");
+    const form = $("#editSalesForm");
+    const closeBtn = $("#closeEditSales");
+    const context = $("#editSalesContext");
+    const amountInput = $("#editSalesAmount");
+    const submitBtn = $("#editSalesSubmit");
+    const tagBtn = $("#editSalesTagBtn");
+    const tagDrawer = $("#editSalesUsernamePopover");
+    const tagWrap = $("#editSalesTagWrap");
+    const tagField = $("#editSalesTagField");
+    const tagClear = $("#editSalesTagClear");
+    const tagSet = $("#editSalesTagSet");
+    const segBtns = Array.from(modal.querySelectorAll(".username-type-btn"));
+    const recentList = $("#editSalesRecentList");
+    const recentEmpty = $("#editSalesRecentEmpty");
+    const recentCount = $("#editSalesRecentCount");
+    const footLabel = $("#editSalesFootLabel");
+    const footFig = $("#editSalesFootFig");
+    const track = $("#editSalesTrack");
+    const fill = $("#editSalesFill");
+
+    let rowKey = null;
+    let doneTimer = null;
+
+    function isTouch() {
+        return window.matchMedia("(pointer: coarse)").matches;
+    }
+
+    function getMeta() {
+        return rowKey ? historyRowMeta[rowKey] : null;
+    }
+
+
+    /* ---------- Draw ---------- */
+
+    function render(animateNew) {
+
+        const meta = getMeta();
+        const model = getModelById(currentModelFilter);
+
+        if (!meta || !model) {
+            close();
+            return;
+        }
+
+        const sales = getModelSalesForDate(
+            meta.dateKey,
+            model.id,
+            meta.times
+        );
+
+        const shiftText = meta.shift ? getShiftTimeText(meta.shift) : "";
+
+        context.textContent =
+            model.title + " \u00b7 " + formatDate(meta.dateKey) +
+            (shiftText ? " \u00b7 " + shiftText : "");
+
+        card.style.setProperty(
+            "--model-deep",
+            getModelDeepColor(getAvatarColor(model.id))
+        );
+
+        submitBtn.classList.add("model-themed");
+
+        // Newest first, like Recent sales in Quick sale.
+        const ordered = sales.slice().sort((a, b) => b.time - a.time);
+
+        recentCount.textContent =
+            sales.length
+                ? sales.length + (sales.length === 1 ? " sale" : " sales")
+                : "";
+
+        recentEmpty.hidden = sales.length > 0;
+        recentList.hidden = sales.length === 0;
+        recentEmpty.textContent = "No sales on this day yet.";
+
+        recentList.innerHTML = ordered.map((sale, i) => {
+
+            const tag = escapeHTML(sale.buyerUsername || "");
+
+            const badge =
+                sale.tip
+                    ? `<span class="sale-tag-badge tip" title="Tip \u2014 ${tag}">${ICONS.heart}Tip</span>`
+                    : sale.outsideShift
+                        ? `<span class="sale-tag-badge outside" title="Outside shift \u2014 ${tag}">${ICONS.clock}Outside</span>`
+                        : "";
+
+            return `<li class="qa-sale${animateNew && i === 0 ? " is-new" : ""}" data-time="${sale.time}"><span class="qa-sale-time">${money(sale.net)} net</span>${badge}<span class="qa-sale-amount">${money(sale.amount)}</span><button type="button" class="delete" title="Remove this sale" aria-label="Remove ${money(sale.amount)} sale">${ICONS.x}</button></li>`;
+
+        }).join("");
+
+        // Footer: this day's net for the model, against its target.
+        const net = getTotal(sales) * NET_RATE;
+        const target = (data.modelTargets && data.modelTargets[model.id]) || 0;
+        const percent = target > 0 ? Math.round((net / target) * 100) : null;
+
+        footLabel.textContent = formatDate(meta.dateKey) + " \u00b7 net";
+
+        footFig.textContent =
+            target > 0
+                ? `${money(net)} / ${money(target)}`
+                : `${money(net)} net`;
+
+        track.classList.toggle("is-off", target <= 0);
+        fill.style.width = (percent === null ? 0 : Math.min(percent, 100)) + "%";
+        fill.classList.toggle("hit", percent !== null && percent >= 100);
+    }
+
+
+    /* ---------- Open / close ---------- */
+
+    function open(key) {
+
+        if (!historyRowMeta[key] || currentModelFilter === null) {
+            return;
+        }
+
+        rowKey = key;
+
+        amountInput.value = "";
+
+        syncTagUI();
+        render(false);
+
+        modal.classList.remove("hidden");
+
+        if (!isTouch()) {
+            amountInput.focus({ preventScroll: true });
+        }
+    }
+
+    function close() {
+
+        setTagOpen(false);
+        modal.classList.add("hidden");
+        rowKey = null;
+    }
+
+    window.closeEditSalesModal = close;
+
+    $("#editSalesBtn").addEventListener("click", function () {
+
+        if (expandedHistoryDate) {
+            flashCopySwap($("#editSalesBtn"));
+            open(expandedHistoryDate);
+        }
+    });
+
+    closeBtn.addEventListener("click", close);
+
+    modal.addEventListener("click", function (event) {
+
+        if (event.target === modal) {
+            close();
+        }
+    });
+
+    // Escape: first the username popover, then the window — and never
+    // the History window underneath.
+    document.addEventListener("keydown", function (event) {
+
+        if (event.key !== "Escape" || modal.classList.contains("hidden")) {
             return;
         }
 
         event.stopPropagation();
 
-        if (!btn.classList.contains("confirm")) {
-
-            btn.classList.add("confirm");
-            btn.innerHTML = ICONS.trash;
-            btn.title = "Click again to remove";
-            btn.setAttribute("aria-label", "Click again to remove this sale");
-
-            clearTimeout(btn._disarmTimer);
-
-            btn._disarmTimer = setTimeout(() => {
-                btn.classList.remove("confirm");
-                btn.innerHTML = ICONS.x;
-                btn.title = "Remove sale";
-                btn.setAttribute("aria-label", "Remove sale");
-            }, 3000);
-
+        if (!tagDrawer.classList.contains("hidden")) {
+            setTagOpen(false);
             return;
         }
 
-        clearTimeout(btn._disarmTimer);
+        close();
 
-        const holder = btn.closest("[data-breakdown]");
+    }, true);
 
-        if (!holder) {
+
+    /* ---------- Remove a sale ---------- */
+
+    recentList.addEventListener("click", function (event) {
+
+        const btn = event.target.closest(".delete");
+        const row = btn ? btn.closest(".qa-sale") : null;
+
+        if (!btn || !row || row.classList.contains("is-out")) {
             return;
         }
 
-        removeHistorySale(
-            holder.dataset.breakdown,
-            Number(btn.dataset.time)
-        );
+        const key = rowKey;
+
+        removeHistorySale(key, Number(row.dataset.time));
+
+        // Removing a day's last sale drops its row from History.
+        render(false);
+    });
+
+
+    /* ---------- Username tag (same popover rules as Quick sale) ---------- */
+
+    function setTagOpen(open) {
+        tagDrawer.classList.toggle("hidden", !open);
+        tagBtn.setAttribute("aria-expanded", open ? "true" : "false");
     }
-);
+
+    function syncTagButton() {
+
+        const armed = Boolean(armedUsername);
+
+        tagBtn.classList.toggle("active", armed);
+        tagBtn.classList.toggle("armed-outside", armed && armedUsernameType === "outside");
+        tagBtn.setAttribute("aria-pressed", armed ? "true" : "false");
+
+        tagBtn.title = armed
+            ? `${usernameTypeLabel(armedUsernameType)} \u2014 ${armedUsername} (next sale \u2014 click to change)`
+            : "Tag the next sale with a username";
+    }
+
+    function syncTagClear() {
+        tagWrap.classList.toggle("has-value", !!tagField.value);
+    }
+
+    function syncTagUI() {
+        setUsernameTypeUI(armedUsernameType || "tip");
+        tagField.value = armedUsername || "";
+        syncTagClear();
+        setTagOpen(false);
+        syncTagButton();
+    }
+
+    function commitTag() {
+
+        const username = tagField.value.trim();
+        const hadTag = Boolean(armedUsername);
+
+        setArmedUsername(username, armedUsernameType);
+        setTagOpen(false);
+        syncTagButton();
+
+        if (username) {
+            toast(
+                `${usernameTypeLabel(armedUsernameType)} tag set: ${username}`,
+                "success"
+            );
+        } else if (hadTag) {
+            toast("Username tag removed.");
+        }
+
+        amountInput.focus({ preventScroll: true });
+    }
+
+    tagBtn.addEventListener("click", function () {
+
+        const opening = tagDrawer.classList.contains("hidden");
+
+        if (opening) {
+            setUsernameTypeUI(armedUsernameType);
+            tagField.value = armedUsername || "";
+            syncTagClear();
+        }
+
+        setTagOpen(opening);
+
+        if (opening) {
+            tagField.focus({ preventScroll: true });
+        }
+    });
+
+    segBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            setUsernameTypeUI(btn.dataset.usernameType);
+            tagField.focus({ preventScroll: true });
+        });
+    });
+
+    tagField.addEventListener("input", syncTagClear);
+
+    tagField.addEventListener("keydown", function (event) {
+
+        if (event.key === "Enter") {
+            event.preventDefault();
+            commitTag();
+        }
+    });
+
+    tagSet.addEventListener("click", commitTag);
+
+    tagClear.addEventListener("click", function () {
+        tagField.value = "";
+        syncTagClear();
+        tagField.focus({ preventScroll: true });
+    });
+
+    document.addEventListener("click", function (event) {
+
+        if (tagDrawer.classList.contains("hidden")) {
+            return;
+        }
+
+        if (event.target.closest("#editSalesModal .outside-shift-picker")) {
+            return;
+        }
+
+        setTagOpen(false);
+    });
+
+
+    /* ---------- Add the sale ---------- */
+
+    form.addEventListener("submit", function (event) {
+
+        event.preventDefault();
+
+        const amount = Number(amountInput.value);
+
+        if (!amount || amount <= 0) {
+            amountInput.focus({ preventScroll: true });
+            return;
+        }
+
+        const tag = armedUsername
+            ? { username: armedUsername, type: armedUsernameType }
+            : null;
+
+        const sale = addHistorySale(rowKey, amount, tag);
+
+        if (!sale) {
+            return;
+        }
+
+        amountInput.value = "";
+
+        // The tag is for exactly one sale.
+        setArmedUsername(null);
+        syncTagUI();
+
+        render(true);
+
+        submitBtn.classList.add("done");
+        clearTimeout(doneTimer);
+        doneTimer = setTimeout(function () {
+            submitBtn.classList.remove("done");
+        }, 1000);
+
+        if (!isTouch()) {
+            amountInput.focus({ preventScroll: true });
+        }
+    });
+
+})();
 
 
 // A trend bar represents one calendar date, but that date can have
@@ -7686,6 +8124,10 @@ function closeHistoryModal() {
     $("#historyModal").classList.add(
         "hidden"
     );
+
+    if (window.closeEditSalesModal) {
+        window.closeEditSalesModal();
+    }
 
     expandedHistoryDate = null;
     updateCopyLogoutButton();
@@ -9987,7 +10429,7 @@ $$(".scripts-search-input").forEach(
         ["target", "goal", "quota"],
         ["ppv", "ppvs"],
         ["tip", "tips", "outside shift"],
-        ["history", "past days", "previous", "old"],
+        ["history", "past days", "previous", "old", "yesterday", "earlier", "past day", "older day", "backdate"],
         ["shift", "close shift", "session"],
         ["sign out", "log out", "logout", "signout"],
         ["overview", "summary", "totals"],
@@ -10005,7 +10447,7 @@ $$(".scripts-search-input").forEach(
         ["reduce motion", "animation", "animations", "motion"],
         ["bulk", "multiple", "more than one", "several", "many"],
         ["add", "create", "new"],
-        ["edit", "change", "update"],
+        ["edit", "change", "update", "modify", "adjust", "correct", "fix", "amend"],
         ["model", "models", "creator", "creators"],
         [
             "photo", "photos", "picture", "pictures", "image", "avatar",
@@ -10042,7 +10484,7 @@ $$(".scripts-search-input").forEach(
             "select mode", "long press", "press and hold", "hold",
             "select all", "multi select"
         ],
-        ["phone", "mobile", "iphone", "android", "small screen"],
+        ["phone", "mobile", "iphone", "android", "small screen", "tab bar", "bottom bar", "touch", "touchscreen", "swipe"],
         ["mistake", "wrong", "accident", "accidentally", "oops", "by mistake"],
         ["dash", "dashes", "blank", "empty", "missing"],
         ["limit", "maximum", "max", "cap"],
@@ -10054,6 +10496,12 @@ $$(".scripts-search-input").forEach(
         ["snappier", "faster", "slow", "lag", "laggy", "performance"],
         ["contact", "support", "email"],
         ["chart", "graph", "bars", "trend", "trends", "stats", "statistics"],
+
+        // ---- added with the Edit sales / FAQ review ----
+        ["keyboard", "keys", "enter key", "spacebar", "space bar", "escape", "esc", "tab key"],
+        ["reload", "refresh", "pull to refresh", "pull down", "pull to reload", "swipe down"],
+        ["disable", "enable", "turn off", "turn on", "toggle", "switch off", "switch on"],
+        ["edit sales", "adjust sales", "fix a sale", "correct a sale", "past sale", "old sale"],
     ];
 
     const synonymLookup = new Map();
